@@ -270,7 +270,7 @@ fn now(ui: &mut Ui, l: &Listened, at: f64) {
     let i = spans.iter().position(|s| (s.0..s.1).contains(&b)).unwrap_or(0);
     ui.horizontal(|ui| {
         if let Some(s) = section_of(l, b) {
-            ui.label(RichText::new(&s.kind).strong().color(theme::section_color(&s.kind)));
+            ui.label(RichText::new(&s.kind).strong().color(theme::legible(theme::section_color(&s.kind))));
         }
         ui.label(small(format!("bar {} of {}", b + 1, l.bars.len())).color(TEXT_DIM));
         ui.add_space(10.0);

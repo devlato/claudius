@@ -229,7 +229,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
                 for n in list.drums.iter().filter(found) {
                     let voice = list.sound_about(n).unwrap_or("a drum voice");
-                    ui.label(RichText::new(n).monospace().size(11.5).color(theme::role_color(n)))
+                    ui.label(RichText::new(n).monospace().size(11.5).color(theme::legible(theme::role_color(n))))
                         .on_hover_text(format!("{voice}, synthesized\nin a pattern: s(\"{n}\")"));
                 }
             });

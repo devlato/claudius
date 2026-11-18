@@ -2,6 +2,12 @@
 //! track role and section kind so the same instrument reads the same everywhere (arrangement, sequencer, mixer, parts).
 //! The person picks dark, light or as the system is (`Look`), which egui follows, in a browser too. Each colour the
 //! studio draws with is a `Swatch`, named for what it is for, which turns into the look's own wherever it is drawn.
+//!
+//! The light look is not the dark one turned over. What the music is drawn on (the arrangement's canvas) is white
+//! paper, with the panels around it grey, as a light app's are; what sits sunk in a panel (a fader's track, a meter, a
+//! knob's arc, the roll) is a grey a step under the panel, while a field one types in stays white; the roles' and the
+//! sections' colours keep their hue at a clean middle shade, so that a clip filled with one is a tint of it and not a
+//! grey; and the LCD is a pale display with dark figures.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -17,10 +23,18 @@ const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
 /// The colours of a look, one for each thing drawn: what the swatches turn into.
 pub struct Palette {
     pub bg: Color32,
+    /// what the arrangement draws the music on: the background on the dark look, white paper on the light one
+    pub canvas: Color32,
     pub panel: Color32,
     pub raised: Color32,
     pub raised_hi: Color32,
+    /// what sits sunk in a panel: a fader's track, a meter, a knob's arc, the roll, a block of code
     pub well: Color32,
+    /// a field one types in: a well on the dark look, white on the light one
+    pub field: Color32,
+    /// an empty cell of a grid (a step that does not play), and every other beat's
+    pub cell: Color32,
+    pub cell_alt: Color32,
     pub control: Color32,
     pub control_hi: Color32,
     pub line: Color32,
@@ -34,6 +48,10 @@ pub struct Palette {
     pub bad: Color32,
     pub lcd: Color32,
     pub lcd_text: Color32,
+    /// how much of its ink the LCD's quieter text (the length, the status) keeps, from 0 to 1, over the strength it is
+    /// asked at: none on the dark look, whose figures glow, and more on the light one, where faded figures fade into
+    /// the pale display
+    lcd_hold: f32,
     /// the LCD's cyan off the LCD, as the song's genre and the verdict's notes are drawn
     pub info: Color32,
     pub playhead: Color32,
@@ -52,10 +70,14 @@ pub struct Palette {
 /// the dark look
 pub const DARK: Palette = Palette {
     bg: rgb(16, 18, 23),
+    canvas: rgb(16, 18, 23),
     panel: rgb(23, 26, 32),
     raised: rgb(32, 36, 44),
     raised_hi: rgb(42, 47, 57),
     well: rgb(11, 13, 17),
+    field: rgb(11, 13, 17),
+    cell: rgb(23, 26, 32),
+    cell_alt: rgb(31, 35, 43),
     control: rgb(39, 44, 54),
     control_hi: rgb(50, 56, 68),
     line: rgb(46, 51, 62),
@@ -69,6 +91,7 @@ pub const DARK: Palette = Palette {
     bad: rgb(240, 94, 86),
     lcd: rgb(9, 15, 17),
     lcd_text: rgb(132, 232, 255),
+    lcd_hold: 0.0,
     info: rgb(132, 232, 255),
     playhead: rgb(255, 236, 214),
     solo: rgb(255, 212, 64),
@@ -79,14 +102,19 @@ pub const DARK: Palette = Palette {
     shadow: 150,
 };
 
-/// The light look: the same parts, light, with text dark enough to read on every panel (the faintest at 4.5:1, as
-/// small text needs), and the accent and the verdict's colours darkened to read on white. The LCD stays a display.
+/// The light look: white paper for the music, grey panels around it, wells a step under the panels, text dark enough
+/// to read on all of them (the faintest at 4.5:1, as small text needs), the accent and the verdict's colours darkened
+/// to read on white, and a pale LCD with dark teal figures.
 pub const LIGHT: Palette = Palette {
     bg: rgb(229, 232, 238),
+    canvas: rgb(255, 255, 255),
     panel: rgb(241, 243, 246),
     raised: rgb(252, 252, 253),
     raised_hi: rgb(234, 237, 242),
-    well: rgb(255, 255, 255),
+    well: rgb(228, 232, 238),
+    field: rgb(255, 255, 255),
+    cell: rgb(221, 226, 233),
+    cell_alt: rgb(231, 235, 240),
     control: rgb(226, 230, 236),
     control_hi: rgb(214, 219, 227),
     line: rgb(196, 202, 212),
@@ -98,8 +126,9 @@ pub const LIGHT: Palette = Palette {
     good: rgb(16, 120, 58),
     warn: rgb(140, 92, 0),
     bad: rgb(196, 40, 34),
-    lcd: rgb(9, 15, 17),
-    lcd_text: rgb(132, 232, 255),
+    lcd: rgb(226, 235, 237),
+    lcd_text: rgb(0, 62, 78),
+    lcd_hold: 0.5,
     info: rgb(0, 112, 140),
     playhead: rgb(196, 80, 0),
     solo: rgb(176, 128, 0),
@@ -114,10 +143,14 @@ pub const LIGHT: Palette = Palette {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Swatch {
     Bg,
+    Canvas,
     Panel,
     Raised,
     RaisedHi,
     Well,
+    Field,
+    Cell,
+    CellAlt,
     ControlHi,
     Line,
     LineSoft,
@@ -141,10 +174,14 @@ impl Swatch {
     pub fn of(self, p: &Palette) -> Color32 {
         match self {
             Swatch::Bg => p.bg,
+            Swatch::Canvas => p.canvas,
             Swatch::Panel => p.panel,
             Swatch::Raised => p.raised,
             Swatch::RaisedHi => p.raised_hi,
             Swatch::Well => p.well,
+            Swatch::Field => p.field,
+            Swatch::Cell => p.cell,
+            Swatch::CellAlt => p.cell_alt,
             Swatch::ControlHi => p.control_hi,
             Swatch::Line => p.line,
             Swatch::LineSoft => p.line_soft,
@@ -172,10 +209,18 @@ impl From<Swatch> for Color32 {
 }
 
 pub const BG: Swatch = Swatch::Bg;
+/// what the arrangement draws the music on: the background on the dark look, white on the light one
+pub const CANVAS: Swatch = Swatch::Canvas;
 pub const PANEL: Swatch = Swatch::Panel;
 pub const RAISED: Swatch = Swatch::Raised;
 pub const RAISED_HI: Swatch = Swatch::RaisedHi;
+/// what sits sunk in a panel: a fader's track, a meter, a knob's arc, the roll, a block of code
 pub const WELL: Swatch = Swatch::Well;
+/// a field one types in, a long one such as the script's editor too: a well on the dark look, white on the light one
+pub const FIELD: Swatch = Swatch::Field;
+/// an empty cell of a grid (a step that does not play), and every other beat's
+pub const CELL: Swatch = Swatch::Cell;
+pub const CELL_ALT: Swatch = Swatch::CellAlt;
 /// a control's fill under the pointer, a step above every panel's (a raised one's too)
 pub const CONTROL_HI: Swatch = Swatch::ControlHi;
 pub const LINE: Swatch = Swatch::Line;
@@ -292,10 +337,101 @@ pub fn alpha(c: impl Into<Color32>, a: f32) -> Color32 {
     Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (a.clamp(0.0, 1.0) * 255.0) as u8)
 }
 
-/// a role's, a section's or a progression's colour as the look draws it: a shade darker on the light one, where the
-/// colours stand on light panels
+/// A role's, a section's or a progression's colour as the look draws it: on the light one, its hue at a middle shade,
+/// neither pale nor dark, and as vivid as it can be without glaring (`shade`), so that what is filled with it on white
+/// is a clean tint of it. Darkened, the colours went grey wherever they were laid over the light panels.
 fn ink(c: Color32) -> Color32 {
-    if light() { mix(c, Color32::BLACK, 0.22) } else { c }
+    ink_in(c, light())
+}
+
+/// `ink`, on the light look or the dark one
+fn ink_in(c: Color32, light: bool) -> Color32 {
+    if light { shade(c, 0.47, 0.5, 0.66) } else { c }
+}
+
+/// `c` at the lightness `l` (0..1, as HSL measures it), with its saturation kept within `least..=most`: a grey (under
+/// 0.3) stays as grey as it is, so that the effects' slate and the outro's stay slate rather than turning blue
+fn shade(c: Color32, l: f32, least: f32, most: f32) -> Color32 {
+    let [r, g, b] = [c.r(), c.g(), c.b()].map(|x| f32::from(x) / 255.0);
+    let (hi, lo) = (r.max(g).max(b), r.min(g).min(b));
+    let d = hi - lo;
+    let lightness = (hi + lo) / 2.0;
+    let s = if d == 0.0 { 0.0 } else { d / (1.0 - (2.0 * lightness - 1.0).abs()) };
+    // the hue in sixths of the circle, 0..6
+    let h = if d == 0.0 {
+        0.0
+    } else if hi == r {
+        ((g - b) / d).rem_euclid(6.0)
+    } else if hi == g {
+        (b - r) / d + 2.0
+    } else {
+        (r - g) / d + 4.0
+    };
+    let s = if s < 0.3 { s } else { s.clamp(least, most) };
+    let chroma = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = chroma * (1.0 - (h.rem_euclid(2.0) - 1.0).abs());
+    let (r, g, b) = match h as u32 {
+        0 => (chroma, x, 0.0),
+        1 => (x, chroma, 0.0),
+        2 => (0.0, chroma, x),
+        3 => (0.0, x, chroma),
+        4 => (x, 0.0, chroma),
+        _ => (chroma, 0.0, x),
+    };
+    let m = l - chroma / 2.0;
+    let to = |v: f32| ((v + m) * 255.0).round().clamp(0.0, 255.0) as u8;
+    rgb(to(r), to(g), to(b))
+}
+
+/// A role's, a section's or a progression's colour as text: as it is on the dark look, and on the light one darkened
+/// until it reads at 4.5:1 on every panel it is written on, a well's too (a yellow's middle shade, which fills well,
+/// is too pale to read on them).
+pub fn legible(c: impl Into<Color32>) -> Color32 {
+    legible_in(c.into(), light())
+}
+
+/// `legible`, on the light look or the dark one
+fn legible_in(mut c: Color32, light: bool) -> Color32 {
+    if !light {
+        return c;
+    }
+    for _ in 0..20 {
+        if contrast(c, LIGHT.well) >= 4.5 {
+            break;
+        }
+        c = mix(c, Color32::BLACK, 0.08);
+    }
+    c
+}
+
+/// WCAG's contrast of two colours, 1 to 21
+pub fn contrast(a: Color32, b: Color32) -> f32 {
+    let (x, y) = (luminance(a), luminance(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// the LCD's text at `strength` (0..1): its quieter lines, which keep more of their ink on the light look's pale
+/// display, where figures fade into it faster than into the dark one
+pub fn lcd_ink(strength: f32) -> Color32 {
+    alpha(LCD_TEXT, held(strength, palette()))
+}
+
+/// how strong the LCD's text asked at `strength` is drawn in `p`
+fn held(strength: f32, p: &Palette) -> f32 {
+    strength + (1.0 - strength) * p.lcd_hold
+}
+
+/// A section's block when it is not the one chosen (or `hovered`, a step nearer its colour): its colour a little into
+/// the canvas on the dark look, and on the light one a tint of it on the white, which the arrangement tops with the
+/// colour itself.
+pub fn block(c: impl Into<Color32>, hovered: bool) -> Color32 {
+    let into = match (light(), hovered) {
+        (false, false) => 0.32,
+        (false, true) => 0.18,
+        (true, false) => 0.64,
+        (true, true) => 0.54,
+    };
+    mix(c, CANVAS, into)
 }
 
 /// a colour for a track role or a layer / lane / track name
@@ -346,7 +482,11 @@ fn role_hue(name: &str) -> Color32 {
 
 /// a colour for a section kind (intro, verse, build, drop, break, hook, groove, outro)
 pub fn section_color(kind: &str) -> Color32 {
-    ink(match kind {
+    ink(section_hue(kind))
+}
+
+fn section_hue(kind: &str) -> Color32 {
+    match kind {
         "intro" => rgb(74, 122, 186),
         "verse" => rgb(84, 162, 112),
         "groove" => rgb(46, 166, 160),
@@ -356,11 +496,15 @@ pub fn section_color(kind: &str) -> Color32 {
         "break" => rgb(138, 104, 204),
         "outro" => rgb(98, 110, 136),
         _ => rgb(122, 132, 152),
-    })
+    }
 }
 
 /// a colour per progression name (A, B, C ...)
 pub fn prog_color(name: &str) -> Color32 {
+    ink(prog_hue(name))
+}
+
+fn prog_hue(name: &str) -> Color32 {
     const PALETTE: [Color32; 6] = [
         rgb(52, 196, 186),
         rgb(150, 116, 226),
@@ -370,7 +514,7 @@ pub fn prog_color(name: &str) -> Color32 {
         rgb(150, 210, 100),
     ];
     let i = name.bytes().next().map_or(0, |b| b.to_ascii_uppercase().wrapping_sub(b'A') as usize);
-    ink(PALETTE[i % PALETTE.len()])
+    PALETTE[i % PALETTE.len()]
 }
 
 /// red .. amber .. green for a 0..1 quality
@@ -474,7 +618,7 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
     // a slim slider handle, as a fader's cap, rather than a ball
     v.handle_shape = egui::style::HandleShape::Rect { aspect_ratio: 0.55 };
     v.extreme_bg_color = p.well;
-    v.text_edit_bg_color = Some(p.well);
+    v.text_edit_bg_color = Some(p.field);
     v.faint_bg_color = p.faint_bg;
     v.code_bg_color = p.well;
     v.hyperlink_color = p.accent;
@@ -520,20 +664,100 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{DARK, LIGHT, Palette, ink_on, luminance};
+    use super::{DARK, LIGHT, Palette, contrast, held, ink_in, ink_on, legible_in, mix, shade};
     use eframe::egui::Color32;
 
-    /// WCAG's contrast of two colours, 1 to 21
-    fn contrast(a: Color32, b: Color32) -> f32 {
-        let (x, y) = (luminance(a), luminance(b));
-        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    /// the hue (in degrees), saturation and lightness of `c`, as HSL measures them
+    fn hsl(c: Color32) -> (f32, f32, f32) {
+        let [r, g, b] = [c.r(), c.g(), c.b()].map(|x| f32::from(x) / 255.0);
+        let (hi, lo) = (r.max(g).max(b), r.min(g).min(b));
+        let (d, l) = (hi - lo, (hi + lo) / 2.0);
+        if d == 0.0 {
+            return (0.0, 0.0, l);
+        }
+        let s = d / (1.0 - (2.0 * l - 1.0).abs());
+        let h = if hi == r {
+            ((g - b) / d).rem_euclid(6.0)
+        } else if hi == g {
+            (b - r) / d + 2.0
+        } else {
+            (r - g) / d + 4.0
+        };
+        (h * 60.0, s, l)
+    }
+
+    /// the colours the roles, the sections and the progressions are drawn in, by name
+    fn named() -> Vec<(&'static str, Color32)> {
+        let roles = ["kick", "clap", "ohat", "hat", "perc", "bass", "chords", "pad", "lead", "arp", "fx", "loop", "x"];
+        let kinds = ["intro", "verse", "groove", "build", "drop", "hook", "break", "outro", "other"];
+        let mut all: Vec<_> = roles.iter().map(|r| (*r, super::role_hue(r))).collect();
+        all.extend(kinds.iter().map(|k| (*k, super::section_hue(k))));
+        all.extend(["A", "B", "C", "D", "E", "F"].iter().map(|n| (*n, super::prog_hue(n))));
+        all
+    }
+
+    #[test]
+    fn the_light_look_draws_each_colour_in_its_own_hue_at_a_clean_middle_shade_and_a_grey_as_grey() {
+        for (name, c) in named() {
+            let (h0, s0, _) = hsl(c);
+            let (h, s, l) = hsl(ink_in(c, true));
+            assert!((l - 0.47).abs() < 0.01, "{name}: lightness {l:.2}, not the middle shade");
+            if s0 < 0.3 {
+                assert!((s - s0).abs() < 0.03, "{name}: a grey of saturation {s0:.2} drawn at {s:.2}");
+            } else {
+                assert!((0.49..=0.67).contains(&s), "{name}: saturation {s:.2}, glaring or grey");
+                let turn = (h - h0).abs().min(360.0 - (h - h0).abs());
+                assert!(turn < 3.0, "{name}: its hue turned by {turn:.1} degrees");
+            }
+            assert_eq!(ink_in(c, false), c, "{name}: the dark look draws the colour as it is");
+        }
+        // a colour already at the shade comes back as it was, near enough
+        let mid = shade(Color32::from_rgb(200, 60, 60), 0.47, 0.5, 0.66);
+        let again = shade(mid, 0.47, 0.5, 0.66);
+        assert!(mid.r().abs_diff(again.r()) <= 1 && mid.g().abs_diff(again.g()) <= 1, "{mid:?} then {again:?}");
+    }
+
+    #[test]
+    fn a_colour_written_as_text_reads_on_every_panel_of_the_light_look() {
+        let p = &LIGHT;
+        for (name, c) in named() {
+            let text = legible_in(ink_in(c, true), true);
+            for (under, bg) in
+                [("bg", p.bg), ("canvas", p.canvas), ("panel", p.panel), ("raised", p.raised), ("well", p.well)]
+            {
+                let k = contrast(text, bg);
+                assert!(k >= 4.5, "{name} as text on {under} is {k:.1}:1, below 4.5:1");
+            }
+            assert_eq!(legible_in(c, false), c, "{name}: the dark look writes the colour as it is");
+        }
+    }
+
+    #[test]
+    fn the_lcd_reads_in_both_looks_its_quieter_lines_too() {
+        for (name, p) in [("dark", &DARK), ("light", &LIGHT)] {
+            // the strengths the transport writes at: the time, the bar and section, the status, the length
+            for strength in [1.0, 0.75, 0.6, 0.55] {
+                let ink = mix(p.lcd, p.lcd_text, held(strength, p));
+                let k = contrast(ink, p.lcd);
+                assert!(k >= 4.5, "{name}: the LCD's text at {strength} is {k:.1}:1, below 4.5:1");
+            }
+        }
+        assert!(super::luminance(LIGHT.lcd) > 0.6, "the light look's LCD is a pale display, not a dark one");
     }
 
     #[test]
     fn text_reads_on_every_panel_of_both_looks() {
         for (name, p) in [("dark", &DARK), ("light", &LIGHT)] {
             let p: &Palette = p;
-            for (under, bg) in [("bg", p.bg), ("panel", p.panel), ("raised", p.raised), ("well", p.well)] {
+            let under = [
+                ("bg", p.bg),
+                ("canvas", p.canvas),
+                ("panel", p.panel),
+                ("raised", p.raised),
+                ("well", p.well),
+                ("field", p.field),
+            ];
+            for (under, bg) in under {
                 for (what, fg, least) in
                     [("text", p.text, 7.0), ("text_dim", p.text_dim, 4.5), ("faint", p.text_faint, 4.5)]
                 {

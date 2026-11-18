@@ -10,7 +10,7 @@ use eframe::egui::{
 use super::{Cx, Tab, empty, layer_color, small};
 use crate::cmds::MixEdit;
 use crate::edits::SECTION_KINDS;
-use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PLAYHEAD, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::theme::{self, ACCENT, LINE, LINE_SOFT, PLAYHEAD, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
 use crate::widgets::{self, Icon};
 
 const GUTTER: f32 = 138.0;
@@ -430,7 +430,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 if ui.available_width() < text + 8.0 + 2.0 * ui.spacing().item_spacing.x {
                     break;
                 }
-                ui.label(RichText::new(*kind).size(10.5).color(theme::section_color(kind)));
+                ui.label(RichText::new(*kind).size(10.5).color(theme::legible(theme::section_color(kind))));
                 let (r, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
                 ui.painter().rect_filled(r, 2.0, theme::section_color(kind));
             }
@@ -490,12 +490,21 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         let resp = ui.interact(rect, ui.scope_id().with(("section", i)), Sense::click_and_drag());
         let selected = cx.view.section == i;
         let color = theme::section_color(&s.kind);
-        let fill = if selected { color } else { theme::mix(color, BG, if resp.hovered() { 0.18 } else { 0.32 }) };
+        let fill = if selected { color } else { theme::block(color, resp.hovered()) };
         painter.rect_filled(rect, 4.0, fill);
+        if theme::light() && !selected {
+            // on the light look's tint, the section's own colour along its top, as a tab's
+            let top = Rect::from_min_max(rect.left_top(), pos2(rect.right(), rect.top() + 3.0));
+            painter.rect_filled(top, egui::CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 }, color);
+        }
+        let text_color = if selected { theme::ink_on(color) } else { theme::lit(color, 0.75) };
+        // what the section does (a build, a filter, an impact, a gap, fills), marked in white on the dark look and in
+        // the section's text colour on the light one's tints, where white would vanish
+        let mark = if theme::light() { text_color } else { Color32::WHITE };
         if s.build {
             painter.add(Shape::convex_polygon(
                 vec![rect.left_bottom(), rect.right_bottom(), rect.right_top() + vec2(0.0, 6.0)],
-                theme::alpha(Color32::WHITE, 0.12),
+                theme::alpha(mark, 0.12),
                 Stroke::NONE,
             ));
         }
@@ -506,12 +515,12 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     pos2(rect.left() + t * rect.width(), rect.bottom() - 3.0 - (t * t) * (rect.height() - 10.0))
                 })
                 .collect();
-            painter.add(Shape::line(pts, Stroke::new(1.5, theme::alpha(Color32::WHITE, 0.35))));
+            painter.add(Shape::line(pts, Stroke::new(1.5, theme::alpha(mark, 0.35))));
         }
         if s.impact {
             painter.line_segment(
                 [rect.left_top() + vec2(1.5, 0.0), rect.left_bottom() + vec2(1.5, 0.0)],
-                Stroke::new(3.0, theme::alpha(Color32::WHITE, 0.85)),
+                Stroke::new(3.0, theme::alpha(mark, 0.85)),
             );
         }
         if s.gap {
@@ -519,19 +528,18 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             painter.rect_filled(
                 Rect::from_min_max(pos2(rect.right() - w, rect.top() + 4.0), pos2(rect.right(), rect.bottom() - 4.0)),
                 1.0,
-                theme::alpha(BG, 0.85),
+                theme::alpha(theme::CANVAS, 0.85),
             );
         }
         if s.fills {
             for b in (8..=s.bars).step_by(8) {
                 let x = tl.x((s.start_bar + b) as f64) - px_bar * 0.5;
-                painter.circle_filled(pos2(x, rect.bottom() - 4.0), 1.8, theme::alpha(Color32::WHITE, 0.7));
+                painter.circle_filled(pos2(x, rect.bottom() - 4.0), 1.8, theme::alpha(mark, 0.7));
             }
         }
         if selected {
-            painter.rect_stroke(rect, 4.0, Stroke::new(1.5, Color32::WHITE), StrokeKind::Inside);
+            painter.rect_stroke(rect, 4.0, Stroke::new(1.5, theme::STRONG), StrokeKind::Inside);
         }
-        let text_color = if selected { theme::ink_on(color) } else { theme::lit(color, 0.75) };
         let clip = painter.with_clip_rect(rect.shrink(2.0));
         clip.text(rect.left_top() + vec2(6.0, 10.0), Align2::LEFT_CENTER, &s.name, theme::medium(12.5), text_color);
         let length = clip.text(
@@ -816,7 +824,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if j > 0 {
                         p.line_segment(
                             [pos2(part.left(), part.top() + 3.0), pos2(part.left(), part.bottom() - 3.0)],
-                            Stroke::new(1.0, theme::alpha(BG, 0.6)),
+                            Stroke::new(1.0, theme::alpha(theme::CANVAS, 0.6)),
                         );
                     }
                     if is_drum {

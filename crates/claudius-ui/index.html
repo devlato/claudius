@@ -25,12 +25,14 @@
     } catch (_) {}
   </script>
   <style>
-    :root { --bg: #101217; --panel: #171a20; --tools: #15171d; --status: #14161c; --block: #232731; --well: #0b0d11;
-      --line: #2e333e; --line-soft: #1f232b; --text: #dde1e8; --dim: #8f97a4; --accent: #ffa348; --bad: #f05e56;
-      --lcd: #090f11; --shadow: rgba(0, 0, 0, 0.4); }
-    :root[data-look="light"] { --bg: #e5e8ee; --panel: #f1f3f6; --tools: #edeff3; --status: #ebeef2; --block: #d8dde5;
-      --well: #ffffff; --line: #c4cad4; --line-soft: #dadfe6; --text: #181c24; --dim: #4c5462; --accent: #b45600;
-      --bad: #c42822; --shadow: rgba(24, 28, 36, 0.12); }
+    :root { --bg: #101217; --canvas: #101217; --panel: #171a20; --tools: #15171d; --status: #14161c; --block: #232731;
+      --well: #0b0d11; --field: #0b0d11; --line: #2e333e; --line-soft: #1f232b; --text: #dde1e8; --dim: #8f97a4;
+      --accent: #ffa348; --bad: #f05e56; --lcd: #090f11; --lcd-text: rgba(132, 232, 255, 0.45);
+      --shadow: rgba(0, 0, 0, 0.4); }
+    :root[data-look="light"] { --bg: #e5e8ee; --canvas: #ffffff; --panel: #f1f3f6; --tools: #edeff3; --status: #ebeef2;
+      --block: #d8dde5; --well: #e4e8ee; --field: #ffffff; --line: #c4cad4; --line-soft: #dadfe6; --text: #181c24;
+      --dim: #4c5462; --accent: #b45600; --bad: #c42822; --lcd: #e2ebed; --lcd-text: rgba(0, 62, 78, 0.6);
+      --shadow: rgba(24, 28, 36, 0.12); }
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
     #claudius_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
 
@@ -56,11 +58,11 @@
     #loading .key { width: 30px; height: 30px; border-radius: 6px; }
     #loading .lcd { display: flex; align-items: center; width: 200px; height: 44px; margin: 0 8px; padding: 0 12px;
       box-sizing: border-box; border-radius: 6px; background: var(--lcd); border: 1px solid var(--line);
-      color: rgba(132, 232, 255, 0.45); font: 22px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+      color: var(--lcd-text); font: 22px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
     #loading .two { display: flex; flex-direction: column; gap: 7px; margin-right: 10px; }
 
     #loading .arrangement { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; padding: 6px 10px 0;
-      overflow: hidden; }
+      overflow: hidden; background: var(--canvas); }
     #loading .head { display: flex; align-items: center; gap: 8px; height: 24px; }
     #loading .caps { font-size: 10.5px; letter-spacing: 0.06em; }
     #loading .lane { display: flex; align-items: center; height: 30px; flex: none; }
@@ -263,7 +265,7 @@
     </div>
     <div class="side" aria-hidden="true">
       <div class="field"><i style="width:88px;height:10px"></i><span class="grow"></span><i style="width:22px;height:22px"></i><i style="width:22px;height:22px"></i><i style="width:22px;height:22px"></i></div>
-      <div class="field"><i class="label" style="--w:38px"></i><i style="width:150px;height:24px;background:var(--well)"></i><i class="chip" style="width:38px;height:18px;background:#4a7aba;opacity:.5"></i></div>
+      <div class="field"><i class="label" style="--w:38px"></i><i style="width:150px;height:24px;background:var(--field)"></i><i class="chip" style="width:38px;height:18px;background:#4a7aba;opacity:.5"></i></div>
       <div class="field"><i class="label" style="--w:46px"></i><i style="width:62px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i></div>
       <div class="field"><i class="label" style="--w:40px"></i><i style="width:96px;height:10px"></i></div>
       <div class="field"><i class="label" style="--w:58px"></i><i style="width:130px;height:4px"></i><i style="width:14px;height:14px;border-radius:50%"></i><i style="width:36px;height:10px"></i></div>
