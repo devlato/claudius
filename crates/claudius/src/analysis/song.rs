@@ -934,11 +934,7 @@ pub(crate) mod tests {
                             }
                             hit(&mut drums, at, 0.02, None, 0.08, &mut noise);
                         }
-                        Label::Bridge => {
-                            if on_beat {
-                                hit(&mut drums, at, 0.02, None, 0.05, &mut noise);
-                            }
-                        }
+                        Label::Bridge if on_beat => hit(&mut drums, at, 0.02, None, 0.05, &mut noise),
                         _ => {}
                     }
                 }
