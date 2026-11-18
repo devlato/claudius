@@ -1,6 +1,7 @@
 //! CED-Tiny, an AudioSet tagger of 5.5 million parameters distilled from an ensemble of transformers (Dinkel et al.,
 //! "CED: Consistent Ensemble Distillation for Audio Tagging", ICASSP 2024), as its authors export it to ONNX
-//! (`mispeech/ced-tiny`, Apache-2.0): 16 kHz audio in, its mel front end inside, the 527 AudioSet logits out. As
+//! (`mispeech/ced-tiny`, Apache-2.0): 16 kHz audio in, its mel front end inside, the 527 AudioSet probabilities out
+//! (its graph ends in a sigmoid, though its output is named `logits`). As
 //! accurate on AudioSet as AST (mAP 0.481 against 0.459) at a fiftieth of its size, and it hears a stretch at its own
 //! length rather than padded with silence to 10.24 s, up to the 10.11 s it was trained on.
 
@@ -68,12 +69,12 @@ impl Ced {
                 let n = y.len();
                 let t = ox(Tensor::from_array(([1usize, n], y)))?;
                 let res = ox(sess.run(ort::inputs!["waveform" => t]))?;
-                let (_, logits) = ox(res["logits"].try_extract_tensor::<f32>())?;
-                let q = logits.iter().map(|&l| (1.0 / (1.0 + (-(l as f64)).exp())) as f32);
+                // probabilities already, its last node a sigmoid
+                let (_, q) = ox(res["logits"].try_extract_tensor::<f32>())?;
                 if p.is_empty() {
-                    p = q.collect();
+                    p = q.to_vec();
                 } else {
-                    p.iter_mut().zip(q).for_each(|(a, b)| *a = a.max(b));
+                    p.iter_mut().zip(q).for_each(|(a, &b)| *a = a.max(b));
                 }
             }
             out.push(p);

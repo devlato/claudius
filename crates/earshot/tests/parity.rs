@@ -695,6 +695,12 @@ fn ced_hears_a_recording_longer_than_it_was_trained_on_in_windows_each_label_at_
     let w = (WIN_S * sr as f64).round() as usize;
     let p = ced.probs(&[&x, &x[x.len() - w..], &x[..w]]).unwrap();
     assert!(p.iter().all(|q| q.len() == 527));
+    // probabilities, once: of 527 labels, not every one is likelier than not (a second sigmoid put them all above 0.5)
+    assert!(
+        p.iter().all(|q| q.iter().all(|v| (0.0..=1.0).contains(v)) && q.iter().any(|&v| v < 0.5)),
+        "{:?}",
+        &p[2][..8]
+    );
     for window in &p[1..] {
         assert!(p[0].iter().zip(window).all(|(a, b)| a + 1e-6 >= *b), "a label less likely than in one of its windows");
     }
