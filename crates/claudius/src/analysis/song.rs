@@ -473,11 +473,18 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let chords: Vec<Chord> =
         (0..bars).map(|b| chroma::chord_with_bass(&bar_chroma[b], &bar_bass[b], Some(&key)).0).collect();
 
-    // sections, as the song's own (`structure`): what each bar's beats play, how it sounds, and where a voice sings:
-    // in the phrases of the vocals that come and go on their own, not with the rest, as a riff split between them does
+    // sections, as the song's own (`structure`): what each bar's beats play, how it sounds, and where a voice sings: in
+    // the phrases of the vocals the ears' tagger hears as a voice, where it is there, and not a riff or a lead the
+    // separation left in them
     let sings = stems.filter(|s| s.share(&s.vocals) >= SINGS);
-    let sung =
-        sings.map(|s| cuts::voice_of(&cuts::sung(&s.vocals, &melody::pitches(&s.vocals)), &s.vocals, &s.backing()));
+    let sung = sings.map(|s| {
+        let heard = cuts::sung(&s.vocals, &melody::pitches(&s.vocals));
+        let asked = cuts::stretches(&heard);
+        match crate::stems::voiced(&s.vocals, &asked) {
+            Some(voiced) => cuts::voiced_only(&heard, &asked, &voiced),
+            None => heard,
+        }
+    });
     // the kit's level in each bar: its drums apart, else how strongly its hits strike in the mix over the whole bar,
     // which does not hang on where the grid's steps fall (a bar drawn a little off the beats misses them)
     let kit_level: Vec<f64> = if kit_db.is_empty() {

@@ -40,9 +40,12 @@ const AFTER: f64 = 0.5;
 const QUIET_DB: f64 = 6.0;
 const SILENT: f64 = -60.0;
 const QUIET_FOR: f64 = 0.06;
-/// a phrase whose loudness in the vocals follows the rest's at least this closely (Pearson's r, every 10 ms) is an
-/// instrument the separation split between them, not a voice (`voice_of`)
-const FOLLOWS: f64 = 0.2;
+/// phrases parted by less than this are asked about together, seconds (`stretches`)
+const APART: f64 = 1.0;
+/// the longest stretch asked about at once, seconds: as long as the tagger hears at once
+const ASKED: f64 = 10.24;
+/// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`)
+const VOICED: f64 = 0.2;
 
 /// a stretch of a recording, in seconds from its start
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -172,54 +175,39 @@ fn span(a: usize, b: usize) -> Span {
     Span { start: a as f64 * HOP, end: b as f64 * HOP }
 }
 
-/// The phrases of `sung` a voice sings, and their words: those whose loudness in `vocals` does not rise and fall with
-/// that of `rest`, what plays besides the voice. A separation hears a riff, a lead or a pad as partly a voice (a
-/// distorted guitar most of all) and splits it between the vocals and the rest, in both of which it then comes and
-/// goes at once; a voice comes and goes on its own, and the rest gives way to it where it sings.
-pub fn voice_of(sung: &Sung, vocals: &Stereo, rest: &Stereo) -> Sung {
-    let (v, r) = (levels(vocals), levels(rest));
-    let phrases: Vec<Span> = sung.phrases.iter().copied().filter(|p| follows(&v, &r, *p) < FOLLOWS).collect();
+/// The stretches of a voice's recording to ask whether a voice is what sings in them (`stems::voiced`): its phrases,
+/// run together where less than `APART` parts them while together they last no longer than `ASKED`, so that each
+/// question hears a whole line or two, as the tagger hears 10.24 s at once.
+pub fn stretches(sung: &Sung) -> Vec<(f64, f64)> {
+    let mut out: Vec<(f64, f64)> = Vec::new();
+    for p in &sung.phrases {
+        match out.last_mut() {
+            Some(s) if p.start - s.1 < APART && p.end - s.0 <= ASKED => s.1 = p.end,
+            _ => out.push((p.start, p.end)),
+        }
+    }
+    out
+}
+
+/// `sung` with only the phrases of the `stretches` heard as a voice, `voiced` saying how surely each is one, 0 to 1
+pub fn voiced_only(sung: &Sung, stretches: &[(f64, f64)], voiced: &[f64]) -> Sung {
+    let heard = |p: &Span| {
+        stretches.iter().zip(voiced).any(|(s, v)| *v >= VOICED && p.start >= s.0 - 1e-9 && p.end <= s.1 + 1e-9)
+    };
+    let phrases: Vec<Span> = sung.phrases.iter().copied().filter(heard).collect();
     let words = phrases.iter().flat_map(|p| sung.words_of(*p).copied().collect::<Vec<_>>()).collect();
     Sung { words, phrases }
 }
 
-/// how closely `a` follows `b` over `span`, levels every 10 ms: Pearson's r of the two there, 0 where either holds
-/// still
-fn follows(a: &[f64], b: &[f64], span: Span) -> f64 {
-    let (i, j) = ((span.start / HOP) as usize, ((span.end / HOP) as usize).min(a.len()).min(b.len()));
-    if j < i + 3 {
-        return 0.0;
-    }
-    let (a, b) = (&a[i..j], &b[i..j]);
-    let n = a.len() as f64;
-    let (ma, mb) = (a.iter().sum::<f64>() / n, b.iter().sum::<f64>() / n);
-    let (mut ab, mut aa, mut bb) = (0.0, 0.0, 0.0);
-    for (x, y) in a.iter().zip(b) {
-        ab += (x - ma) * (y - mb);
-        aa += (x - ma).powi(2);
-        bb += (y - mb).powi(2);
-    }
-    if aa > 0.0 && bb > 0.0 { ab / (aa * bb).sqrt() } else { 0.0 }
-}
-
 /// the loudness of `x` every 10 ms, in dB, over 20 ms round each
 fn loudness(x: &Stereo) -> Vec<f64> {
-    power(x).into_iter().map(|e| 10.0 * (e + 1e-12).log10()).collect()
-}
-
-/// the level of `x` every 10 ms (its RMS over 20 ms round each)
-fn levels(x: &Stereo) -> Vec<f64> {
-    power(x).into_iter().map(f64::sqrt).collect()
-}
-
-/// the power of `x` every 10 ms, over 20 ms round each
-fn power(x: &Stereo) -> Vec<f64> {
     let hop = (HOP * SRF) as usize;
     let n = x.len() / hop;
     (0..n)
         .map(|f| {
             let (a, b) = ((f * hop).saturating_sub(hop / 2), ((f + 1) * hop + hop / 2).min(x.len()));
-            (a..b).map(|i| (0.5 * (x.l[i] + x.r[i]) as f64).powi(2)).sum::<f64>() / (b - a).max(1) as f64
+            let e: f64 = (a..b).map(|i| (0.5 * (x.l[i] + x.r[i]) as f64).powi(2)).sum::<f64>() / (b - a).max(1) as f64;
+            10.0 * (e + 1e-12).log10()
         })
         .collect()
 }
@@ -449,44 +437,18 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_riff_the_separation_splits_between_the_vocals_and_the_rest_is_no_voice() {
-        // a riff of eighths on an F#3 all through, split between the vocals and the rest as a separation splits a
-        // distorted guitar; from 6 s a voice sings two phrases, and the vocals hold little of the riff while it does
-        let n = (12.0 * SRF) as usize;
-        let (mut vocals, mut rest) = (Stereo::zeros(n), Stereo::zeros(n));
-        let tone = |f0: f64, t: f64| {
-            let p = std::f64::consts::TAU * f0 * t;
-            p.sin() * 0.5 + (2.0 * p).sin() * 0.25 + (3.0 * p).sin() * 0.12
-        };
-        let mut words = Vec::new();
-        for (start, lens) in [(6.2, [0.35, 0.5, 0.3]), (8.6, [0.45, 0.3, 0.55])] {
-            let mut t = start;
-            for len in lens {
-                words.push(Span { start: t, end: t + len });
-                t += len + 0.09;
-            }
-        }
-        for i in 0..n {
-            let t = i as f64 / SRF;
-            let s = t % 0.25;
-            let riff = (s / 0.005).min(1.0) * (-s / 0.07).exp() * tone(185.0, t) * 0.6;
-            let voice = words.iter().enumerate().find(|(_, w)| (w.start..w.end).contains(&t)).map_or(0.0, |(k, w)| {
-                let u = t - w.start;
-                (u / 0.02).min(1.0) * ((w.end - t) / 0.03).min(1.0) * tone(if k % 2 == 0 { 220.0 } else { 261.6 }, t)
-            });
-            let share = if t < 6.0 { 0.6 } else { 0.08 };
-            let v = (share * riff + 0.6 * voice) as f32;
-            let r = ((1.0 - share) * riff) as f32;
-            (vocals.l[i], vocals.r[i], rest.l[i], rest.r[i]) = (v, v, r, r);
-        }
-        let heard = sung(&vocals, &crate::analysis::melody::pitches(&vocals));
-        assert!(heard.phrases.iter().any(|p| p.start < 5.0), "the riff in the vocals heard as words: {heard:?}");
-        let voice = voice_of(&heard, &vocals, &rest);
-        assert!(voice.phrases.iter().all(|p| p.start >= 5.9), "only the voice's phrases: {:?}", voice.phrases);
-        for w in &words {
-            let mid = 0.5 * (w.start + w.end);
-            assert!(voice.phrases.iter().any(|p| p.cut_by(mid)), "{w:?} sung, in {:?}", voice.phrases);
-            assert!(voice.words.iter().any(|h| h.cut_by(mid)), "{w:?} sung, heard as {:?}", voice.words);
-        }
+    fn phrases_are_asked_about_a_few_lines_at_a_time_and_kept_where_a_voice_is_heard() {
+        let s = |start: f64, end: f64| Span { start, end };
+        // four phrases close together, the last too far from the first to be heard with it, then one after a rest
+        let phrases = vec![s(0.0, 2.0), s(2.5, 4.0), s(4.3, 9.0), s(9.5, 12.0), s(14.0, 15.0)];
+        let words = phrases.iter().flat_map(|p| [s(p.start, p.start + 0.4), s(p.end - 0.4, p.end)]).collect();
+        let sung = Sung { words, phrases };
+        let asked = stretches(&sung);
+        assert_eq!(asked, vec![(0.0, 9.0), (9.5, 12.0), (14.0, 15.0)]);
+        // the tagger hears a voice in the first and the last, an instrument in the middle
+        let voice = voiced_only(&sung, &asked, &[0.9, 0.05, 0.3]);
+        assert_eq!(voice.phrases, vec![s(0.0, 2.0), s(2.5, 4.0), s(4.3, 9.0), s(14.0, 15.0)]);
+        assert_eq!(voice.words.len(), 8);
+        assert!(voice.words.iter().all(|w| !(9.5..12.0).contains(&w.start)), "{:?}", voice.words);
     }
 }

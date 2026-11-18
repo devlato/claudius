@@ -79,6 +79,105 @@ pub fn downloads() -> bool {
     MAY_DOWNLOAD.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// How surely each of `spans` of `x` (start and end, in seconds) is a human voice, 0 to 1: the likeliest of AudioSet's
+/// classes of one (speech, shouting, singing, rapping, humming, a choir) as the ears' AudioSet tagger (AST) hears it.
+/// None without the tagger: no ears, or its model (347 MB, the one the verdict's `describe` reads with) neither in the
+/// cache nor `may_download`. A separation hears a riff, a lead or a pad as partly a voice, a distorted guitar most of
+/// all, and leaves it in the vocals, where the tagger hears an instrument.
+pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
+    tagging::voiced(x, spans)
+}
+
+#[cfg(feature = "ears")]
+mod tagging {
+    use std::sync::OnceLock;
+
+    use crate::audio::Stereo;
+    use crate::config::SRF;
+
+    /// AudioSet's classes of a human voice, as its tagger names them
+    const VOICE: &[&str] = &[
+        "Speech",
+        "Male speech, man speaking",
+        "Female speech, woman speaking",
+        "Child speech, kid speaking",
+        "Conversation",
+        "Narration, monologue",
+        "Babbling",
+        "Speech synthesizer",
+        "Shout",
+        "Bellow",
+        "Whoop",
+        "Yell",
+        "Battle cry",
+        "Children shouting",
+        "Screaming",
+        "Whispering",
+        "Singing",
+        "Choir",
+        "Yodeling",
+        "Chant",
+        "Mantra",
+        "Male singing",
+        "Female singing",
+        "Child singing",
+        "Synthetic singing",
+        "Rapping",
+        "Humming",
+        "Vocal music",
+        "A capella",
+    ];
+
+    /// the tagger, loaded the first time it is asked for, with the places of its classes of a voice; none while its
+    /// model is not in the cache and may not be downloaded, or when it cannot load, which is said once
+    fn tagger() -> Option<&'static (earshot::ast::Ast, Vec<usize>)> {
+        static T: OnceLock<Option<(earshot::ast::Ast, Vec<usize>)>> = OnceLock::new();
+        T.get_or_init(|| {
+            use earshot::models::*;
+            let cache = default_cache_dir();
+            let offline = !super::downloads();
+            let cached = [AST_MODEL, AST_CONFIG].iter().all(|f| model_path(&cache, AST_REPO, AST_REV, f).is_file());
+            if !cached && offline {
+                return None;
+            }
+            let load = || -> anyhow::Result<earshot::ast::Ast> {
+                let model = fetch(&cache, AST_REPO, AST_REV, AST_MODEL, offline)?;
+                let config = fetch(&cache, AST_REPO, AST_REV, AST_CONFIG, offline)?;
+                earshot::ast::Ast::new(session(&model, default_threads())?, &config)
+            };
+            match load() {
+                Ok(ast) => {
+                    let voice = VOICE.iter().filter_map(|v| ast.labels.iter().position(|l| l == v)).collect();
+                    Some((ast, voice))
+                }
+                Err(e) => {
+                    eprintln!("claudius: the voice cannot be told from the instruments: {e:#}");
+                    None
+                }
+            }
+        })
+        .as_ref()
+    }
+
+    pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
+        let (ast, voice) = tagger()?;
+        let mono = x.mono();
+        let at = |t: f64| ((t.max(0.0) * SRF) as usize).min(mono.len());
+        let segs: Vec<&[f32]> = spans.iter().map(|&(a, b)| &mono[at(a)..at(b).max(at(a))]).collect();
+        let probs = ast.probs(&segs, earshot::ast::Reduce::Max).ok()?;
+        Some(probs.iter().map(|p| voice.iter().map(|&i| p[i] as f64).fold(0.0, f64::max)).collect())
+    }
+}
+
+#[cfg(not(feature = "ears"))]
+mod tagging {
+    use crate::audio::Stereo;
+
+    pub fn voiced(_: &Stereo, _: &[(f64, f64)]) -> Option<Vec<f64>> {
+        None
+    }
+}
+
 #[cfg(feature = "ears")]
 mod separating {
     use std::path::{Path, PathBuf};
