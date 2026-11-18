@@ -16,6 +16,7 @@
 pub mod aesthetics;
 pub mod ast;
 pub mod audio;
+pub mod ced;
 pub mod clap;
 pub mod compare;
 pub mod describe;

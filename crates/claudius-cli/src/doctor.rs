@@ -64,7 +64,9 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
             );
         }
         if earshot::separate::Separator::cached(&cache) {
-            r.line(true, "stems", format!("Spleeter's nets in {}", tilde(&cache)));
+            let voice =
+                if earshot::ced::Ced::cached(&cache) { ", with the tagger that tells their voice apart" } else { "" };
+            r.line(true, "stems", format!("Spleeter's nets in {}{voice}", tilde(&cache)));
         } else {
             r.line(
                 false,

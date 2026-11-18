@@ -80,10 +80,10 @@ pub fn downloads() -> bool {
 }
 
 /// How surely each of `spans` of `x` (start and end, in seconds) is a human voice, 0 to 1: the likeliest of AudioSet's
-/// classes of one (speech, shouting, singing, rapping, humming, a choir) as the ears' AudioSet tagger (AST) hears it.
-/// None without the tagger: no ears, or its model (347 MB, the one the verdict's `describe` reads with) neither in the
-/// cache nor `may_download`. A separation hears a riff, a lead or a pad as partly a voice, a distorted guitar most of
-/// all, and leaves it in the vocals, where the tagger hears an instrument.
+/// classes of one (speech, shouting, singing, rapping, humming, a choir) as CED-Tiny, an AudioSet tagger among the ears'
+/// models (6.7 MB, `earshot::ced`), hears each stretch at its own length. None without it: no ears, or its model neither
+/// in the cache nor `may_download`. A separation hears a riff, a lead or a pad as partly a voice, a distorted guitar most
+/// of all, and leaves it in the vocals, where the tagger hears an instrument.
 pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
     tagging::voiced(x, spans)
 }
@@ -96,14 +96,18 @@ mod tagging {
     use crate::audio::{self, Stereo};
     use crate::config::{self, SRF};
 
-    /// AudioSet's classes of a human voice, as its tagger names them
+    /// AudioSet's classes of a human voice, as its taggers name them (CED-Tiny names four of AST's more briefly)
     const VOICE: &[&str] = &[
         "Speech",
         "Male speech, man speaking",
+        "Male speech",
         "Female speech, woman speaking",
+        "Female speech",
         "Child speech, kid speaking",
+        "Child speech",
         "Conversation",
         "Narration, monologue",
+        "Narration",
         "Babbling",
         "Speech synthesizer",
         "Shout",
@@ -131,25 +135,18 @@ mod tagging {
 
     /// the tagger, loaded the first time it is asked for, with the places of its classes of a voice; none while its
     /// model is not in the cache and may not be downloaded, or when it cannot load, which is said once
-    fn tagger() -> Option<&'static (earshot::ast::Ast, Vec<usize>)> {
-        static T: OnceLock<Option<(earshot::ast::Ast, Vec<usize>)>> = OnceLock::new();
+    fn tagger() -> Option<&'static (earshot::ced::Ced, Vec<usize>)> {
+        static T: OnceLock<Option<(earshot::ced::Ced, Vec<usize>)>> = OnceLock::new();
         T.get_or_init(|| {
-            use earshot::models::*;
-            let cache = default_cache_dir();
+            let cache = earshot::models::default_cache_dir();
             let offline = !super::downloads();
-            let cached = [AST_MODEL, AST_CONFIG].iter().all(|f| model_path(&cache, AST_REPO, AST_REV, f).is_file());
-            if !cached && offline {
+            if offline && !earshot::ced::Ced::cached(&cache) {
                 return None;
             }
-            let load = || -> anyhow::Result<earshot::ast::Ast> {
-                let model = fetch(&cache, AST_REPO, AST_REV, AST_MODEL, offline)?;
-                let config = fetch(&cache, AST_REPO, AST_REV, AST_CONFIG, offline)?;
-                earshot::ast::Ast::new(session(&model, default_threads())?, &config)
-            };
-            match load() {
-                Ok(ast) => {
-                    let voice = VOICE.iter().filter_map(|v| ast.labels.iter().position(|l| l == v)).collect();
-                    Some((ast, voice))
+            match earshot::ced::Ced::load(&cache, offline, earshot::models::default_threads()) {
+                Ok(ced) => {
+                    let voice = VOICE.iter().filter_map(|v| ced.labels.iter().position(|l| l == v)).collect();
+                    Some((ced, voice))
                 }
                 Err(e) => {
                     eprintln!("claudius: the voice cannot be told from the instruments: {e:#}");
@@ -160,10 +157,10 @@ mod tagging {
         .as_ref()
     }
 
-    /// what the tagger heard in a voice's recording, kept by what the recording is (it hears a 10.24 s stretch in about
-    /// a second): each stretch asked about, and how surely it heard a voice in it
+    /// what the tagger heard in a voice's recording, kept by what the recording is and which tagger heard it: each
+    /// stretch asked about, and how surely it heard a voice in it
     fn heard_before(x: &Stereo) -> PathBuf {
-        config::cache_dir("voiced").join(format!("{}.json", &audio::fingerprint(x).to_hex()[..20]))
+        config::cache_dir("voiced").join(format!("{}-ced.json", &audio::fingerprint(x).to_hex()[..20]))
     }
 
     pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
@@ -182,11 +179,11 @@ mod tagging {
         };
         let missing: Vec<(f64, f64)> = spans.iter().copied().filter(|s| find(&known, s).is_none()).collect();
         if !missing.is_empty() {
-            let (ast, voice) = tagger()?;
+            let (ced, voice) = tagger()?;
             let mono = x.mono();
             let at = |t: f64| ((t.max(0.0) * SRF) as usize).min(mono.len());
             let segs: Vec<&[f32]> = missing.iter().map(|&(a, b)| &mono[at(a)..at(b).max(at(a))]).collect();
-            let probs = ast.probs(&segs, earshot::ast::Reduce::Max).ok()?;
+            let probs = ced.probs(&segs).ok()?;
             let sure = |p: &Vec<f32>| voice.iter().map(|&i| p[i] as f64).fold(0.0, f64::max);
             known.extend(missing.iter().zip(&probs).map(|(s, p)| (s.0, s.1, sure(p))));
             if let Some(p) = &path {
