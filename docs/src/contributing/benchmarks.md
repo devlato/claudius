@@ -85,3 +85,11 @@ results become the next baseline.
 
 - **The request model**: the rounds in `crates/claudius-intent/tests/asks.rs`, typed by people of many kinds before
   the version they measure. The open rounds print what they miss; the sealed ones only their scores.
+- **The critic on real songs**: `cargo run --release -p claudius --example eval_critic -- DIR` judges songs from
+  MTG-Jamendo (independent artists' releases under Creative Commons licences, in every genre) as they are, and with
+  each of seven flaws a listener hears put into them (clipped, muddy, thin, noisy, gaps, a copy a semitone up, a copy
+  falling out of time), and writes a line for `bench compare` for each. What a change to the critic is made to
+  improve is how often a song is judged above its flawed copy; it must not judge more real songs bad, nor praise more
+  flawed ones. It holds no chart hits: what it says of the songs people hear most is still to be measured.
+- **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and
+  `eval_cuts` (JamendoLyrics), which print their measures.

@@ -167,7 +167,7 @@ fn resamples(ratio: f64, semis: i32, voice: bool) -> bool {
 
 /// `x` stretched to `len` samples and transposed by `semis`, in one pass; a `voice` with its formants where they were
 #[cfg(feature = "native")]
-fn stretch(x: &Stereo, len: usize, semis: i32, voice: bool) -> Stereo {
+pub fn stretch(x: &Stereo, len: usize, semis: i32, voice: bool) -> Stereo {
     let mut st = signalsmith_stretch::Stretch::preset_default(2, crate::config::SR);
     st.set_transpose_factor_semitones(semis as f32, None);
     if voice {
@@ -178,9 +178,9 @@ fn stretch(x: &Stereo, len: usize, semis: i32, voice: bool) -> Stereo {
     Stereo::from_interleaved(&output)
 }
 
-/// `x` varispeeded to `len` samples, in its own key
+/// `x` varispeeded to `len` samples, in its own key: a browser has no stretcher, so `semis` is not heard
 #[cfg(not(feature = "native"))]
-fn stretch(x: &Stereo, len: usize, _semis: i32, _voice: bool) -> Stereo {
+pub fn stretch(x: &Stereo, len: usize, _semis: i32, _voice: bool) -> Stereo {
     let step = x.len() as f64 / len.max(1) as f64;
     Stereo { l: resample_step(&x.l, step, len), r: resample_step(&x.r, step, len) }
 }

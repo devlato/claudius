@@ -375,6 +375,16 @@ pub fn judge_file(path: &Path, ears: Option<&dyn Fn(&Project, &Rendered) -> Opti
         .filter(|p| p.exists())
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|s| serde_json::from_str(&s).ok());
+    Ok(judge_audio(master, project, ears))
+}
+
+/// judge a recording: as the song `project` describes it, or as a recording alone (its mix, loudness and what the
+/// ears hear in it)
+pub fn judge_audio(
+    master: audio::Stereo,
+    project: Option<Project>,
+    ears: Option<&dyn Fn(&Project, &Rendered) -> Option<EarsReport>>,
+) -> Verdict {
     let r = Rendered {
         lufs: crate::loudness::integrated(&master),
         true_peak_db: crate::fx::true_peak_db(&master),
@@ -386,7 +396,7 @@ pub fn judge_file(path: &Path, ears: Option<&dyn Fn(&Project, &Rendered) -> Opti
     };
     let p = project.unwrap_or_else(|| empty_project(&r));
     let e = ears.and_then(|f| f(&p, &r));
-    Ok(judge::judge(&p, &r, e))
+    judge::judge(&p, &r, e)
 }
 
 fn empty_project(r: &Rendered) -> Project {
