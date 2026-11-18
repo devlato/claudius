@@ -3,6 +3,7 @@
 //! web) and hands results back through a channel; every arrival requests a repaint. `Backend` hides whether the
 //! other side is a real server or the built-in mock.
 
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
@@ -135,11 +136,28 @@ pub enum Event {
     Found(claudius_intent::Answer),
     /// what a search field's words find among the genres or the sounds, by meaning too
     Searched(claudius_api::Searched),
+    /// a window of the song as it is now (`Backend::window`): the version of the song it is of, where it starts in
+    /// seconds and its audio, or why the server has none (the next render is to be waited for)
+    Window(Result<(u64, f64, Arc<crate::audio::Pcm>), String>),
     /// what was said to the palette, heard (`Backend::hear`), or why it was not
     Heard(Result<claudius_api::Heard, String>),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
+/// A window of the song as `/api/window` sends it: the song's version, its first sample and its rate, each 8 bytes
+/// little-endian, then its samples, left and right in turn, as 32-bit floats. Its version, where it starts in seconds
+/// and its audio.
+pub fn window_of(bytes: &[u8]) -> Result<(u64, f64, Arc<crate::audio::Pcm>), String> {
+    let word = |i: usize| bytes.get(i * 8..i * 8 + 8).and_then(|b| b.try_into().ok()).map(u64::from_le_bytes);
+    let (Some(version), Some(start), Some(rate)) = (word(0), word(1), word(2)) else {
+        return Err("a window too short to say what it is".into());
+    };
+    let samples: Vec<f32> = bytes[24..].chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+    let rate = u32::try_from(rate).ok().filter(|r| *r > 0).ok_or("a window of no sample rate")?;
+    let pcm = crate::audio::Pcm { rate, channels: 2, samples };
+    Ok((version, start as f64 / f64::from(rate), Arc::new(pcm)))
+}
+
 pub fn command_name(cmd: &Command) -> String {
     serde_json::to_value(cmd)
         .ok()
@@ -281,6 +299,20 @@ impl Remote {
                 Err(e) => Event::PollFailed(e),
             };
             Self::deliver(&tx, &ctx, ev);
+        });
+    }
+
+    /// a window of the song as it is now, `secs` long from `from` seconds (the live mix), as `Event::Window`
+    pub fn fetch_window(&self, from: f64, secs: f64) {
+        let url = self.url(&format!("/api/window?from={from:.4}&secs={secs:.4}"));
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(ehttp::Request::get(&url), move |res| {
+            let ev = match res {
+                Ok(r) if r.ok => window_of(&r.bytes),
+                Ok(r) => Err(r.text().map_or_else(|| format!("{} {}", r.status, r.status_text), str::to_string)),
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Window(ev));
         });
     }
 
@@ -834,6 +866,18 @@ impl Backend {
             && !r.polling
         {
             r.retry_at = None;
+        }
+    }
+
+    /// Asks for a window of the song as it is now (the live mix), `secs` long from `from` seconds, which comes as
+    /// `Event::Window`; whether one was asked for (the demo's engine makes none yet).
+    pub fn window(&mut self, from: f64, secs: f64) -> bool {
+        match self {
+            Backend::Remote(r) => {
+                r.fetch_window(from, secs);
+                true
+            }
+            Backend::Mock(_) => false,
         }
     }
 

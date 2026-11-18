@@ -25,6 +25,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/audio/{version}.wav` | the master of that render, 48 kHz 24-bit |
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |
 | `GET /api/stems/{version}/{track}.wav` | one track of a render made with stems |
+| `GET /api/window?from=S&secs=N` | the live mix: `N` seconds (1 by default, 10 at most) of the song as it is now from `S` seconds, mixed from the tracks the last render made ([below](#the-live-mix)) |
 | `GET /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another [format](export.md#formats), as a download named `{name}.{ext}` |
 | `POST /api/release/artwork` | the release's [artwork](publish.md), as the file itself with `Content-Type: image/jpeg`, `image/png` or `application/octet-stream` (40 MB at most); answers with a [reply](#replies-and-errors) |
 | `GET /api/release/artwork` | the artwork as it was given |
@@ -380,6 +381,25 @@ The MP3 is encoded on the first request (a second or two for a song) and kept. A
 on disk, so older versions
 return 404. Stems exist only for a render made with `{"cmd": "render", "stems": true}`, and only the latest render's
 stems are served and kept, as 24-bit WAV; the copies a `save` with stems writes into the song folder are 32-bit float.
+
+### The live mix
+
+`/api/window?from=S&secs=N` mixes `N` seconds of the song as it is now, from `S` seconds in, from the tracks the last
+render made, through the buses, returns and master, at the loudness that render settled
+([design 0023](../design/0023-the-live-mix-by-windows.md)). The studio asks for one window after another from just
+after its playhead while the song plays and is newer than its render, so that a fader, a pan or a send is heard as it
+moves. The body is the song's version, the window's first sample and its sample rate, each 8 bytes little-endian,
+then the samples, left and right in turn, as 32-bit floats:
+
+```text
+$ curl -s 'http://127.0.0.1:7878/api/window?from=2&secs=0.5' | head -c 24 | od -A d -t u8
+0000000                   14               96000
+0000016                48000
+```
+
+When there is no window to be had that way, the answer is a 409 that says why, and the next render plays the song:
+no song or no render yet, an edit of a track's own sound (`bass changed its sound: the next render plays it`), or of
+the song's length.
 
 ## Who may call it
 

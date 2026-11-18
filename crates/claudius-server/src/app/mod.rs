@@ -145,6 +145,17 @@ impl Session {
 /// an encoded export: the render's version, the format, the file
 type Export = (u64, export::Spec, Arc<Vec<u8>>);
 
+/// the longest window of the song one request mixes (`App::window`), in seconds
+pub const MAX_WINDOW: f64 = 10.0;
+
+/// What a render leaves for the live mix: the tracks it made, shared (`Kept::share`), and the loudness it settled the
+/// master at, for the song as it was at `version`.
+struct Live {
+    version: u64,
+    settled: claudius::render::Settled,
+    kept: claudius::render::Kept,
+}
+
 pub struct App {
     s: Mutex<Session>,
     /// edits run one at a time (scripts may take a moment: sounds get cut from the library)
@@ -184,6 +195,8 @@ pub struct App {
     phone: Mutex<Option<phone::Running>>,
     /// each track as the last render made it, so that the next renders only the tracks an edit changed
     kept: Mutex<claudius::render::Kept>,
+    /// what the last render left to mix windows of the song from (`window`) while the next render runs
+    live: Mutex<Option<Arc<Live>>>,
     /// whether others reach this claudius (`--public`, a token): one they reach starts no agents
     shared: AtomicBool,
     /// how many agents have been started for the chat
@@ -251,6 +264,7 @@ impl App {
             studio: Mutex::new(None),
             phone: Mutex::new(None),
             kept: Mutex::new(Default::default()),
+            live: Mutex::new(None),
             shared: AtomicBool::new(false),
             agents: AtomicU64::new(0),
         });
@@ -531,6 +545,35 @@ impl App {
         let s = self.lock();
         let r = s.render.as_ref().filter(|r| r.view.version == version)?;
         r.stems.get(track).cloned().or_else(|| r.stems.get(&song::slug(track)).cloned())
+    }
+
+    /// The song as it is now, `secs` seconds of it from `from` (both in seconds), mixed from the tracks the last render
+    /// made at the loudness it settled (`render::render_window`): what the studio plays from its playhead while the
+    /// next render is on its way, so that a fader or a send is heard as it moves. With the version of the song it is
+    /// of and where it starts, in samples. Refused, saying why, when a window cannot be had that way: no song or no
+    /// render yet, an edit that changed a track's own sound (its notes, its sound, a section), or the song's length.
+    pub fn window(&self, from: f64, secs: f64) -> Result<(u64, usize, audio::Stereo), String> {
+        let (bp, version) = {
+            let s = self.lock();
+            (s.bp.clone(), s.song_version)
+        };
+        let bp = bp.ok_or("no song yet")?;
+        let live = self.live.lock().unwrap_or_else(|e| e.into_inner()).clone().ok_or("no render yet")?;
+        let project = claudius::compose::arrange(&bp);
+        let opts = claudius::render::Options::default();
+        let mut kept = live.kept.share();
+        let stale = kept.stale(&project, &opts).map_err(|e| format!("{e:#}"))?;
+        if !stale.is_empty() {
+            let names: Vec<&str> = stale.iter().map(|(name, _)| name.as_str()).collect();
+            return Err(format!("{} changed its sound: the next render plays it", names.join(", ")));
+        }
+        let from = (from.max(0.0) * config::SRF) as usize;
+        let n = (secs.clamp(0.0, MAX_WINDOW) * config::SRF) as usize;
+        match claudius::render::render_window(&project, &opts, &mut kept, &live.settled, from, n) {
+            Ok(Some(w)) => Ok((version, w.start, w.master)),
+            Ok(None) => Err("the song's length changed: the next render plays it".into()),
+            Err(e) => Err(format!("{e:#}")),
+        }
     }
 
     /// the WAV file of track `track` of the recording analyzed as `id` ("recording", "vocals", "drums", "bass" or

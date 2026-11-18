@@ -40,6 +40,8 @@ pub struct Studio {
     had_focus: Option<egui::Id>,
     sounds: Option<SoundList>,
     player: Player,
+    /// the live mix's windows (`live::Live`)
+    live: crate::live::Live,
     view: View,
     out: Vec<Command>,
     actions: Vec<Action>,
@@ -120,6 +122,7 @@ impl Studio {
             had_focus: None,
             sounds: None,
             player,
+            live: Default::default(),
             view,
             out: Vec::new(),
             actions: Vec::new(),
@@ -289,6 +292,33 @@ impl Studio {
                 self.toast(why, false, now);
             }
             Event::Delivered(file) => self.hand_over(file, now),
+            Event::Window(Ok((version, start, pcm))) => {
+                self.live.came(version, start, pcm.seconds());
+                // what the render playing is already of plays as it is
+                if self.state.render.as_ref().is_some_and(|r| r.version < version) {
+                    self.player.patch(version, start, pcm);
+                }
+            }
+            Event::Window(Err(why)) => {
+                log::debug!("no window of the live mix: {why}");
+                self.live.refused();
+            }
+        }
+    }
+
+    /// The live mix (`live`): a window of the song as it is now, asked for while it plays and is newer than its render.
+    /// The web player plays a whole file, which a window cannot be played over yet.
+    fn ask_windows(&mut self) {
+        if cfg!(target_arch = "wasm32") {
+            return;
+        }
+        let Some(render) = self.state.render.as_ref().filter(|r| r.url != claudius_api::PREVIEW_URL) else { return };
+        let playing = self.player.is_playing() && !self.player.is_loading();
+        if let Some((from, secs)) =
+            self.live.want(self.state.song_version, render.version, self.player.position(), playing)
+            && !self.backend.window(from, secs)
+        {
+            self.live.none();
         }
     }
 
@@ -1207,6 +1237,7 @@ impl eframe::App for Studio {
         }
         self.link.retry_in = self.backend.retry_in(now);
         self.player.tick();
+        self.ask_windows();
         self.apply_pending(ctx, now);
         // the media keys, Now Playing and the notifications, while the window is hidden too
         #[cfg(not(target_arch = "wasm32"))]

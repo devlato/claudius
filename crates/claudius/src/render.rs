@@ -601,6 +601,7 @@ pub struct Kept {
     tracks: HashMap<String, KeptTrack>,
 }
 
+#[derive(Clone)]
 struct KeptTrack {
     key: blake3::Hash,
     sound: Arc<Blocks>,
@@ -683,6 +684,12 @@ impl Blocks {
 }
 
 impl Kept {
+    /// Another keeper of the same sounds, which it shares rather than copies: what a window of the song is mixed from
+    /// (`render_window`) while the next render goes on with this one.
+    pub fn share(&self) -> Kept {
+        Kept { tracks: self.tracks.clone() }
+    }
+
     /// forgets every track (the sample packs changed under them)
     pub fn clear(&mut self) {
         self.tracks.clear();
@@ -2023,6 +2030,29 @@ mod tests {
             eprintln!("{genre}: a window is within {worst:e} of the whole song's render");
             assert!(worst < 1e-6, "{genre}: {worst}");
         }
+    }
+
+    #[test]
+    fn a_window_mixed_from_a_share_of_the_kept_tracks_hears_a_fader_moved_and_makes_no_track_again() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 5, &o, None));
+        let mut kept = Kept::default();
+        let whole = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        let settled = whole.settled.unwrap();
+        let (from, n) = ((3.0 * SRF) as usize, SRF as usize);
+        let mut shared = kept.share();
+        let w = render_window(&p, &Options::default(), &mut shared, &settled, from, n).unwrap().unwrap();
+        let off = (0..n).map(|i| (w.master.l[i] - whole.master.l[from + i]).abs()).fold(0.0f32, f32::max);
+        assert!(off < 1e-6, "{off}");
+        // a fader moved: nothing to make again, and the window hears it
+        let loud = (0..p.tracks.len()).max_by_key(|&k| p.tracks[k].notes.len()).unwrap();
+        p.tracks[loud].mix.level_db -= 24.0;
+        assert!(shared.stale(&p, &Options::default()).unwrap().is_empty());
+        let moved = render_window(&p, &Options::default(), &mut shared, &settled, from, n).unwrap().unwrap();
+        let heard = (0..n).map(|i| (moved.master.l[i] - w.master.l[i]).abs()).fold(0.0f32, f32::max);
+        assert!(heard > 1e-3, "{} 24 dB down: {heard}", p.tracks[loud].name);
+        assert_eq!((shared.len(), shared.samples()), (kept.len(), kept.samples()));
     }
 
     #[test]

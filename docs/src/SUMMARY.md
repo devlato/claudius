@@ -120,6 +120,7 @@
 - [0020 Changing a song's genre](design/0020-change-a-songs-genre.md)
 - [0021 Every kind of sample, ranked and varied](design/0021-every-kind-of-sample.md)
 - [0022 A song's own sections](design/0022-a-songs-own-sections.md)
+- [0023 The live mix, first by windows](design/0023-the-live-mix-by-windows.md)
 
 # Contributing
 

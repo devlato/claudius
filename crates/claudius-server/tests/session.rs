@@ -2319,3 +2319,71 @@ async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
     assert!(!r.ok && r.message.contains("is not a zip"), "{}", r.message);
     let _ = std::fs::remove_dir_all(&songs);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_window_of_the_song_plays_a_fader_moved_since_its_render_and_none_is_had_of_a_tracks_new_sound() {
+    let app = quiet();
+    let router = http::router(app.clone(), &Options::default());
+    let get = |path: &str| Request::get(path).header(header::HOST, "localhost").body(Body::empty()).unwrap();
+    let (s, _, b) = call(&router, get("/api/window?from=1")).await;
+    assert!(s == StatusCode::CONFLICT && b.contains("no song yet"), "{s} {b}");
+    let new = Command::NewSong {
+        genre: "lofi".into(),
+        seed: Some(2),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    assert!(app.window(1.0, 0.5).unwrap_err().contains("no render yet"));
+    assert!(app.command(Command::Render { stems: false }).ok);
+    let st = app.settled(Duration::from_secs(240)).await;
+    let rendered = st.render.as_ref().map(|r| r.version).unwrap();
+    // a part and two seconds into the first section it plays in, a second of it: the render's audio there
+    let song = st.song.as_ref().unwrap();
+    let loudest = song.tracks.iter().find(|t| !t.muted && t.kind == "part").map(|t| t.name.clone()).unwrap();
+    let section = song.sections.iter().find(|s| s.layers.contains(&loudest)).unwrap();
+    let at = section.start_bar as f64 * 240.0 / song.bpm + 2.0;
+    let (version, start, before) = app.window(at, 1.0).unwrap();
+    assert_eq!((version, start, before.len()), (rendered, (at * 48_000.0) as usize, 48_000));
+    let wav = app.audio_path(rendered, "wav").unwrap();
+    let whole = claudius::audio::load(&wav).unwrap();
+    let off = (0..before.len()).map(|i| (before.l[i] - whole.l[start + i]).abs()).fold(0.0f32, f32::max);
+    assert!(off < 1e-5, "a window is the render's audio there, to its 24 bits: {off}");
+    // a fader moved: the window plays it straight away, before any render
+    let down = Command::SetMix {
+        track: loudest.clone(),
+        level_db: Some(-30.0),
+        pan: None,
+        reverb: None,
+        delay: None,
+        duck: None,
+        drive_db: None,
+        muted: None,
+        solo: None,
+        bus: None,
+    };
+    assert!(app.command(down).ok);
+    let (moved, _, after) = app.window(at, 1.0).unwrap();
+    assert!(moved > rendered);
+    let changed = (0..after.len()).map(|i| (after.l[i] - before.l[i]).abs()).fold(0.0f32, f32::max);
+    assert!(changed > 1e-3, "{loudest} 30 dB down is heard: {changed}");
+    // over HTTP: the song's version, the first sample and the rate, then the samples, left and right in turn
+    let res = router.clone().oneshot(get("/api/window?from=2&secs=0.5")).await.unwrap();
+    assert_eq!(res.headers()[header::CONTENT_TYPE], "audio/x-claudius-window");
+    let body = axum::body::to_bytes(res.into_body(), 1 << 24).await.unwrap();
+    let word = |i: usize| u64::from_le_bytes(body[i * 8..i * 8 + 8].try_into().unwrap());
+    assert_eq!((word(0), word(1), word(2), body.len()), (moved, 96_000, 48_000, 24 + 24_000 * 8));
+    // a track's own sound changed (swapped for the next, which always changes it: a variation of its notes may come out
+    // the same): no window, until the next render plays it
+    let swap = app.command(Command::SwapSound { track: Some(loudest.clone()), to: None, only: None });
+    assert!(swap.ok && !swap.message.contains("nothing changed"), "{}", swap.message);
+    let why = app.window(at, 1.0).unwrap_err();
+    assert!(why.contains(&format!("{loudest} changed its sound")), "{why}");
+    assert!(app.command(Command::Render { stems: false }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    assert!(app.window(at, 1.0).is_ok());
+}

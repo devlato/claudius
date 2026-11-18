@@ -70,6 +70,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/sample/pieces", post(sample_pieces).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
+        .route("/api/window", get(window))
         .route("/api/export/{version}/{file}", get(export_file))
         .route(
             "/api/release/artwork",
@@ -513,6 +514,39 @@ async fn stem(State(c): State<Ctx>, Path((version, file)): Path<(u64, String)>, 
         Some(p) => serve_file(p, req).await,
         None => (StatusCode::NOT_FOUND, format!("no stem '{track}' in render {version} (render with stems)"))
             .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct WindowQuery {
+    from: f64,
+    #[serde(default = "a_second")]
+    secs: f64,
+}
+
+fn a_second() -> f64 {
+    1.0
+}
+
+/// A window of the song as it is now, for the live mix (`App::window`): the version of the song it is of, its first
+/// sample and its sample rate, each 8 bytes little-endian, then its samples, left and right in turn, as 32-bit floats;
+/// 409 with why when there is none to be had, and the next render is to be waited for.
+async fn window(State(c): State<Ctx>, Query(q): Query<WindowQuery>) -> Response {
+    let app = c.app.clone();
+    match tokio::task::spawn_blocking(move || app.window(q.from, q.secs)).await {
+        Ok(Ok((version, start, x))) => {
+            let mut body = Vec::with_capacity(24 + x.len() * 8);
+            body.extend_from_slice(&version.to_le_bytes());
+            body.extend_from_slice(&(start as u64).to_le_bytes());
+            body.extend_from_slice(&u64::from(claudius::config::SR).to_le_bytes());
+            for (l, r) in x.l.iter().zip(&x.r) {
+                body.extend_from_slice(&l.to_le_bytes());
+                body.extend_from_slice(&r.to_le_bytes());
+            }
+            ([(header::CONTENT_TYPE, "audio/x-claudius-window")], body).into_response()
+        }
+        Ok(Err(why)) => (StatusCode::CONFLICT, why).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
