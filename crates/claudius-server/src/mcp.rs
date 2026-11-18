@@ -559,7 +559,8 @@ pub struct SearchRecordingsArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PiecesArgs {
-    /// the recording: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), or library:<id> from search_recordings
+    /// the recording: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), library:<id> from search_recordings, or
+    /// take:<name>, a recording the open song keeps (a take, a rework's vocals or original, a phrase sampled into it)
     pub path: String,
     /// the take: 0 (the default) for the best phrases, any other number for another draw of them
     #[serde(default)]

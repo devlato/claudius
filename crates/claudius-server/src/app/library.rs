@@ -1,6 +1,7 @@
 //! Recordings from the free online libraries (`claudius_packs::online`), for a person or an assistant to hear and use:
 //! a search lists them (`/api/library/search`, `search_recordings`), and `library:<id>`, where a command takes a
-//! recording's path, is one a search found, downloaded once into the samples folder with what it credits.
+//! recording's path, is one a search found, downloaded once into the samples folder with what it credits. There too,
+//! `take:<name>` is a recording the open song keeps (a take, a rework's `vocals` or `original`, a phrase sampled).
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,6 +14,8 @@ use super::App;
 
 /// what a command names a recording a search found by
 pub const SCHEME: &str = "library:";
+/// what a command names a recording the open song keeps by, before its name (`take:vocals`)
+pub const TAKE: &str = "take:";
 
 /// a recording a search found, as the studio lists it: its audio fetched from this claudius
 pub fn hit(f: &Found) -> LibraryHit {
@@ -81,11 +84,29 @@ impl App {
         }
     }
 
-    /// `c`, with a recording it names as `library:<id>` downloaded and named by its file instead
+    /// the file of the recording the open song keeps as `name`: a take, a rework's tracks, a phrase sampled into it
+    fn take_file(&self, name: &str) -> Result<String, String> {
+        let bp = self.blueprint().ok_or("no song yet, so no take to name: open or start one first")?;
+        let kept: Vec<&claudius::model::LoopPart> = bp.loops.iter().filter(|l| l.kept()).collect();
+        match kept.iter().find(|l| l.name == name).map(|l| &l.sound) {
+            Some(claudius::model::Sound::Loop { path, .. }) => Ok(path.clone()),
+            _ if kept.is_empty() => Err(format!("the song keeps no recordings, so none called '{name}'")),
+            _ => {
+                let names: Vec<&str> = kept.iter().map(|l| l.name.as_str()).collect();
+                Err(format!("the song keeps no recording called '{name}' (it keeps {})", names.join(", ")))
+            }
+        }
+    }
+
+    /// `c`, with a recording it names as `library:<id>` downloaded, or as `take:<name>` found among the open song's,
+    /// and named by its file instead
     pub(super) fn from_library(self: &Arc<Self>, c: Command) -> Result<Command, String> {
         let file = |path: String| -> Result<String, String> {
-            match path.strip_prefix(SCHEME) {
-                Some(id) => self.library_file(id).map(|p| p.display().to_string()),
+            if let Some(id) = path.strip_prefix(SCHEME) {
+                return self.library_file(id).map(|p| p.display().to_string());
+            }
+            match path.strip_prefix(TAKE) {
+                Some(name) => self.take_file(name.trim()),
                 None => Ok(path),
             }
         };

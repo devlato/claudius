@@ -902,6 +902,13 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     let vox = st.song.unwrap().tracks.into_iter().find(|t| t.name == "vox").unwrap();
     assert!(vox.loudness.is_some_and(|l| l > -40.0), "it plays: {:?}", vox.loudness);
 
+    // the take by its name where a recording's path goes, and a name the song keeps nothing by refused, saying what it
+    // keeps
+    let r = app.command(Command::Analyze { path: "take:vox".into() });
+    assert!(r.ok, "{}", r.message);
+    let r = app.command(Command::Analyze { path: "take:nope".into() });
+    assert!(!r.ok && r.message.contains("no recording called 'nope' (it keeps vox"), "{}", r.message);
+
     // the take is one held note (229 Hz): as notes, a part plays it, and the take goes quiet
     let r = app.command(Command::TranscribeTake {
         take: "vox".into(),
