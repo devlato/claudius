@@ -139,6 +139,9 @@ pub enum Event {
     /// a window of the song as it is now (`Backend::window`): the version of the song it is of, where it starts in
     /// seconds and its audio, or why the server has none (the next render is to be waited for)
     Window(Result<(u64, f64, Arc<crate::audio::Pcm>), String>),
+    /// the server has no window of the song as it is (409: a track's own sound or the song's length changed, which
+    /// the next render plays), unlike a window that failed to come (`Window(Err)`), which may come when asked again
+    WindowRefused(String),
     /// what was said to the palette, heard (`Backend::hear`), or why it was not
     Heard(Result<claudius_api::Heard, String>),
 }
@@ -307,12 +310,16 @@ impl Remote {
         let url = self.url(&format!("/api/window?from={from:.4}&secs={secs:.4}"));
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         ehttp::fetch(ehttp::Request::get(&url), move |res| {
-            let ev = match res {
-                Ok(r) if r.ok => window_of(&r.bytes),
-                Ok(r) => Err(r.text().map_or_else(|| format!("{} {}", r.status, r.status_text), str::to_string)),
-                Err(e) => Err(e),
+            let said = |r: &ehttp::Response| {
+                r.text().map_or_else(|| format!("{} {}", r.status, r.status_text), str::to_string)
             };
-            Self::deliver(&tx, &ctx, Event::Window(ev));
+            let ev = match res {
+                Ok(r) if r.ok => Event::Window(window_of(&r.bytes)),
+                Ok(r) if r.status == 409 => Event::WindowRefused(said(&r)),
+                Ok(r) => Event::Window(Err(said(&r))),
+                Err(e) => Event::Window(Err(e)),
+            };
+            Self::deliver(&tx, &ctx, ev);
         });
     }
 

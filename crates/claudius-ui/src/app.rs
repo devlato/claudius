@@ -151,6 +151,8 @@ impl Studio {
             Connection::Mock => None,
         };
         self.player.clear();
+        // a window asked of the backend left behind never comes: the live mix starts again with the new one
+        self.live = crate::live::Live::default();
         self.view.reference = None;
         self.view.reference_loading = false;
         self.view.download = None;
@@ -300,6 +302,10 @@ impl Studio {
                 }
             }
             Event::Window(Err(why)) => {
+                log::debug!("a window of the live mix did not come: {why}");
+                self.live.failed();
+            }
+            Event::WindowRefused(why) => {
                 log::debug!("no window of the live mix: {why}");
                 self.live.refused();
             }
