@@ -458,13 +458,13 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
             (
                 "Save",
                 "download the song, and save it in a folder of its own on the computer claudius runs on: blueprint, \
-                 script, audio, stems and verdict",
+                 script, audio and verdict (each track on its own is in Export)",
             )
         } else {
             (
                 "Save",
-                "save the song in a folder of its own under ~/Music/claudius (blueprint, script, audio, stems and \
-                 verdict), and show the folder",
+                "save the song in a folder of its own under ~/Music/claudius (blueprint, script, audio and verdict), \
+                 and show the folder; each track on its own is in Export",
             )
         };
         if widgets::tool_button(ui, Icon::Save, save, has_song, false).on_hover_text(save_tip).clicked() {
@@ -1555,7 +1555,7 @@ pub(crate) fn ask_download(
         view.download = Some(super::Download::of(state, now, format));
     }
     if !demo {
-        out.push(Command::Save { path: None });
+        out.push(Command::Save { path: None, stems: false });
     } else if state.busy.is_none() && (state.render.is_none() || super::render_stale(state)) {
         out.push(Command::Render { stems: false });
     }

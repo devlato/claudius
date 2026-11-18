@@ -265,9 +265,9 @@ async fn a_shared_session_keeps_to_its_folders() {
     assert!(!r.ok && r.message.contains("outside the folders"), "{}", r.message);
     let r = app.command(Command::Load { path: inside.join("missing.rhai").display().to_string() });
     assert!(!r.ok && r.message.contains("does not exist"), "{}", r.message);
-    let r = app.command(Command::Save { path: Some(outside.join("saved").display().to_string()) });
+    let r = app.command(Command::Save { stems: false, path: Some(outside.join("saved").display().to_string()) });
     assert!(!r.ok && r.message.contains("outside the folders"), "{}", r.message);
-    let r = app.command(Command::Save { path: Some(inside.join("../escape").display().to_string()) });
+    let r = app.command(Command::Save { stems: false, path: Some(inside.join("../escape").display().to_string()) });
     assert!(!r.ok, "{}", r.message);
     let wav = outside.join("x.wav");
     std::fs::write(&wav, b"RIFF").unwrap();
@@ -558,7 +558,7 @@ async fn assistants_work_over_mcp() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn saves_during_a_render_wait_for_it_and_write_everything() {
+async fn saves_during_a_render_wait_for_it_and_write_everything_with_each_tracks_stem_only_where_asked() {
     let app = app();
     let base = std::env::temp_dir().join(format!("claudius-save-{}", std::process::id()));
     let dirs = [base.join("a"), base.join("b")];
@@ -576,19 +576,29 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
     assert!(app.command(new).ok);
     // the new song's render is running: both saves wait for it instead of being dropped or replacing each other
     assert!(app.state().busy.is_some());
-    for dir in &dirs {
-        let r = app.command(Command::Save { path: Some(dir.display().to_string()) });
+    // the first with each track's stem, the second without: a stem is as big as the song's WAV and a third again
+    for (dir, stems) in dirs.iter().zip([true, false]) {
+        let r = app.command(Command::Save { stems, path: Some(dir.display().to_string()) });
         assert!(r.ok && r.message.contains("once the current job"), "{}", r.message);
         assert!(dir.join("blueprint.json").is_file() && dir.join("song.rhai").is_file());
     }
     let st = app.settled(Duration::from_secs(240)).await;
     assert_eq!(st.log.iter().filter(|l| l.starts_with("saved ")).count(), 2, "{:?}", st.log);
     for dir in &dirs {
-        for file in ["song.wav", "project.json", "verdict.json", "report.json", "song.rhai", "blueprint.json"] {
+        for file in
+            ["song.wav", "song.mp3", "project.json", "verdict.json", "report.json", "song.rhai", "blueprint.json"]
+        {
             assert!(dir.join(file).is_file(), "{file} is missing in {}", dir.display());
         }
-        assert!(std::fs::read_dir(dir.join("stems")).is_ok_and(|d| d.count() > 3));
+        // each file whole, and no part of one left behind
+        let names: Vec<String> =
+            std::fs::read_dir(dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        assert!(names.iter().all(|n| !n.ends_with(".part")), "{names:?}");
     }
+    assert!(std::fs::read_dir(dirs[0].join("stems")).is_ok_and(|d| d.count() > 3));
+    assert!(!dirs[1].join("stems").exists());
+    // the stems went into the folder that asked for them, and the studio did not ask: none are kept for it
+    assert!(st.render.as_ref().is_some_and(|r| r.stems.is_empty()), "{:?}", st.render.map(|r| r.stems));
     std::fs::remove_dir_all(&base).unwrap();
 }
 
@@ -627,7 +637,7 @@ async fn a_song_goes_back_to_before_a_change_and_opens_again_with_its_history() 
     assert!(!app.command(Command::GoBack { to: "a change".into() }).ok);
     assert!(app.command(Command::Redo).ok);
     // saved with its history, and opened in another session: undo goes on from where it was
-    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(dir.display().to_string()) }).ok);
     assert!(std::fs::read_to_string(dir.join("history.jsonl")).unwrap().lines().count() >= 6);
     let other = quiet();
     let r = other.command(Command::Load { path: dir.display().to_string() });
@@ -756,7 +766,7 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
     // a folder of the test's own: a song without one would release into ~/Music/claudius
     let dir = std::env::temp_dir().join(format!("claudius-release-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(dir.display().to_string()) }).ok);
     let st = app.settled(Duration::from_secs(240)).await;
     let release = st.release.expect("a release for the song");
     assert_eq!(release.song_title, st.song.as_ref().unwrap().title);
@@ -855,7 +865,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     for d in [&dir, &other, &moved] {
         let _ = std::fs::remove_dir_all(d);
     }
-    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(dir.display().to_string()) }).ok);
     let st = app.settled(Duration::from_secs(240)).await;
     let from = st.song.unwrap().sections[1].name.clone();
 
@@ -996,7 +1006,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     app.settled(Duration::from_secs(240)).await;
 
     // saved elsewhere, the song takes its take along; that folder moved, opening it finds the take there
-    assert!(app.command(Command::Save { path: Some(other.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(other.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;
     assert_eq!(std::fs::read_dir(other.join("takes")).unwrap().count(), 1);
     std::fs::rename(&other, &moved).unwrap();
@@ -1029,7 +1039,7 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     // a song's own files, as a studio reads them on its computer: its blueprint and its script
     let dir = std::env::temp_dir().join(format!("claudius-open-text-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(dir.display().to_string()) }).ok);
     let blueprint = std::fs::read_to_string(dir.join("blueprint.json")).unwrap();
     let script = std::fs::read_to_string(dir.join("song.rhai")).unwrap();
     assert!(app.command(new("techno", 9)).ok);
@@ -1128,7 +1138,7 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     assert!(app.command(Command::RunScript { code: short.into() }).ok);
     let folder = std::env::temp_dir().join(format!("claudius-asked-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&folder);
-    assert!(app.command(Command::Save { path: Some(folder.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(folder.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;
     let from = app.state().song.unwrap().sections[1].name.clone();
     assert!(app.command(ask("nowhere", None, "")).message.contains("no section 'nowhere'"));
@@ -1333,7 +1343,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     // a folder of the test's own: a song without one keeps what it samples in ~/Music/claudius
     let folder = std::env::temp_dir().join(format!("claudius-sampled-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&folder);
-    assert!(app.command(Command::Save { path: Some(folder.display().to_string()) }).ok);
+    assert!(app.command(Command::Save { stems: false, path: Some(folder.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;
     // sixteen seconds at 120 BPM: a sung A3 in the middle in the third bar and again in the fifth, each with a rest
     // round it, so that each is a phrase sung whole in a bar; a hat to the left all through

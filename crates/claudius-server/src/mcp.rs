@@ -411,6 +411,10 @@ pub struct SaveArgs {
     /// folder to write into (default: Music/claudius/<genre>-<title>-<seed>)
     #[serde(default)]
     pub path: Option<String>,
+    /// also write each track on its own into stems/, for mixing the song in another studio (32-bit WAV, about 120 MB a
+    /// track for a five-minute song, so a gigabyte or more for a whole song); off unless asked for
+    #[serde(default)]
+    pub stems: bool,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1369,10 +1373,10 @@ impl Studio {
     }
 
     #[tool(
-        description = "Save the song into a folder: blueprint.json, song.rhai (the song as a script), song.wav, song.mp3, stems/ and the verdict."
+        description = "Save the song into a folder: blueprint.json, song.rhai (the song as a script), song.wav, song.mp3 and the verdict; with stems, each track on its own in stems/ as well (a gigabyte or more). A save the disk has no room for is refused before it writes the audio, saying what it takes and what is free."
     )]
     async fn save(&self, Parameters(a): Parameters<SaveArgs>) -> Result<String, String> {
-        self.job(Command::Save { path: a.path }, 240).await
+        self.job(Command::Save { path: a.path, stems: a.stems }, 240).await
     }
 
     #[tool(

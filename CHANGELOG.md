@@ -16,6 +16,11 @@ bass hats`) reads `bars 9-24  drop (B)  energy 0.94, kick bass hats` now, its ba
 each section's `label`, `group`, `build_bars`, `cut` and `sung`, each bar's start (`bar_starts`) and the `phrases`
 sung.
 
+A save writes each track's stem only when asked for (`save` with `stems: true` over the MCP and the API; Export, Each
+track on its own, in the studio): a song's stems take a gigabyte or more, and every save wrote them twice, into the
+song's folder and the render cache. A save the disk has no room for is refused before it writes the audio, saying what
+it takes and what is free, and no file is left half-written. What wants a song folder's `stems/` asks for them now.
+
 ## [0.12.1] - 2026-11-17
 
 ### Fixed

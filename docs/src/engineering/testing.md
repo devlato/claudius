@@ -141,7 +141,8 @@ pull request how the music changed.
   command, 401 without the token, 200 with `?token=` (and a cookie) or a bearer header;
 - MCP over HTTP: initialize, list the tools, make a song, get a tool error for an unknown sound, read the song back as a
   script;
-- a save asked for while the new song's render runs waits for it, then writes the whole folder, stems included;
+- two saves asked for while the new song's render runs wait for it, then write the whole folder, each track's stem only
+  into the one that asked, and no part of a file left behind;
 - the studio's accent and ghost thresholds (`claudius_api::{ACCENT, GHOST}`) equal the engine's step-string ones.
 
 These tests run real renders with the library and the ears off, so they take tens of seconds.

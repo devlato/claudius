@@ -220,7 +220,7 @@ fields marked optional may be left out.
 | `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false), `sampled` (as the genre is), `sample_search`, `complexity` (0 to 1; the genre's own) | composes a new song; `sampled` builds it on samples from free libraries, `sample_search` searches for its phrase with your words ([Songs built on samples](online-samples.md#songs-built-on-samples)), `complexity` says how [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is) it is |
 | `load` | `path` | opens a song folder, a `blueprint.json`, a script file (run on the open song), or a project the demo saved (a `.zip`, unpacked into a song folder of its own under `~/Music/claudius`) |
 | `open_text` | `name`, `text` | opens a song from a file's text, as the studio sends a file chosen on its computer: a `blueprint.json`'s when `name` ends in `.json`, otherwise a script's; saving makes a song folder of its own |
-| `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
+| `save` | optional `path`, optional `stems` (`true`: each track on its own in `stems/`) | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
 | `export` | `formats` (such as `["mp3", "flac:16"]`), optional `path` | writes the latest render in those [formats](export.md#formats), when it is of the song as it is now (otherwise: `the song has changed since its last render: render it, then export`); default folder as for `save` |
 | `set_release` | `details` (every field of `ReleaseDetails`: `artist`, `title`, `writers`, `made` ...), optional `artwork` (a JPEG or PNG file) | replaces what stores are told about the [release](publish.md), and checks it again |
 | `write_kit` | optional `path` | writes the release kit from the latest render, when it is of the song as it is now and nothing stops the release; default `release/` in the song's folder |
@@ -320,10 +320,16 @@ to it when that job ends, so the session never looks idle in between and `settle
 {"ok": true, "message": "saving to /tmp/cl-save2: blueprint.json and song.rhai now, the audio once the current job (rendering) is done", "version": 4}
 ```
 
-Either way the save renders the song as it is when its turn comes, with stems, and rewrites the whole folder from
-that render, so the score in it is always the song its audio plays: `song.wav`, `song.mp3`, `blueprint.json`,
-`song.rhai`, `project.json`, `report.json`, `verdict.json`, `credits.txt` when sample packs play, and `stems/` as
-32-bit float. The log then says `saved <folder>`, or `could not save <folder>: <reason>`.
+Either way the save renders the song as it is when its turn comes and rewrites the whole folder from that render, so
+the score in it is always the song its audio plays: `song.wav`, `song.mp3`, `blueprint.json`, `song.rhai`,
+`project.json`, `report.json`, `verdict.json`, `credits.txt` when sample packs play, and with `"stems": true` each
+track's stem in `stems/` as 32-bit float, about 120 MB a track for a five-minute song. Each file appears only once it
+is whole, and a write that fails leaves the file as it was. The log then says `saved <folder>`, or
+`could not save <folder>: <reason>`, as when the disk has no room for the folder's audio and 256 MB to spare:
+
+```text
+could not save /Users/me/Music/claudius/house-neon-7: there is not room for it on the disk: it takes about 1.4 GB, and 900 MB is free (the stems are 1.3 GB of it)
+```
 
 `cancel` does not stop a render that has started.
 
@@ -371,8 +377,8 @@ content-length: 100
 
 The MP3 is encoded on the first request (a second or two for a song) and kept. A session keeps its last ten renders
 on disk, so older versions
-return 404. Stems exist only for a render made with `{"cmd": "render", "stems": true}` or by `save`, and only the
-latest render's stems are served, as 24-bit WAV; the copies a `save` writes into the song folder are 32-bit float.
+return 404. Stems exist only for a render made with `{"cmd": "render", "stems": true}`, and only the latest render's
+stems are served and kept, as 24-bit WAV; the copies a `save` with stems writes into the song folder are 32-bit float.
 
 ## Who may call it
 

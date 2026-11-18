@@ -22,16 +22,10 @@ pub fn encode(master: &Stereo, spec: &Spec, tags: &Tags) -> Result<Vec<u8>> {
     claudius_encode::encode(spec, claudius_encode::Pcm { samples: &x, channels: 2, rate: SR }, tags)
 }
 
-/// Write `master` as `spec` to `path`, which appears only once it is complete.
+/// Write `master` as `spec` to `path`, which appears only once it is complete (`config::write_whole`).
 pub fn write(master: &Stereo, spec: &Spec, tags: &Tags, path: &Path) -> Result<()> {
     let bytes = encode(master, spec, tags).with_context(|| format!("cannot write {}", spec.label(SR)))?;
-    if let Some(d) = path.parent() {
-        std::fs::create_dir_all(d)?;
-    }
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let tmp = path.with_file_name(format!(".{name}.{}.part", crate::config::process_id()));
-    std::fs::write(&tmp, bytes).with_context(|| format!("cannot write {}", tmp.display()))?;
-    std::fs::rename(&tmp, path).with_context(|| format!("cannot write {}", path.display()))
+    crate::config::write_whole(path, |part| Ok(std::fs::write(part, bytes)?))
 }
 
 /// The files to export `specs` to, named after `stem` in `dir`: `stem.mp3`, and when several specs share an

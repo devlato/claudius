@@ -261,6 +261,7 @@ pub fn render_and_write(
 ) -> Result<(Project, Rendered, Written, Verdict)> {
     let project = compose::arrange(bp);
     let r = render::render(&project, &render::Options { stems, ..Default::default() })?;
+    room_for_audio(dir, &r, stems)?;
     // the MP3 is encoded while the critic listens: both take seconds, and neither needs the other
     let (audio, e) = std::thread::scope(|s| {
         let audio = s.spawn(|| write_audio(dir, bp, &r));
@@ -269,17 +270,38 @@ pub fn render_and_write(
     });
     let (wav, mp3) = audio.unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
     let verdict = judge::judge(&project, &r, e);
-    write_documents(dir, bp, &project, &r, &verdict)?;
+    write_documents(dir, bp, &project, &r, &verdict, stems)?;
     Ok((project, r, Written { dir: dir.to_path_buf(), wav, mp3 }, verdict))
 }
 
-/// write a rendered song's folder: song.wav, song.mp3, blueprint.json, song.rhai, project.json,
-/// report.json, verdict.json, credits.txt when sampled instruments ask for credit, and stems/ when they were rendered
-/// (32-bit float, since a track can peak above full scale before the master's limiter)
-pub fn write_folder(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<Written> {
+/// write a rendered song's folder: song.wav, song.mp3, blueprint.json, song.rhai, project.json, report.json,
+/// verdict.json, credits.txt when sampled instruments ask for credit, and with `stems` each track's stem in stems/
+/// (rendered with them, as 32-bit float, since a track can peak above full scale before the master's limiter). A folder
+/// the disk has no room for is refused before anything is written (`room_for_audio`).
+pub fn write_folder(
+    dir: &Path,
+    bp: &Blueprint,
+    project: &Project,
+    r: &Rendered,
+    verdict: &Verdict,
+    stems: bool,
+) -> Result<Written> {
+    room_for_audio(dir, r, stems)?;
     let (wav, mp3) = write_audio(dir, bp, r)?;
-    write_documents(dir, bp, project, r, verdict)?;
+    write_documents(dir, bp, project, r, verdict, stems)?;
     Ok(Written { dir: dir.to_path_buf(), wav, mp3 })
+}
+
+/// Whether the disk has room for the audio of a folder of `r`'s, with each track's stem when `stems`: a stem is as big
+/// as the song's WAV and a third again, so a song of twenty tracks with its stems takes a disk's gigabyte or two.
+fn room_for_audio(dir: &Path, r: &Rendered, stems: bool) -> Result<()> {
+    // song.wav, and song.mp3 at 256 kbps
+    let song = audio::wav_size(&r.master, false) + (r.master.secs() * 32_000.0) as u64;
+    let tracks: u64 = if stems { r.stems.iter().map(|(_, s)| audio::wav_size(s, true)).sum() } else { 0 };
+    crate::config::room_for(dir, song + tracks).map_err(|e| match tracks {
+        0 => e,
+        _ => anyhow::anyhow!("{e} (the stems are {} of it)", crate::config::size(tracks)),
+    })
 }
 
 /// song.wav (24-bit) and song.mp3
@@ -293,25 +315,33 @@ fn write_audio(dir: &Path, bp: &Blueprint, r: &Rendered) -> Result<(PathBuf, Pat
     Ok((wav, mp3))
 }
 
-/// everything in the folder but the audio; the song's takes are copied into its `takes/`, and what the folder says
-/// plays the copies
-fn write_documents(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<()> {
+/// everything in the folder but the audio, and each track's stem with `stems`; the song's takes are copied into its
+/// `takes/`, and what the folder says plays the copies
+fn write_documents(
+    dir: &Path,
+    bp: &Blueprint,
+    project: &Project,
+    r: &Rendered,
+    verdict: &Verdict,
+    stems: bool,
+) -> Result<()> {
     std::fs::create_dir_all(dir)?;
     let mut bp = bp.clone();
     let moves = crate::take::gather(&mut bp, dir)?;
     let mut project = project.clone();
     crate::take::repoint_tracks(&mut project, &moves);
     let (bp, project) = (&bp, &project);
-    std::fs::write(dir.join("verdict.json"), serde_json::to_string_pretty(verdict)?)?;
-    std::fs::write(dir.join("blueprint.json"), bp.to_json())?;
-    std::fs::write(dir.join("song.rhai"), crate::script::to_script(bp))?;
-    std::fs::write(dir.join("project.json"), serde_json::to_string_pretty(project)?)?;
-    std::fs::write(dir.join("report.json"), serde_json::to_string_pretty(&report(bp, project, r))?)?;
+    let text = |name: &str, body: String| crate::config::write_whole(&dir.join(name), |p| Ok(std::fs::write(p, body)?));
+    text("verdict.json", serde_json::to_string_pretty(verdict)?)?;
+    text("blueprint.json", bp.to_json())?;
+    text("song.rhai", crate::script::to_script(bp))?;
+    text("project.json", serde_json::to_string_pretty(project)?)?;
+    text("report.json", serde_json::to_string_pretty(&report(bp, project, r))?)?;
     let c = credits(project);
     if !c.is_empty() {
-        std::fs::write(dir.join("credits.txt"), c)?;
+        text("credits.txt", c)?;
     }
-    for (name, s) in &r.stems {
+    for (name, s) in r.stems.iter().filter(|_| stems) {
         audio::save_wav(&dir.join("stems").join(format!("{}.wav", slug(name))), s, true)?;
     }
     Ok(())

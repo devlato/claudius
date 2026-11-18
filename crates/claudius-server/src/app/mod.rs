@@ -93,8 +93,9 @@ struct Session {
     job: bool,
     /// a render was asked for while a job ran
     rerender: Option<bool>,
-    /// saves asked for while a job ran: one render into all these folders when the job is done
-    pending_saves: Vec<PathBuf>,
+    /// saves asked for while a job ran, each with whether it wants the stems: one render into all these folders when
+    /// the job is done
+    pending_saves: Vec<(PathBuf, bool)>,
     /// the folder the song was opened from or last saved to
     folder: Option<PathBuf>,
     /// the release in the making for the song

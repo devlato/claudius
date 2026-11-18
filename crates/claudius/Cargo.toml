@@ -47,6 +47,8 @@ web-time = "1"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # a project zipped again by hand (Finder, Explorer) is deflated, and claudius opens it; a browser only writes them
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+# how much room a disk has, so that a save that would fill it is refused before it writes anything
+fs4 = { version = "1", default-features = false }
 
 [dev-dependencies]
 criterion = "0.8"
