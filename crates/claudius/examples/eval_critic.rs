@@ -564,14 +564,12 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw], cache: Option<&Path>)
 fn heard(ears: &Ears, master: &Stereo, item: &str, cache: Option<&Path>) -> Option<EarsReport> {
     let print = fingerprint(master);
     let path = cache.map(|d| d.join(format!("{}.json", item.replace('/', "~"))));
-    if let Some(kept) = path.as_ref().and_then(|p| std::fs::read_to_string(p).ok()) {
-        if let Ok(v) = serde_json::from_str::<Value>(&kept) {
-            if v["audio"].as_str() == Some(print.as_str()) {
-                if let Ok(r) = serde_json::from_value::<EarsReport>(v["report"].clone()) {
-                    return Some(r);
-                }
-            }
-        }
+    if let Some(kept) = path.as_ref().and_then(|p| std::fs::read_to_string(p).ok())
+        && let Ok(v) = serde_json::from_str::<Value>(&kept)
+        && v["audio"].as_str() == Some(print.as_str())
+        && let Ok(r) = serde_json::from_value::<EarsReport>(v["report"].clone())
+    {
+        return Some(r);
     }
     let r = ears.report(master, None, None, true).ok()?;
     if let Some(p) = &path {
