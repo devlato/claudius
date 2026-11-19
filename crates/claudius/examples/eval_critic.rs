@@ -40,8 +40,11 @@
 //! rather than hours. A folder holds the reports of one version of the ears; start another when earshot or its models
 //! change.
 //!
+//! `--measures` writes the critic's measures of each item beside its metrics (`bench compare` reads only the
+//! metrics), for choosing a new check's settings on the tuning shards.
+//!
 //!   cargo run --release -p claudius --example eval_critic -- DIR [--shards 0..2] [--songs N] [--out FILE]
-//!       [--no-ears] [--threads N] [--ears-cache DIR]
+//!       [--no-ears] [--threads N] [--ears-cache DIR] [--measures]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -268,20 +271,28 @@ fn fetch(dir: &Path, shards: &[u32]) -> Result<(), String> {
 }
 
 /// the lines of a song: as it is, then with each flaw
-fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw], cache: Option<&Path>) -> Result<Vec<Value>, String> {
+fn judge(
+    song: &Song,
+    ears: Option<&Ears>,
+    flaws: &[Flaw],
+    cache: Option<&Path>,
+    measures: bool,
+) -> Result<Vec<Value>, String> {
     let x = audio::load(&song.path).map_err(|e| format!("{}: {e:#}", song.id))?;
-    let total = |x: Stereo, item: &str| {
+    // each item's total, and with --measures the critic's measures of it beside its metrics
+    let verdict = |x: Stereo, item: &str| {
         let hear = |_: &claudius::model::Project, r: &claudius::render::Rendered| {
             ears.and_then(|e| heard(e, &r.master, item, cache))
         };
-        claudius::song::judge_audio(x, None, Some(&hear)).total
+        let v = claudius::song::judge_audio(x, None, Some(&hear));
+        (v.total, measures.then(|| json!(v.measures)))
     };
     let sung = if song.sung { "sung" } else { "not tagged sung" };
     let mut lines = Vec::new();
     // a total the critic cannot give (not a number) counts against it in every metric: the song condemned, at 0; and
     // a pair without both totals not ranked, at the most the song could lose by (-100), and a flawed copy without
     // one counted as praised, so that a change that gives totals where there were none cannot look worse for it
-    let t = total(x.clone(), &song.id);
+    let (t, seen) = verdict(x.clone(), &song.id);
     let judged = t.is_finite();
     if !judged {
         eprintln!("{}: the critic gave no total ({t})", song.id);
@@ -291,9 +302,13 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw], cache: Option<&Path>)
         "slice": {"family": song.family, "voice": sung},
         "metrics": {"total": if judged { hundredths(t) } else { 0.0 }, "condemned": !judged || t < CONDEMNED},
     }));
+    if let Some(seen) = seen {
+        lines.last_mut().expect("just pushed")["measures"] = seen;
+    }
     let seed = song.id.trim_start_matches("track_").parse::<u64>().unwrap_or(1);
     for f in flaws {
-        let ft = total(f.put(&x, seed.wrapping_mul(31).wrapping_add(*f as u64)), &format!("{}/{}", song.id, f.name()));
+        let (ft, seen) =
+            verdict(f.put(&x, seed.wrapping_mul(31).wrapping_add(*f as u64)), &format!("{}/{}", song.id, f.name()));
         if !ft.is_finite() {
             eprintln!("{} {}: the critic gave no total ({ft})", song.id, f.name());
         }
@@ -307,6 +322,9 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw], cache: Option<&Path>)
                 "praised": !ft.is_finite() || ft >= PRAISED,
             },
         }));
+        if let Some(seen) = seen {
+            lines.last_mut().expect("just pushed")["measures"] = seen;
+        }
     }
     Ok(lines)
 }
@@ -414,7 +432,8 @@ fn main() {
     let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let Some(dir) = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from) else {
         eprintln!(
-            "usage: eval_critic DIR [--shards 0..2] [--songs N] [--out FILE] [--no-ears] [--threads N] [--ears-cache DIR]"
+            "usage: eval_critic DIR [--shards 0..2] [--songs N] [--out FILE] [--no-ears] [--threads N] [--ears-cache DIR] \
+             [--measures]"
         );
         std::process::exit(2);
     };
@@ -460,6 +479,7 @@ fn main() {
     });
     let no_ears = args.iter().any(|a| a == "--no-ears");
     let cache = flag("--ears-cache").map(PathBuf::from);
+    let measures = args.iter().any(|a| a == "--measures");
     if let Some(c) = &cache
         && let Err(e) = std::fs::create_dir_all(c)
     {
@@ -498,7 +518,7 @@ fn main() {
                 loop {
                     let i = next.fetch_add(1, Ordering::Relaxed);
                     let Some(song) = todo.get(i) else { break };
-                    if tx.send(judge(song, ears.as_ref(), flaws, cache)).is_err() {
+                    if tx.send(judge(song, ears.as_ref(), flaws, cache, measures)).is_err() {
                         break;
                     }
                 }
