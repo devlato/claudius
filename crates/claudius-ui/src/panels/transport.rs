@@ -64,14 +64,18 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
     } else {
         "EMPTY"
     };
-    p.text(
-        pos2(rect.right() - 10.0, rect.top() + 12.0),
-        Align2::RIGHT_CENTER,
-        status,
-        theme::mono(9.5),
-        theme::lcd_ink(0.6),
-    );
-    if cx.view.looping {
+    // a narrow LCD leaves out its words for what the player does and whether it loops, which its buttons show
+    let roomy = width >= 200.0;
+    if roomy {
+        p.text(
+            pos2(rect.right() - 10.0, rect.top() + 12.0),
+            Align2::RIGHT_CENTER,
+            status,
+            theme::mono(9.5),
+            theme::lcd_ink(0.6),
+        );
+    }
+    if roomy && cx.view.looping {
         p.text(
             pos2(rect.right() - 10.0, rect.bottom() - 11.0),
             Align2::RIGHT_CENTER,
@@ -84,8 +88,10 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
 }
 
 /// how many levels of detail the top bar has (`widgets::fitting`): as the window narrows it drops the score's label,
-/// then the song's bars and length, then the logo's name, then shortens the title and the LCD and drops the genre
-const TOP_LEVELS: usize = 5;
+/// then the song's bars and length, then the logo's name, then shortens the title and the LCD and drops the genre,
+/// then narrows the title, the LCD (which drops its word for what the player does) and the mode, so that the bar fits
+/// the app's narrowest window with a Mac's window buttons in it
+const TOP_LEVELS: usize = 6;
 
 /// row 1: logo, transport, LCD, song parameters, score
 pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
@@ -191,7 +197,7 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
             }
         }
         ui.add_space(4.0);
-        lcd(ui, cx, if level < 4 { 268.0 } else { 214.0 });
+        lcd(ui, cx, [268.0, 268.0, 268.0, 268.0, 214.0, 170.0][level.min(5)]);
         ui.add_space(8.0);
         song_params(ui, cx, level);
         let left = ui.cursor().min.x - start;
@@ -250,7 +256,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
         ui.add_space(3.0);
         // a long title ends in an ellipsis, all of it in its tooltip
         ui.scope(|ui| {
-            ui.set_max_width(if level < 4 { 240.0 } else { 120.0 });
+            ui.set_max_width([240.0, 240.0, 240.0, 240.0, 120.0, 90.0][level.min(5)]);
             let title = RichText::new(&song.title).size(15.5).strong().color(TEXT);
             ui.add(egui::Label::new(title).truncate()).on_hover_text(format!(
                 "{}: {} at {:.0} BPM, {} bars, {}",
@@ -328,7 +334,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
             );
             let mut mode = key.mode;
             egui::ComboBox::from_id_salt("key_mode")
-                .width(92.0)
+                .width(if level < 5 { 92.0 } else { 70.0 })
                 .selected_text(key.mode_name().replace('_', " "))
                 .show_ui(ui, |ui| {
                     for (i, (name, _)) in music::MODES.iter().enumerate() {
