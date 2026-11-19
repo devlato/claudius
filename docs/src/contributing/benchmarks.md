@@ -56,7 +56,8 @@ and the experiment's. Each file holds a line of JSON for each item:
 Each line is one item, here on two lines to fit. `item` is the same id in every run of the benchmark; `slice` the
 labels it is counted under; each metric is `true` or `false` (right or wrong) or a number (a score), better higher
 unless `better` says lower. `primary` names the metrics the change is made to improve; the others are guards it must
-not make worse (without it, every metric is primary). The command prints, for each metric, the whole set and every
+not make worse (without it, every metric is primary), but for those `shown` names: compared and shown, never judged,
+for a level of which neither more nor less is better. The command prints, for each metric, the whole set and every
 slice with the difference, its interval, the items better and worse and the test, then the ids of the items that got
 worse, as Markdown for the pull request. Which way a metric went is its test's: for a score, whether the ranks of the
 items that got better outweigh those of the items that got worse, so that a few items much better cannot carry a
@@ -90,7 +91,7 @@ results become the next baseline.
   each of seven flaws a listener hears put into them (clipped, muddy, thin, noisy, gaps, a copy a semitone up, a copy
   falling out of time), and writes a line for `bench compare` for each. What a change to the critic is made to
   improve is how often a song is judged above its flawed copy; it must not judge more real songs bad, nor praise more
-  flawed ones. Each shard of the dataset is a random one percent of it: choose settings on shards 0 and 1, and report
+  flawed ones. The total of a song as it is is shown, not judged: a critic rating every song 100 would raise it. Each shard of the dataset is a random one percent of it: choose settings on shards 0 and 1, and report
   the result on shard 2 (`--shards 2..2`), which the tuning never saw. It holds no chart hits: what it says of the
   songs people hear most is still to be measured.
 - **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and

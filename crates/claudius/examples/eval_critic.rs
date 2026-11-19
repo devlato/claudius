@@ -24,7 +24,9 @@
 //! as it is, with its **total** and whether it is **condemned** (under 40, the studio's red), and for each flawed copy
 //! whether the song was **ranked** above it, by how much (**gap**), and whether the flawed copy was **praised** (80 or
 //! more, the studio's green, which a song with such a flaw should never get). `ranked` is what a change to the critic
-//! is made to improve; the others are guards. Each line is sliced by the flaw, the song's family of genres (by its
+//! is made to improve; the others are guards, but for the total of a song as it is, which is shown and not judged: of
+//! a level, neither more nor less is better (a critic rating every song 100 would raise it), and `condemned` holds
+//! the songs as they are to what matters of it. Each line is sliced by the flaw, the song's family of genres (by its
 //! genre tags) and whether it is tagged as sung.
 //! A total the critic cannot give (not a number) counts against it in every metric, so that every run holds the same
 //! items and a change that gives totals where there were none cannot look worse for it: the song condemned at 0, a
@@ -557,7 +559,7 @@ fn hundredths(x: f64) -> f64 {
 
 /// the line that heads the results: which way each metric is better, and what a change is made to improve
 fn head() -> Value {
-    json!({"better": {"condemned": "lower", "praised": "lower"}, "primary": ["ranked"]})
+    json!({"better": {"condemned": "lower", "praised": "lower"}, "primary": ["ranked"], "shown": ["total"]})
 }
 
 /// what the run found, flaw by flaw and for the songs as they are
