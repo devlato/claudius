@@ -28,6 +28,7 @@ mod pick;
 mod radio;
 mod settings;
 mod theme;
+mod themes;
 mod tour;
 mod widgets;
 

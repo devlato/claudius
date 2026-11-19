@@ -15,6 +15,7 @@ on its own. The paths below are for macOS and Linux; where an environment variab
 | scratch space while a pack installs | `~/Library/Caches/claudius/packs` | `~/.cache/claudius/packs` | |
 | listening models | `~/.cache/earshot-rs` | `~/.cache/earshot-rs` | `EARSHOT_HOME` |
 | your genres | `~/Library/Application Support/claudius/genres` | `~/.config/claudius/genres` | |
+| the [themes](themes.md) you added, a file each | `~/Library/Application Support/claudius/themes` | `~/.config/claudius/themes` | `CLAUDIUS_HOME` |
 | your voice, as a [pitch check](voice.md#checking-your-pitch) heard it | `~/Library/Application Support/claudius/voice.json` | `~/.config/claudius/voice.json` | `CLAUDIUS_HOME` |
 | the answer about [usage statistics](privacy.md) | `~/Library/Application Support/claudius/telemetry.json` | `~/.config/claudius/telemetry.json` | |
 | whether to [update](updates.md) automatically, and the day it last looked | `~/Library/Application Support/claudius/updates.json` | `~/.config/claudius/updates.json` | |

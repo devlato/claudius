@@ -17,6 +17,8 @@ pub enum Want {
     Recording,
     /// a release's cover
     Cover,
+    /// a theme to wear (`themes`)
+    Theme,
 }
 
 impl Want {
@@ -28,6 +30,7 @@ impl Want {
                 ("audio", &["wav", "mp3", "flac", "m4a", "aac", "aif", "aiff", "ogg", "opus", "caf"])
             }
             Want::Cover => ("an image", &["png", "jpg", "jpeg"]),
+            Want::Theme => ("a claudius theme", &["json"]),
         }
     }
 

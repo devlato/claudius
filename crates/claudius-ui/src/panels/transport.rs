@@ -240,20 +240,32 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
     .inner
 }
 
-/// the studio's look, to change in two clicks: dark (its own), light, or as the system is
+/// the studio's look, to change in two clicks: dark (its own), light, as the system is, or a theme added
 fn look_menu(ui: &mut Ui, cx: &mut Cx) {
-    let label = RichText::new(cx.view.look.word()).size(11.5).color(TEXT_DIM);
+    let word = cx.view.theme.clone().unwrap_or_else(|| cx.view.look.word().to_string());
+    let label = RichText::new(word).size(11.5).color(TEXT_DIM);
     ui.menu_button(label, |ui| {
         for look in crate::theme::Look::ALL {
-            if ui.radio(cx.view.look == look, look.name()).clicked() {
+            if ui.radio(cx.view.theme.is_none() && cx.view.look == look, look.name()).clicked() {
                 cx.view.look = look;
-                crate::theme::set_look(ui.ctx(), look);
+                crate::themes::wear(ui.ctx(), cx.view, None);
                 ui.close();
             }
         }
+        let worn = cx.view.theme.clone();
+        let mut chosen = None;
+        for t in &cx.view.themes {
+            if ui.radio(worn.as_deref() == Some(t.name.as_str()), &t.name).clicked() {
+                chosen = Some(t.clone());
+            }
+        }
+        if let Some(t) = chosen {
+            crate::themes::wear(ui.ctx(), cx.view, Some(t));
+            ui.close();
+        }
     })
     .response
-    .on_hover_text("the studio's look: dark, light, or as the system is");
+    .on_hover_text("the studio's look: dark, light, as the system is, or a theme you added (? > Look adds one)");
 }
 
 /// the song in a line: its title, genre, tempo, bars and length

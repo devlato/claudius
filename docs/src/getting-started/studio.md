@@ -355,7 +355,9 @@ computer's appearance (in a browser, the browser's) and changes with it, at nigh
 end of the transport bar, beside the score, picks it too, and the command palette has all three ("light mode", "dark
 theme"). The studio wears the dark look until you pick another, and keeps the one you pick. The light look draws the
 music on white, with grey panels around it, and its LCD is a pale display with dark figures. Both looks keep text
-readable on every panel, at least 4.5:1, and every track and section keeps its colour in both. When a new release has been downloaded, a bar under the toolbar offers **Restart to
+readable on every panel, at least 4.5:1, and every track and section keeps its colour in both. **Add a theme…** wears a
+look of your own or one someone shared, and **Copy this look as a theme** writes out the look you wear to make one from
+([Themes](../guide/themes.md)). When a new release has been downloaded, a bar under the toolbar offers **Restart to
 update** ([Updates](../guide/updates.md)). Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.

@@ -76,6 +76,7 @@
 - [Your voice](guide/voice.md)
 - [Playing from a phone](guide/phone.md)
 - [Files and settings](guide/files.md)
+- [Themes](guide/themes.md)
 - [Privacy and usage statistics](guide/privacy.md)
 - [Updates](guide/updates.md)
 - [Troubleshooting](guide/troubleshooting.md)

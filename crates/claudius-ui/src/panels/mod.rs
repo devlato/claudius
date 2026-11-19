@@ -494,6 +494,9 @@ pub struct View {
     pub tour_asks: bool,
     /// the look the studio wears (kept between runs)
     pub look: crate::theme::Look,
+    /// a theme of the person's own worn instead, by its name (kept between runs), and the themes added
+    pub theme: Option<String>,
+    pub themes: Vec<crate::themes::Theme>,
     /// whether a page speaks what has the keyboard (kept between runs; the app's window has the system's screen reader)
     pub speak: bool,
     pub anchors: crate::tour::Anchors,
@@ -589,6 +592,8 @@ impl Default for View {
             tour: None,
             tour_done: false,
             look: crate::theme::Look::default(),
+            theme: None,
+            themes: Vec::new(),
             speak: false,
             tour_asks: false,
             anchors: crate::tour::Anchors::default(),

@@ -31,6 +31,8 @@ pub struct Prefs {
     pub record: panels::record::Settings,
     /// dark, light, or as the system is: since version 1 (dark when none is kept, since 2)
     pub look: Look,
+    /// a theme of the person's own worn instead, by its name: since version 2 (the look when it is not there)
+    pub theme: Option<String>,
     /// whether a page speaks what has the keyboard: since version 1
     pub speak: bool,
 }
@@ -55,6 +57,7 @@ impl Prefs {
             tour_done: v.tour_done,
             record: v.record.settings.clone(),
             look: v.look,
+            theme: v.theme.clone(),
             speak: v.speak,
         }
     }
@@ -94,6 +97,7 @@ impl Prefs {
                 style: record.or("style", r.style),
             },
             look: f.or("look", d.look),
+            theme: f.or("theme", d.theme),
             speak: f.or("speak", d.speak),
         }
     }
@@ -182,6 +186,17 @@ mod tests {
 
     /// the settings a studio of claudius 0.5 kept: RON under eframe's key
     const BEFORE_0_6: &str = r#"(tab:Mixer,volume:0.6,mutate_count:6,keep_best:false,generations:4,children:5,sevenths:true,tour_done:true,record:(input:Some("USB Audio"),channel:1,stereo:true,count_in:2,click:true,role:"lead",offset_ms:12.5,midi_offset_ms:3.0,midi:None,sound:"epiano",part_role:"keys",grid:0.25,style:"played"))"#;
+
+    #[test]
+    fn a_theme_worn_is_kept_by_its_name_and_settings_from_before_themes_wear_the_look() {
+        let mut storage = Kept::default();
+        let p = Prefs { theme: Some("Ember".into()), look: Look::Light, ..Prefs::default() };
+        p.save(&mut storage);
+        let back = Prefs::load(Some(&storage));
+        assert_eq!((back.theme.as_deref(), back.look), (Some("Ember"), Look::Light));
+        let before = Prefs::load(Some(&kept(KEY, r#"{"version": 2, "look": "light"}"#)));
+        assert_eq!((before.theme, before.look), (None, Look::Light));
+    }
 
     #[test]
     fn the_settings_any_studio_kept_are_read() {

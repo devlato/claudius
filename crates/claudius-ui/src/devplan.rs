@@ -12,6 +12,7 @@
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
 //! `palette:say` (its microphone clicked: it listens, or stops and sends what it heard),
+//! `theme:<name>` (a theme added worn by its name; `theme:` the look again),
 //! `mic:<start|stop>` (New song's From the microphone: its recording started or stopped; what it holds goes out as
 //! `mic: ...`),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
@@ -81,6 +82,8 @@ pub enum Step {
     Download(Option<String>),
     /// New song from the microphone, its recording started (true) or stopped (false), as its buttons do
     Mic(bool),
+    /// a theme added worn, by its name (none: the look again), as Look's menu wears one
+    Theme(String),
     /// the Record window
     Record,
     /// the Play from a phone window, which has claudius serve the phone's page
@@ -252,6 +255,7 @@ impl Plan {
             "publish" => Some(Step::Publish),
             "download" => Some(Step::Download((!arg.is_empty()).then(|| arg.to_string()))),
             "record" => Some(Step::Record),
+            "theme" => Some(Step::Theme(arg.to_string())),
             "mic" => match arg {
                 "start" => Some(Step::Mic(true)),
                 "stop" => Some(Step::Mic(false)),
