@@ -145,11 +145,12 @@ fn opening() -> Command {
     }
 }
 
-/// The song an address asks the demo to open first, by what `get` finds in it: its genre (or a fusion, `trip_hop+idm`),
-/// and its seed, tempo, key and whether it is built on samples, each as `new_song` takes it; none without a genre.
+/// The song an address asks the demo to open first, by what `get` finds in it: its genre (or a fusion, `trip_hop+idm`,
+/// whose `+` an address's query reads as a space, as a form's would: no genre's name has one), and its seed, tempo, key
+/// and whether it is built on samples, each as `new_song` takes it; none without a genre.
 #[cfg(any(target_arch = "wasm32", test))]
 fn asked_song(get: impl Fn(&str) -> Option<String>) -> Option<Command> {
-    let genre = get("genre").filter(|g| {
+    let genre = get("genre").map(|g| g.trim().replace(' ', "+")).filter(|g| {
         !g.is_empty() && g.len() <= 64 && g.chars().all(|c| c.is_ascii_alphanumeric() || "_+".contains(c))
     })?;
     let sampled = get("sampled").and_then(|s| match s.as_str() {
@@ -773,6 +774,10 @@ mod tests {
             panic!("a fusion")
         };
         assert_eq!((genre.as_str(), seed, bpm, key, sampled), ("trip_hop+idm", None, None, None, None));
+        // the same typed into the address: `genre=trip_hop+idm`, whose `+` the page's query reads as a space
+        let typed: std::collections::BTreeMap<&str, &str> = [("genre", "trip_hop idm")].into();
+        let Some(Command::NewSong { genre, .. }) = asked_song(|k| get(&typed, k)) else { panic!("a fusion typed") };
+        assert_eq!(genre, "trip_hop+idm");
         // no genre, or one that is no name, opens the demo's own first song
         let none: std::collections::BTreeMap<&str, &str> = [("seed", "3")].into();
         assert!(asked_song(|k| get(&none, k)).is_none());

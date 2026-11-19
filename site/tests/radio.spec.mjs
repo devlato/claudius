@@ -39,6 +39,26 @@ test.describe("the radio", () => {
     }
   });
 
+  test("tunes in after the list of genres could not be had", async ({ baseURL }) => {
+    test.setTimeout(300_000);
+    const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const page = await b.newPage({ baseURL });
+      // the engine's first start fails, as on a dropped connection; the next is let through
+      let asked = 0;
+      await page.route("**/studio/claudius-engine_loader.js", (r) => (asked++ === 0 ? r.abort() : r.continue()));
+      await page.goto("/radio/?soon");
+      await page.locator("#genres summary").click();
+      await expect(page.locator("#status")).toContainText("could not be had", { timeout: 60_000 });
+      // Tune in starts an engine of its own rather than waiting on the one that failed
+      await page.locator("#tune").click();
+      await expect(page.locator("#tune")).toHaveText("Pause", { timeout: 120_000 });
+      expect(asked).toBeGreaterThan(1);
+    } finally {
+      await b.close();
+    }
+  });
+
   test("keeps to the genres chosen, hands the song on air over as a file, opens it in the studio and skips", async ({ baseURL }) => {
     test.setTimeout(420_000);
     const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
