@@ -580,11 +580,57 @@ fn now_ms() -> u64 {
 const LISTS: [(&str, &str); 5] =
     [("parts", "track"), ("drums", "drum lane"), ("loops", "loop"), ("patterns", "pattern track"), ("form", "section")];
 
-/// What `changes` did to the song, in words, to find them again by: the tracks, lanes and sections added and taken out,
-/// with what they play, and each setting from what to what. The song's own record of its scripts is left out.
+/// The list and the name of the named element a change takes out or puts in (`/form/@drop`), if it is one.
+fn element(c: &Change) -> Option<(String, String)> {
+    let segs: Vec<String> = c.path.split('/').skip(1).map(unkey).collect();
+    match segs.as_slice() {
+        [list, el] if el.starts_with('@') => Some((list.clone(), el[1..].to_string())),
+        _ => None,
+    }
+}
+
+/// The elements `changes` renamed: one taken out of a list and one put into it, alike but for their names, as a
+/// section given another name is in the changes (the old name out, the new one in), as the indexes of the change
+/// taking it out and of the one putting it in.
+fn renames(changes: &[Change]) -> Vec<(usize, usize)> {
+    let unnamed = |v: &Value| {
+        let mut v = v.clone();
+        if let Some(o) = v.as_object_mut() {
+            o.remove("name");
+        }
+        v
+    };
+    let mut pairs: Vec<(usize, usize)> = Vec::new();
+    for (i, gone) in changes.iter().enumerate() {
+        let (Some((list, _)), Some(old), None) = (element(gone), &gone.before, &gone.after) else { continue };
+        let new = changes.iter().enumerate().position(|(j, c)| {
+            c.before.is_none()
+                && !pairs.iter().any(|&(_, k)| k == j)
+                && element(c).is_some_and(|(l, _)| l == list)
+                && c.after.as_ref().is_some_and(|v| unnamed(v) == unnamed(old))
+        });
+        if let Some(j) = new {
+            pairs.push((i, j));
+        }
+    }
+    pairs
+}
+
+/// What `changes` did to the song, in words, to find them again by: the tracks, lanes and sections added, taken out
+/// and renamed, with what they play, and each setting from what to what. The song's own record of its scripts is left
+/// out.
 pub fn describe(changes: &[Change]) -> String {
+    let renamed = renames(changes);
+    let new_name = |i: usize| {
+        let (_, j) = renamed.iter().find(|&&(k, _)| k == i)?;
+        element(&changes[*j]).map(|(_, n)| n)
+    };
     let mut said: Vec<String> = Vec::new();
-    for c in changes {
+    for (i, c) in changes.iter().enumerate() {
+        // a new name is said with the old one
+        if renamed.iter().any(|&(_, j)| j == i) {
+            continue;
+        }
         let segs: Vec<String> = c.path.split('/').skip(1).map(unkey).collect();
         let line = match segs.as_slice() {
             [] => match (&c.before, &c.after) {
@@ -596,14 +642,36 @@ pub fn describe(changes: &[Change]) -> String {
             [list, el] if el.starts_with('@') => {
                 let what = LISTS.iter().find(|(l, _)| *l == list.as_str()).map_or("element", |(_, w)| w);
                 let n = &el[1..];
-                match (&c.before, &c.after) {
-                    (None, Some(v)) => format!("added the {n} {what}{}", playing(v)),
-                    (Some(v), None) => format!("took out the {n} {what}{}", played(v)),
-                    (_, Some(v)) => format!("rewrote the {n} {what}{}", playing(v)),
+                match (&c.before, &c.after, new_name(i)) {
+                    (_, _, Some(to)) => format!("renamed the {n} {what} to {to}"),
+                    (None, Some(v), _) => format!("added the {n} {what}{}", playing(v)),
+                    (Some(v), None, _) => format!("took out the {n} {what}{}", played(v)),
+                    (_, Some(v), _) => format!("rewrote the {n} {what}{}", playing(v)),
                     _ => continue,
                 }
             }
             [list, el] if el == "#" => {
+                // an order only a rename changed (the new name where the old one was) is the same order
+                let names = |v: &Option<Value>| -> Vec<String> {
+                    v.as_ref()
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                        .map(String::from)
+                        .collect()
+                };
+                let to: Vec<(String, String)> = renamed
+                    .iter()
+                    .filter_map(|&(k, j)| Some((element(&changes[k])?.1, element(&changes[j])?.1)))
+                    .collect();
+                let before: Vec<String> = names(&c.before)
+                    .into_iter()
+                    .map(|n| to.iter().find(|(old, _)| *old == n).map_or(n, |(_, new)| new.clone()))
+                    .collect();
+                if !to.is_empty() && before == names(&c.after) {
+                    continue;
+                }
                 let what = LISTS.iter().find(|(l, _)| *l == list.as_str()).map_or("element", |(_, w)| w);
                 format!("put the {what}s in another order")
             }
@@ -839,6 +907,16 @@ mod tests {
         for words in ["faster", "more swing", "louder", "another key, transposed", "a middle eight"] {
             assert!(said.contains(words), "{words}: {said}");
         }
+        // a section given another name, in the middle of the song and at its end, is renamed: not taken out and another
+        // added, nor the sections put in another order
+        let mut renamed = house.clone();
+        let (old, last) = (renamed.form[1].name.clone(), renamed.form.last().unwrap().name.clone());
+        renamed.form[1].name = "chorus".into();
+        renamed.form.last_mut().unwrap().name = "coda".into();
+        let said = describe(&round_trip(&a, &json(&Some(renamed))));
+        assert!(said.contains(&format!("renamed the {old} section to chorus")), "{said}");
+        assert!(said.contains(&format!("renamed the {last} section to coda")), "{said}");
+        assert!(!said.contains("took out") && !said.contains("added") && !said.contains("another order"), "{said}");
         // a list of things without names, by place: grown, shrunk, and changed whole
         round_trip(&json!({"l": [1, 2]}), &json!({"l": [1, 2, 3, 4]}));
         round_trip(&json!({"l": [1, 2, 3]}), &json!({"l": [1]}));
