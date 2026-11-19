@@ -46,22 +46,33 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 return;
             }
             widgets::heading(ui, "Variant");
-            for v in &variants {
-                let used: Vec<&str> =
-                    song.sections.iter().filter(|s| &s.variant == v).map(|s| s.name.as_str()).collect();
-                let (shown, about) = claudius_api::words::variant_in_words(v);
-                let r = widgets::chip(ui, v == &variant, &shown, ACCENT).on_hover_text(format!(
-                    "{}\n{}",
-                    super::named(Some(about), v),
-                    if used.is_empty() {
-                        "no section uses this variant".to_string()
-                    } else {
-                        format!("used by {}", used.join(", "))
-                    }
-                ));
-                if r.clicked() {
-                    cx.view.variant = v.clone();
-                }
+            // the variant shown, as a segmented control: a choice of one of a few
+            let shown: Vec<(usize, String, String)> = variants
+                .iter()
+                .enumerate()
+                .map(|(n, v)| {
+                    let used: Vec<&str> =
+                        song.sections.iter().filter(|s| &s.variant == v).map(|s| s.name.as_str()).collect();
+                    let (shown, about) = claudius_api::words::variant_in_words(v);
+                    let tip = format!(
+                        "{}\n{}",
+                        super::named(Some(about), v),
+                        if used.is_empty() {
+                            "no section uses this variant".to_string()
+                        } else {
+                            format!("used by {}", used.join(", "))
+                        }
+                    );
+                    (n, shown.to_string(), tip)
+                })
+                .collect();
+            let choices: Vec<(usize, &str, &str)> =
+                shown.iter().map(|(n, label, tip)| (*n, label.as_str(), tip.as_str())).collect();
+            let mut at = variants.iter().position(|v| v == &variant).unwrap_or(0);
+            if widgets::segmented_small(ui, &mut at, &choices)
+                && let Some(v) = variants.get(at)
+            {
+                cx.view.variant = v.clone();
             }
             ui.add_space(10.0);
             let used: Vec<&str> =
