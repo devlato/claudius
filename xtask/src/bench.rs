@@ -6,7 +6,9 @@
 //! its `metrics`, each `true`/`false` (right or wrong) or a number (a score). `"better": {"wrong": "lower"}`, on an
 //! item's line or a line of its own, names the metrics a lower value is better of; every other metric is better higher.
 //! `"primary": ["right"]` names the metrics a change is made to improve; the others are guards it must not make worse.
-//! Without it, every metric is primary.
+//! Without it, every metric is primary. `"shown": ["total"]` names metrics compared and shown but never judged: a level
+//! of which neither more nor less is better (a critic's total for a song as it is, which a critic rating every song
+//! 100 would raise).
 //!
 //! Each metric is compared overall and in each slice: right/wrong items with McNemar's exact test on the items one run
 //! gets right and the other wrong, scores with the Wilcoxon signed-rank test on the paired differences; the difference
@@ -44,6 +46,7 @@ struct Run {
     items: HashMap<String, Item>,
     lower: BTreeSet<String>,
     primary: BTreeSet<String>,
+    shown: BTreeSet<String>,
 }
 
 fn read(path: &Path) -> Result<Run> {
@@ -64,6 +67,9 @@ fn read(path: &Path) -> Result<Run> {
         for m in v.get("primary").and_then(Value::as_array).into_iter().flatten() {
             run.primary
                 .insert(m.as_str().with_context(|| format!("{}: `primary` lists metrics by name", at()))?.into());
+        }
+        for m in v.get("shown").and_then(Value::as_array).into_iter().flatten() {
+            run.shown.insert(m.as_str().with_context(|| format!("{}: `shown` lists metrics by name", at()))?.into());
         }
         if v.get("item").is_none() {
             continue;
@@ -132,6 +138,11 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
     let primary: BTreeSet<String> = b.primary.union(&n.primary).cloned().collect();
     let missing: Vec<&str> = primary.iter().filter(|m| !metrics.contains(m)).map(String::as_str).collect();
     ensure!(missing.is_empty(), "the primary metric {} is in no item", missing.join(", "));
+    let shown: BTreeSet<String> = b.shown.union(&n.shown).cloned().collect();
+    let missing: Vec<&str> = shown.iter().filter(|m| !metrics.contains(m)).map(String::as_str).collect();
+    ensure!(missing.is_empty(), "the shown metric {} is in no item", missing.join(", "));
+    let both: Vec<&str> = shown.intersection(&primary).map(String::as_str).collect();
+    ensure!(both.is_empty(), "{} is primary and shown: a metric is judged or only shown", both.join(", "));
     let mut failed = Vec::new();
     for metric in metrics {
         let sign = if lower.contains(metric) { -1.0 } else { 1.0 };
@@ -176,7 +187,11 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
         let leans_better = all.p < ALPHA && all.lean > 0.0;
         let gained = leans_better && sign * (all.new - all.base) > 0.0;
         let worse: Vec<&Row> = rows.iter().filter(|r| r.adjusted < ALPHA && r.lean < 0.0).collect();
-        let aim = primary.is_empty() || primary.contains(metric);
+        let aim = (primary.is_empty() && !shown.contains(metric)) || primary.contains(metric);
+        if shown.contains(metric) {
+            print(metric, binary, sign, &rows, "shown, not judged", &worse_items);
+            continue;
+        }
         let verdict = match (aim, gained, worse.is_empty()) {
             (_, _, false) => format!("does not pass: worse in {}", names(&worse)),
             (true, true, true) => "passes: better overall, and worse in no slice".to_string(),
@@ -443,6 +458,31 @@ mod tests {
         let new = results("primary-new", r#"{"primary": ["right"]}"#, &[11.0; 4]);
         let missing = compare(&base, &new, true).unwrap_err().to_string();
         assert!(missing.contains("right"), "a primary metric no item has: {missing}");
+    }
+
+    #[test]
+    fn a_shown_metric_is_compared_and_never_judged() {
+        // 30 items: right in 10 more of them, and every total 20 lower, which only shows
+        let run = |name: &str, right: usize, total: f64| {
+            let path = std::env::temp_dir().join(format!("claudius-bench-{}-{name}.jsonl", std::process::id()));
+            let mut text = String::from("{\"primary\": [\"right\"], \"shown\": [\"total\"]}\n");
+            for i in 0..30 {
+                text +=
+                    &format!("{{\"item\": \"i{i}\", \"metrics\": {{\"right\": {}, \"total\": {total}}}}}\n", i < right);
+            }
+            std::fs::write(&path, text).unwrap();
+            path
+        };
+        let (base, new) = (run("shown-base", 15, 80.0), run("shown-new", 25, 60.0));
+        compare(&base, &new, false).unwrap();
+        // a metric is judged or shown, not both
+        let both = std::env::temp_dir().join(format!("claudius-bench-{}-shown-both.jsonl", std::process::id()));
+        std::fs::write(
+            &both,
+            "{\"primary\": [\"total\"], \"shown\": [\"total\"]}\n{\"item\": \"a\", \"metrics\": {\"total\": 1}}\n",
+        )
+        .unwrap();
+        assert!(compare(&both, &both, true).is_err());
     }
 
     #[test]

@@ -22,7 +22,9 @@ source). The audio stays out of the repository; a benchmark names its songs and 
 
 Every accepted change keeps its benchmark results as the baseline: not only the totals but each item's result (each
 request read right or wrong, each song's section score), so that the next experiment can be paired with it item by
-item. An experiment runs the same benchmark, at the same settings, on the same items.
+item. An experiment runs the same benchmark, at the same settings, on the same items. The baselines are kept in
+`baselines/` at the root of the repository, one file a benchmark, and the pull request whose change is accepted
+replaces its benchmark's file with its own results.
 
 Pairing matters because items differ far more than versions do. Two versions' averages over 300 songs can sit within
 noise of each other while one version is better on 40 songs and worse on 10; the pairs show that, and the averages
@@ -56,7 +58,8 @@ and the experiment's. Each file holds a line of JSON for each item:
 Each line is one item, here on two lines to fit. `item` is the same id in every run of the benchmark; `slice` the
 labels it is counted under; each metric is `true` or `false` (right or wrong) or a number (a score), better higher
 unless `better` says lower. `primary` names the metrics the change is made to improve; the others are guards it must
-not make worse (without it, every metric is primary). The command prints, for each metric, the whole set and every
+not make worse (without it, every metric is primary), but for those `shown` names: compared and shown, never judged,
+for a level of which neither more nor less is better. The command prints, for each metric, the whole set and every
 slice with the difference, its interval, the items better and worse and the test, then the ids of the items that got
 worse, as Markdown for the pull request. Which way a metric went is its test's: for a score, whether the ranks of the
 items that got better outweigh those of the items that got worse, so that a few items much better cannot carry a
@@ -85,3 +88,13 @@ results become the next baseline.
 
 - **The request model**: the rounds in `crates/claudius-intent/tests/asks.rs`, typed by people of many kinds before
   the version they measure. The open rounds print what they miss; the sealed ones only their scores.
+- **The critic on real songs**: `cargo run --release -p claudius --example eval_critic -- DIR` judges songs from
+  MTG-Jamendo (independent artists' releases under Creative Commons licences, in every genre) as they are, and with
+  each of seven flaws a listener hears put into them (clipped, muddy, thin, noisy, gaps, a copy a semitone up, a copy
+  falling out of time), and writes a line for `bench compare` for each. What a change to the critic is made to
+  improve is how often a song is judged above its flawed copy; it must not judge more real songs bad, nor praise more
+  flawed ones. The total of a song as it is is shown, not judged: a critic rating every song 100 would raise it. Each shard of the dataset is a random one percent of it: choose settings on shards 0 and 1, and report
+  the result on shard 2 (`--shards 2..2`), which the tuning never saw. It holds no chart hits: what it says of the
+  songs people hear most is still to be measured.
+- **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and
+  `eval_cuts` (JamendoLyrics), which print their measures.

@@ -151,5 +151,9 @@ uses it.
 - Cheung et al. (2019), [doi:10.1016/j.cub.2019.09.067](https://doi.org/10.1016/j.cub.2019.09.067). Uncertainty and
   surprise.
 - Tjandra et al. (2025), [arXiv:2502.05139](https://arxiv.org/abs/2502.05139). Audiobox Aesthetics, above.
+- Bogdanov, Won, Tovstogan, Porter & Serra (2019), "The MTG-Jamendo dataset for automatic music tagging", Machine
+  Learning for Music Discovery Workshop, ICML 2019: [hdl:10230/42015](http://hdl.handle.net/10230/42015). Its songs,
+  released on Jamendo under Creative Commons licences, measure how the critic judges real music, as it is and with a
+  flaw put into it ([Benchmarks](contributing/benchmarks.md)).
 
 The [critic's page](engineering/critic.md) says what each of them does in it.

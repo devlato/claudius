@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::audio::Stereo;
 use crate::config::SRF;
@@ -37,7 +37,7 @@ pub struct Issue {
     pub target: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EarsReport {
     pub genre_query: String,
     pub genre_z: f64,
@@ -63,7 +63,7 @@ pub struct EarsReport {
 /// How Audiobox Aesthetics rates a recording (`earshot::aesthetics`), each score from 1 to 10: how much listeners
 /// would enjoy it, how useful it would be to make something of, how many things it is made of, and how well it is
 /// recorded and mixed.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Aesthetics {
     pub ce: f64,
     pub cu: f64,
