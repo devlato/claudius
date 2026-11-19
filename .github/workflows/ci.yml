@@ -91,7 +91,9 @@ jobs:
       # test the decoding claudius does without it
       - name: ffmpeg
         if: runner.os == 'Linux'
-        run: sh scripts/ci/apt-get.sh install ffmpeg
+        uses: ./.github/actions/debs
+        with:
+          packages: ffmpeg
       # the docs examples run in the docs job
       - name: Tests
         run: |
@@ -313,7 +315,9 @@ jobs:
           cache-key: perf
       - name: valgrind
         timeout-minutes: 10
-        run: sh scripts/ci/apt-get.sh install valgrind
+        uses: ./.github/actions/debs
+        with:
+          packages: valgrind
       - name: instruction counts
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
