@@ -533,8 +533,21 @@ async fn assistants_work_over_mcp() {
     };
     let (_, _, b) = call(&router, call_tool(3, "new_song", serde_json::json!({"genre": "techno", "seed": 2}))).await;
     let r = sse_json(&b);
-    let text = r["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
+    let mut text = r["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
     assert_ne!(r["result"]["isError"], true, "{b}");
+    // a song made and heard in longer than a call lasts (45 s, as on a slow machine) is given by status once it is
+    // done, as an assistant follows it
+    let mut id = 100;
+    while text.contains("`new_song` is still going") {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let (_, _, b) = call(&router, call_tool(id, "status", serde_json::json!({}))).await;
+        let said = sse_json(&b)["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
+        if let Some((_, done)) = said.split_once("`new_song` is done:\n") {
+            text = done.to_string();
+        }
+        id += 1;
+        assert!(id < 1100, "new_song was never done: {said}");
+    }
     assert!(text.contains("techno") && text.contains("verdict"), "{text}");
 
     // checked for release, it has no artwork, and nobody has said how it was made
