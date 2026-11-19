@@ -24,6 +24,8 @@ mod native;
 mod net;
 mod panels;
 mod pick;
+#[cfg(not(target_arch = "wasm32"))]
+mod radio;
 mod settings;
 mod theme;
 mod tour;

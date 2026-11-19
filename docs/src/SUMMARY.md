@@ -121,6 +121,7 @@
 - [0021 Every kind of sample, ranked and varied](design/0021-every-kind-of-sample.md)
 - [0022 A song's own sections](design/0022-a-songs-own-sections.md)
 - [0023 The live mix, first by windows](design/0023-the-live-mix-by-windows.md)
+- [0024 The radio in the app](design/0024-the-radio-in-the-app.md)
 
 # Contributing
 

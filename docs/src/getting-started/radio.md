@@ -53,6 +53,14 @@ starts on its genres. Opening the list before tuning in starts the engine, which
   engine writes again from what the station asked for: its genre, seed, tempo and key. There every part of it can be
   changed, sampled, exported or carried on in claudius.
 
+## In the app
+
+The studio app has the radio too: **Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an engine of its
+own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the genres to
+keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open it in the studio**, which makes the song on
+air the studio's (undo brings back the song you had). Your song and the radio take turns: playing one pauses the other.
+It plays on while its window is closed ([design 0024](../design/0024-the-radio-in-the-app.md)).
+
 The page is `site/radio/index.html` and `site/assets/radio.js`; it drives the engine as the studio demo does (the
 `new_song` command, the renders it sends back), and `site/tests/radio.spec.mjs` checks it goes on air and mixes a song
 into the next (`?soon` starts the first song 20 seconds before it gives way), and that a station kept to two genres

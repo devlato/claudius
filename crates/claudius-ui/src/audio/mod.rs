@@ -11,6 +11,8 @@ mod native;
 pub use native::Player;
 pub mod latency;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod radio;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod record;
 #[cfg(target_arch = "wasm32")]
 #[path = "web_record.rs"]

@@ -32,6 +32,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0021 Every kind of sample, ranked and varied](0021-every-kind-of-sample.md) | accepted: the sampler offers sung phrases, hook and passage loops, drum breaks, bass lines and stabs, each scored as its kind, and a varied set of them, each piece saying what it is; a remake's flip and `sample_song` choose by the same scores |
 | [0022 A song's own sections](0022-a-songs-own-sections.md) | accepted: the analysis finds a song's sections where they start, to the bar and at any length, names each for what it is by what repeats and what is sung, gives the music each plays a letter, and says where a build resolves and where a piece is best cut |
 | [0023 The live mix, first by windows](0023-the-live-mix-by-windows.md) | accepted: while the song plays, windows of it as it is now, mixed by the server from the tracks the last render kept, play in the render's place from just after the playhead, so a fader is heard as it moves; the runtime of 0019 replaces them later |
+| [0024 The radio in the app](0024-the-radio-in-the-app.md) | accepted: the station planned by shared Rust code, its songs written by an engine of its own on a thread, each change from one song to the next rendered as audio and played as one stream |
 
 ## The format
 

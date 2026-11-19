@@ -18,6 +18,7 @@ pub mod palette;
 pub mod parts;
 pub mod phone;
 pub mod publish;
+pub mod radio;
 pub mod record;
 pub mod roll;
 pub mod script;
@@ -456,6 +457,8 @@ pub struct View {
     /// the chat with the assistants
     pub chat: chat::Chat,
     pub phone: phone::Phone,
+    /// the radio: its window, and in the app the station, which plays on while the window is closed
+    pub radio: radio::RadioView,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
     /// what a take's melody becomes when it turns into notes (`claudius_api::NOTE_STYLES`)
@@ -556,6 +559,7 @@ impl Default for View {
             keys: keys::Keys::default(),
             chat: chat::Chat::default(),
             phone: phone::Phone::default(),
+            radio: radio::RadioView::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
             row_menu: None,

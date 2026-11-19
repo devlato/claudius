@@ -70,6 +70,8 @@ const UPDATES_TIP: &str = "look for a new release on GitHub once a day and downl
 const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
                               use, and where a setup or a crash failed; never your songs, files or name (`claudius \
                               telemetry` shows exactly what)";
+const RADIO_TIP: &str = "a station of songs claudius writes as it plays them, a genre at a time, each mixed into the next \
+                         as a DJ mixes records; your song stays as it is";
 #[cfg(target_arch = "wasm32")]
 const SPEAK_TIP: &str = "the page says aloud the control Tab moves to and what it holds, for those who listen rather than \
                          look; the app's window speaks through the system's screen reader instead";
@@ -1034,6 +1036,10 @@ impl Studio {
                         self.view.keys.open = true;
                         ui.close();
                     }
+                    if ui.button("Radio…").on_hover_text(RADIO_TIP).clicked() {
+                        self.view.radio.open = true;
+                        ui.close();
+                    }
                     // a page speaks what has the keyboard as it moves; the app's window is the screen reader's
                     #[cfg(target_arch = "wasm32")]
                     {
@@ -1423,6 +1429,7 @@ impl eframe::App for Studio {
             panels::import::dialog(&ctx, &mut cx);
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
+            panels::radio::dialog(&ctx, &mut cx);
             panels::keys::dialog(&ctx, &mut cx);
             cx.view.chat.follow(cx.state);
             panels::chat::dialog(&ctx, &mut cx, panels::chat::now_ms());

@@ -341,6 +341,8 @@ pub(crate) enum Run {
     Tour,
     /// the window of the keys the studio answers to
     Keys,
+    /// the radio's window
+    Radio,
     /// the chat with the assistants
     Chat,
     Look(Look),
@@ -397,6 +399,7 @@ pub(crate) fn run_of(id: &str) -> Option<Run> {
         "docs" => Run::Docs,
         "tour" => Run::Tour,
         "keys" => Run::Keys,
+        "radio" => Run::Radio,
         "chat" => Run::Chat,
         "look:dark" => Run::Look(Look::Dark),
         "look:light" => Run::Look(Look::Light),
@@ -657,6 +660,7 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
         Run::Keys => cx.view.keys.open = !cx.view.keys.open,
+        Run::Radio => cx.view.radio.toggle(),
         Run::Chat => cx.view.chat.open = true,
         Run::Look(look) => {
             cx.view.look = look;
