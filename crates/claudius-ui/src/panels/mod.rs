@@ -229,8 +229,21 @@ pub enum Start {
     Genre,
     /// a recording, remade, flipped, sampled or listened to
     Recording,
+    /// a recording made at once from the microphone, which then goes as a recording chosen does
+    Microphone,
     /// one of the example songs, as its script makes it
     Example,
+}
+
+/// what New song hears from the microphone while it records
+pub struct Mic {
+    pub hearing: crate::audio::record::Hearing,
+    /// when it began, and whether it is stopping, its last audio still to come
+    pub since: f64,
+    pub stopping: bool,
+    /// the loudest it heard, 0..1, and whether the input has opened
+    pub loudest: f32,
+    pub opened: bool,
 }
 
 /// what the New song dialog does with a recording
@@ -433,6 +446,9 @@ pub struct View {
     /// the recording chosen for Analyze / Remake, what is to be done with it (sent by the app), and the last analysis
     /// (ok, text)
     pub audio_file: Option<std::sync::Arc<crate::pick::Picked>>,
+    /// New song recording from the microphone, and why the last recording came to nothing
+    pub mic: Option<Mic>,
+    pub mic_failed: Option<String>,
     pub listen: Option<Listen>,
     pub analysis: Option<(bool, String)>,
     /// how a take is sung, as the server heard it, until the window showing it is closed
@@ -544,6 +560,8 @@ impl Default for View {
             reference_open: false,
             reference_loading: false,
             audio_file: None,
+            mic: None,
+            mic_failed: None,
             listen: None,
             analysis: None,
             heard: None,

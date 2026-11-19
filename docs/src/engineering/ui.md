@@ -40,7 +40,7 @@ for (`TEXT`, `PANEL`, `WELL`, `ACCENT`); the parts are `widgets`':
 | a dialog's head | the top of a dialog as a window's title bar draws it: a band with the title in the middle and a close button at its right | `head` |
 | the primary button | what a window is for (Create song, Open it, Play it as ...): one a window, filled with the accent | `primary` |
 | a window's foot | under what a window holds: a rule, then its buttons from the right, the primary first, then Cancel, then a word on what it does | `foot` |
-| a segmented control | a choice of one of a few that changes what a window shows (New song's From a genre, From a recording, From an example) | `segmented` |
+| a segmented control | a choice of one of a few that changes what a window shows (New song's From a genre, From a recording, From the microphone, From an example) | `segmented` |
 | a small segmented control | the same at a control's height, for a choice of one of a few in a row of the inspector or a tab's bar (a section's length, its drum pattern, the drums' variant) | `segmented_small` |
 | an option card | a choice of one way of several, each with its icon and what it does in a sentence (Add a recording's ways to add one) | `option_card` |
 | chips | a choice of one or several of many short things (the tracks in a section, how often a phrase comes round) | `chip` |
@@ -385,7 +385,9 @@ reads each frame:
   file that is not text is no song, and a toast says so. An example song, chosen in the New song dialog's **From an
   example** (`Start::Example`), goes the same way: its script, from `claudius_api::examples`, compiled into the
   studio.
-- **A recording** waits in the New song dialog, **From a recording**, for what to do with it (`WithRecording`): its
+- **A recording** waits in the New song dialog, **From a recording** (or made **From the microphone**, by the same
+  `Hearing` the command palette listens with, up to a minute, as `from the microphone.wav`), for what to do with it
+  (`WithRecording`): its
   button sends it, the file
   itself (a flip with `flip=true`, a rebuild with `rebuild=true`), to
   `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in

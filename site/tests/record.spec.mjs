@@ -132,6 +132,30 @@ test.describe("recording in the browser", () => {
     }
   });
 
+  test("New song from the microphone records what it hears and listens to it as to a recording chosen", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      const mic = heard(page, "mic");
+      const analysis = heard(page, "analysis");
+      // the New song dialog's From the microphone: Record for six seconds, Stop, then listened to as Analyze does
+      const plan = "wait:3;mic:start;wait:6;mic:stop;wait:3;listen:analyze;wait:30";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => mic.join("\n"), { timeout: 60_000 }).toMatch(/^recorded \d+ bytes$/m);
+      expect(mic, "it recorded, then stopped").toEqual(expect.arrayContaining(["recording", "stopping"]));
+      const bytes = Number(mic.find((l) => l.startsWith("recorded ")).match(/\d+/)[0]);
+      // about six seconds of the tone in a WAV, not a moment of it
+      expect(bytes).toBeGreaterThan(200_000);
+      await expect.poll(() => analysis.join("\n"), { timeout: 90_000 }).toMatch(/\d+\.\d BPM \(pulse clarity/);
+      const log = (await (await c.api("/api/state")).json()).log.join("\n");
+      expect(log, "claudius named the recording as New song calls it").toMatch(/analyzed from the microphone\.wav/);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
   test("in the demo, a take kept joins the song in the page, recorded over the engine's render", async () => {
     test.setTimeout(180_000);
     const c = await claudius();

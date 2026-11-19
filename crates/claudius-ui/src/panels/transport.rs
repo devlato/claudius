@@ -909,6 +909,11 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             (Start::Genre, "From a genre", "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix"),
             (Start::Recording, "From a recording", "claudius listens to a song or a sound of yours, and makes a song of it"),
             (
+                Start::Microphone,
+                "From the microphone",
+                "sing, hum, play or beatbox up to a minute, and claudius makes a song of it as of a recording",
+            ),
+            (
                 Start::Example,
                 "From an example",
                 "an original song in the style of a decade's hits, a classic remade, or one built of layered sounds, to \
@@ -920,6 +925,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         match cx.view.new_song.start {
             Start::Genre => from_genre(ui, cx),
             Start::Recording => from_recording(ui, cx),
+            Start::Microphone => from_microphone(ui, cx),
             Start::Example => from_example(ui, cx),
         }
     });
@@ -1300,6 +1306,133 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             None => ui.label(small("no file chosen").color(TEXT_FAINT)),
         };
     });
+    let file = cx.view.audio_file.clone();
+    recording_body(ui, cx, file, "choose a recording first");
+}
+
+/// the longest New song records from the microphone, in seconds
+const MIC_MOST: f64 = 60.0;
+/// what a recording from the microphone is called
+const MIC_FILE: &str = "from the microphone.wav";
+
+/// The New song dialog from the microphone: up to a minute recorded at once, which then goes as a recording chosen
+/// does, with the same choices.
+fn from_microphone(ui: &mut Ui, cx: &mut Cx) {
+    ui.label(small(
+        "Sing, hum, play or beatbox, and claudius reads its tempo, key, chords and groove as it reads any recording.",
+    ));
+    ui.add_space(6.0);
+    microphone(ui, cx);
+    let file = cx.view.audio_file.clone().filter(|f| f.name == MIC_FILE && cx.view.mic.is_none());
+    recording_body(ui, cx, file, "record something first");
+}
+
+/// Record and Stop, what it hears as it records, and the recording once it is in; up to `MIC_MOST` seconds.
+fn microphone(ui: &mut Ui, cx: &mut Cx) {
+    let (now, busy) = (cx.now, cx.view.analyzing);
+    let v = &mut *cx.view;
+    if let Some(m) = v.mic.as_mut() {
+        let level = m.hearing.level();
+        m.loudest = m.loudest.max(level);
+        m.opened |= m.hearing.open();
+        let failed = m.hearing.error().or_else(|| {
+            (!m.opened && now - m.since > 3.0)
+                .then(|| "The microphone did not open. Allow claudius to use it, and try again.".to_string())
+        });
+        if let Some(why) = failed {
+            (v.mic, v.mic_failed) = (None, Some(why));
+        } else {
+            if !m.stopping && now - m.since >= MIC_MOST {
+                m.hearing.stop();
+                m.stopping = true;
+            }
+            if m.stopping
+                && let Some(wav) = m.hearing.finish()
+            {
+                let quiet = m.loudest < 0.005;
+                v.mic = None;
+                if quiet {
+                    v.mic_failed = Some("Nothing was heard. Is the microphone muted, or another input chosen?".into());
+                } else {
+                    let picked = crate::pick::Picked { name: MIC_FILE.into(), bytes: wav, folder: None };
+                    (v.audio_file, v.analysis) = (Some(std::sync::Arc::new(picked)), None);
+                }
+            }
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+        }
+    }
+    ui.horizontal(|ui| match v.mic.as_mut() {
+        None => {
+            if widgets::tool_button(ui, Icon::Record, "Record", !busy, false)
+                .on_hover_text("record from the microphone, up to a minute")
+                .clicked()
+            {
+                mic_start(v, now);
+            }
+            match &v.audio_file {
+                Some(f) if f.name == MIC_FILE => ui.label(small(format!(
+                    "recorded ({:.1} MB); Record again to replace it",
+                    f.bytes.len() as f64 / 1e6
+                ))),
+                _ => ui.label(small("nothing recorded yet").color(TEXT_FAINT)),
+            };
+        }
+        Some(m) => {
+            let label = if m.stopping { "Stopping..." } else { "Stop" };
+            let stop = widgets::tool_button(ui, Icon::Stop, label, !m.stopping, true).clicked();
+            let left = (MIC_MOST - (now - m.since)).max(0.0);
+            ui.add(egui::ProgressBar::new(m.loudest.min(1.0)).desired_width(80.0).desired_height(8.0))
+                .on_hover_text("the loudest it has heard");
+            let said = if m.opened { format!("recording, {left:.0} s left") } else { "opening the microphone".into() };
+            ui.label(small(said).color(theme::BAD));
+            if stop {
+                mic_stop(v);
+            }
+        }
+    });
+    if let Some(why) = &v.mic_failed {
+        ui.label(small(why.as_str()).color(theme::BAD));
+    }
+}
+
+/// New song's recording from the microphone begun, the recording before it let go
+pub(crate) fn mic_start(v: &mut View, now: f64) {
+    if v.mic.is_some() {
+        return;
+    }
+    match crate::audio::record::Hearing::start() {
+        Ok(hearing) => {
+            v.mic = Some(super::Mic { hearing, since: now, stopping: false, loudest: 0.0, opened: false });
+            (v.mic_failed, v.audio_file) = (None, None);
+        }
+        Err(why) => v.mic_failed = Some(why),
+    }
+}
+
+/// New song's recording from the microphone stopped: the rest of what it heard comes, and then it is the recording
+pub(crate) fn mic_stop(v: &mut View) {
+    if let Some(m) = v.mic.as_mut() {
+        m.hearing.stop();
+        m.stopping = true;
+    }
+}
+
+/// what New song's recording from the microphone holds, for a scripted run to read
+#[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+pub(crate) fn mic_told(v: &View) -> String {
+    match (&v.mic, &v.audio_file, &v.mic_failed) {
+        (Some(m), _, _) if m.stopping => "stopping".into(),
+        (Some(m), _, _) if m.opened => "recording".into(),
+        (Some(_), _, _) => "opening the microphone".into(),
+        (None, _, Some(why)) => format!("failed: {why}"),
+        (None, Some(f), None) if f.name == MIC_FILE => format!("recorded {} bytes", f.bytes.len()),
+        _ => String::new(),
+    }
+}
+
+/// What to do with a recording, chosen or recorded (`file`, None until there is one: the main button says
+/// `none_yet`), in which genre, and the button that does it.
+fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::pick::Picked>>, none_yet: &str) {
     ui.add_space(8.0);
     ui.label(RichText::new("What to do with it").strong());
     let f = &mut cx.view.new_song;
@@ -1446,7 +1579,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             });
     }
     ui.add_space(12.0);
-    let file = cx.view.audio_file.clone().filter(|_| !cx.view.analyzing);
+    let file = file.filter(|_| !cx.view.analyzing);
     let f = &mut cx.view.new_song;
     let action = match f.with_recording {
         WithRecording::Remake => "Remake it",
@@ -1460,9 +1593,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     widgets::foot(ui, |ui| {
         let ready = file.is_some() && why_not.is_none();
         let r = widgets::primary(ui, action, ready);
-        let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
+        let r = match (cx.view.analyzing, &file, why_not) {
             (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),
-            (_, None, _) => r.on_disabled_hover_text("choose a recording first"),
+            (_, None, _) => r.on_disabled_hover_text(none_yet),
             (_, _, Some(why)) => r.on_disabled_hover_text(why),
             _ => r,
         };

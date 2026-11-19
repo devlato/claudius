@@ -30,7 +30,7 @@ installed.
 
 ## Starting a song
 
-**New song** starts a song **From a genre**, **From a recording** or **From an example**: one of the
+**New song** starts a song **From a genre**, **From a recording**, **From the microphone** or **From an example**: one of the
 [example songs](../cookbook/examples.md), each in the style of a decade's hits or a classic remade, whose script says
 how its style is made (hover a card for its notes, then **Open it**). From a genre, it asks for the genre, from cards
 you can search ("rap", "90s", "west coast"), and in your own words too ("something to study to", "jamaican vibes"):
@@ -48,7 +48,10 @@ genre's producers dig for, and the song picks among them, and the dice puts one 
 ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). **Layers** says how layered the song
 is, from the genre's core to its harmony and lead doubled on second instruments, a counter-melody, a pad and more
 percussion; ticked, it is as the genre writes it ([How layered a song is](../learn/producers/genres-and-evolution.md#how-layered-a-song-is)).
-**From a recording**: **Choose a file**, then what to do with it, and the button under the choices does it. **Remake
+**From the microphone** records up to a minute of what you sing, hum, play or beatbox: **Record**, then **Stop**,
+and it goes on as a recording chosen does, with the same choices below (in a browser, allow the page to use the
+microphone when it asks). **From a recording**: **Choose a file**, then what to do with it, and the button under the
+choices does it. **Remake
 it as** the genre (chosen beside it) reworks it so that it stays the song it is: all of it plays through, its voice
 and its chords as they are without its drums and its bass, in its own sections and on its chords, with the genre's
 drums and bass under it. **Flip it into** a song of the genre makes a new one on its sound instead: its hook and passage
