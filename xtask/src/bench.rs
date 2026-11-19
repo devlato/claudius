@@ -154,14 +154,18 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
         ids.sort();
         for id in ids {
             let (bi, ni) = (&b.items[id], &n.items[id]);
-            let (Some(x), Some(y)) = (bi.metrics.get(metric), ni.metrics.get(metric)) else {
-                bail!("item {id} has `{metric}` in one run only");
+            let (x, y) = match (bi.metrics.get(metric), ni.metrics.get(metric)) {
+                (Some(x), Some(y)) => (*x, *y),
+                // an item that measures it in neither run is not one of its pairs (a benchmark's items may measure
+                // different things: the critic's songs as they are their total, their flawed copies how they rank)
+                (None, None) => continue,
+                _ => bail!("item {id} has `{metric}` in one run only"),
             };
             binary &= bi.binary.contains(metric) && ni.binary.contains(metric);
             if sign * (y - x) < 0.0 {
                 worse_items.push(id);
             }
-            pairs.push((bi, *x, *y));
+            pairs.push((bi, x, y));
         }
         let mut rows = vec![row("all", &pairs, binary, sign)];
         let kinds: BTreeSet<&String> = pairs.iter().flat_map(|(i, _, _)| i.slice.keys()).collect();
@@ -483,6 +487,28 @@ mod tests {
         )
         .unwrap();
         assert!(compare(&both, &both, true).is_err());
+    }
+
+    #[test]
+    fn a_metric_an_item_measures_in_neither_run_is_left_out_of_its_pairs() {
+        // the songs as they are measure their total, and their flawed copies how they rank: each metric is compared
+        // on the items that measure it
+        let run = |name: &str, extra: &str| {
+            let path = std::env::temp_dir().join(format!("claudius-bench-{}-{name}.jsonl", std::process::id()));
+            let mut text = String::from("{\"primary\": [\"ranked\"], \"shown\": [\"total\"]}\n");
+            for i in 0..12 {
+                text += &format!("{{\"item\": \"s{i}\", \"metrics\": {{\"total\": {}{extra}}}}}\n", 50 + i);
+                text += &format!("{{\"item\": \"s{i}/noise\", \"metrics\": {{\"ranked\": {}}}}}\n", i % 3 == 0);
+            }
+            std::fs::write(&path, text).unwrap();
+            path
+        };
+        let mixed = run("mixed", "");
+        compare(&mixed, &mixed, true).unwrap();
+        // a metric an item has in one run only is still refused
+        let more = run("mixed-more", ", \"ranked\": true");
+        let refused = compare(&mixed, &more, true).unwrap_err().to_string();
+        assert!(refused.contains("one run only"), "{refused}");
     }
 
     #[test]

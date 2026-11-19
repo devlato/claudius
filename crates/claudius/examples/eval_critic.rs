@@ -596,6 +596,27 @@ fn hundredths(x: f64) -> f64 {
 }
 
 /// the line that heads the results: which way each metric is better, and what a change is made to improve
+/// What a run stopped part way left in `text`, its file of results: the lines to keep (the head, and every line of the
+/// songs it judged whole, as they were), and the songs of `songs` to judge, whole: those it did not finish with each of
+/// `flaws`, whose lines it does not keep, so that each item is in the file once. A line the stop cut off goes too.
+fn resume<'a>(text: &str, songs: &[&'a str], flaws: &[&str]) -> (Vec<String>, Vec<&'a str>) {
+    let lines: Vec<(&str, Value)> =
+        text.lines().filter_map(|l| Some((l, serde_json::from_str::<Value>(l).ok()?))).collect();
+    let have: BTreeSet<&str> = lines.iter().filter_map(|(_, v)| v["item"].as_str()).collect();
+    let todo: Vec<&'a str> = songs
+        .iter()
+        .copied()
+        .filter(|s| !have.contains(s) || flaws.iter().any(|f| !have.contains(format!("{s}/{f}").as_str())))
+        .collect();
+    let redo: BTreeSet<&str> = todo.iter().copied().collect();
+    let keep = lines
+        .iter()
+        .filter(|(_, v)| v["item"].as_str().is_none_or(|i| !redo.contains(i.split('/').next().unwrap_or(i))))
+        .map(|(l, _)| (*l).to_string())
+        .collect();
+    (keep, todo)
+}
+
 fn head() -> Value {
     json!({"better": {"condemned": "lower", "praised": "lower"}, "primary": ["ranked"], "shown": ["total"]})
 }
@@ -662,20 +683,23 @@ fn main() {
     }
     let flaws: Vec<Flaw> = Flaw::ALL.into_iter().filter(|f| cfg!(feature = "native") || !f.stretches()).collect();
     let out = flag("--out").map_or_else(|| dir.join("critic.jsonl"), PathBuf::from);
-    // a run stopped part way: the songs it finished stay, the rest are judged
-    let kept: Vec<Value> = std::fs::read_to_string(&out)
-        .unwrap_or_default()
-        .lines()
-        .filter_map(|l| serde_json::from_str(l).ok())
-        .collect();
-    let have: BTreeSet<&str> = kept.iter().filter_map(|l| l["item"].as_str()).collect();
-    let todo: Vec<&Song> = all
-        .iter()
-        .filter(|s| {
-            !have.contains(s.id.as_str())
-                || flaws.iter().any(|f| !have.contains(format!("{}/{}", s.id, f.name()).as_str()))
-        })
-        .collect();
+    // a run stopped part way: the songs it finished whole stay, and the rest are judged, a song it finished in part
+    // again whole, its lines taken out of the file first, so that each item is in it once
+    let text = std::fs::read_to_string(&out).unwrap_or_default();
+    let ids: Vec<&str> = all.iter().map(|s| s.id.as_str()).collect();
+    let names: Vec<&str> = flaws.iter().map(|f| f.name()).collect();
+    let (keep, again) = resume(&text, &ids, &names);
+    if keep.len() != text.lines().count() {
+        let part = out.with_extension("part");
+        let lines: String = keep.iter().map(|l| format!("{l}\n")).collect();
+        if let Err(e) = std::fs::write(&part, lines).and_then(|()| std::fs::rename(&part, &out)) {
+            eprintln!("{}: {e}", out.display());
+            std::process::exit(1)
+        }
+    }
+    let kept: Vec<Value> = keep.iter().filter_map(|l| serde_json::from_str(l).ok()).collect();
+    let again: BTreeSet<&str> = again.into_iter().collect();
+    let todo: Vec<&Song> = all.iter().filter(|s| again.contains(s.id.as_str())).collect();
     let threads = flag("--threads").and_then(|n| n.parse().ok()).unwrap_or_else(|| {
         // the threads each one's ears take, as the ears count them
         let cores = std::thread::available_parallelism().map_or(2, |n| n.get());
@@ -758,5 +782,33 @@ fn main() {
         for e in failed.iter().take(10) {
             eprintln!("  {e}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_run_stopped_part_way_keeps_the_songs_it_finished_and_judges_a_song_it_finished_in_part_again_whole() {
+        let text = [
+            r#"{"better": {"praised": "lower"}, "primary": ["ranked"]}"#,
+            r#"{"item": "a", "metrics": {"total": 61}}"#,
+            r#"{"item": "a/noise", "metrics": {"ranked": true}}"#,
+            r#"{"item": "a/clip", "metrics": {"ranked": true}}"#,
+            r#"{"item": "b", "metrics": {"total": 58}}"#,
+            r#"{"item": "b/noise", "metrics": {"ranked": false}}"#,
+            r#"{"item": "b/cl"#,
+        ]
+        .join("\n");
+        let (keep, todo) = resume(&text, &["a", "b", "c"], &["noise", "clip"]);
+        assert_eq!(todo, ["b", "c"]);
+        // the head and song a's lines, as they were; song b's part, and the line the stop cut off, go
+        assert_eq!(keep.len(), 4, "{keep:?}");
+        assert!(keep.iter().all(|l| !l.contains(r#""item": "b"#)), "{keep:?}");
+        assert_eq!(keep[1], r#"{"item": "a", "metrics": {"total": 61}}"#);
+        // a run of nothing yet judges every song
+        let (keep, todo) = resume("", &["a"], &["noise"]);
+        assert!(keep.is_empty() && todo == ["a"]);
     }
 }
