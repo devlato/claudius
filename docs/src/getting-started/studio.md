@@ -93,6 +93,10 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
 
 ## The panels
 
+A song has three views, three ways of seeing and changing the same song: **Arrangement**, **Signal flow** and
+**Script**. The switcher over it shows one at a time (7 and 8 open the script and the signal flow, G the signal flow
+too; the same key again, or Escape, comes back to the arrangement).
+
 - **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), each with its length
   and a meter of how intense it is, and below them one row per track, with an icon for what it is (drums, keys, a
   bass, a pad, a line, a voice, a sample, an effect) or that it is muted or soloed. A dot at the end of a track's name
@@ -102,7 +106,7 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   bar is. Click a cell to select it, its track and its section: the right panel shows the section and, under it,
   the track (its sound and another, whether it plays in the section, mute, solo, level, pan, and where it is
   edited). Double-click a cell, or press Enter, to switch the track on or off there; Delete switches it off. With
-  **Paint** on (the button over the arrangement, or B), a click switches a cell and dragging along a row paints the
+  the **Paint** tool (beside **Select**, over the arrangement, or B), a click switches a cell and dragging along a row paints the
   rest the same. Drag a section to move it; right-click it to duplicate it, split it at the bar you clicked, insert
   one after it or remove it (the inspector's **Split** halves the section you have selected). A split section plays on
   as it played: the second part takes each recording from where the section had reached it, and keeps the build-up.
@@ -134,8 +138,8 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   things to fix, each with how much it costs and where to fix it, and, folded under **What it measured**, what
   earshot hears and the meters. A thing one change fixes has a **Quick fix** button ([below](#quick-fixes)).
 
-Under them, the tabs hold the editors: **Drums**, **Instruments**, **Notes**, **Chords**, **Mixer** and **Sounds**, and
-at the right end **Script**, **Signal flow** and **Log**.
+Under the arrangement, the tabs hold the editors: **Drums**, **Instruments**, **Notes**, **Chords**, **Mixer** and
+**Sounds**, and at the right end **Log**.
 
 - **Drums.** A step sequencer for every drum track. Click a step to toggle it, drag to paint, shift-drag to set how
   hard a hit is. Right-click a step and open **Trig** to set the chance it plays, when it plays (`1:2`, `last` ...),
@@ -159,15 +163,12 @@ at the right end **Script**, **Signal flow** and **Log**.
 - **Sounds.** The sample packs, with a button for each one that is not installed, and every sound a part or a script
   can play: the sampled instruments by pack, the synths and the drum voices. Click an instrument or a synth to put it
   on one of the song's parts.
-- **Script.** The whole song as a script. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
-  The sound browser lists every drum, synth and instrument name. At the end of each line, faint words say what its
-  numbers set ("118 BPM · swing 56%", "16 bars", "-4 dB", "4.5 kHz"), and pointing at a number says it too (**Hints**
-  hides them). With the cursor on a number, Alt+↑ and Alt+↓ change it by its last digit (1 for 118, 0.01 for 0.56;
-  with Shift, ten times as much), and the script runs by itself a moment after the keys rest, so that you hear the
-  change as you would turning a knob.
-- **Signal flow.** **Signal flow** over the arrangement (or **Open it large** in this tab, or G) opens it in the
-  arrangement's place, with the window to itself but for the toolbars; **Back to the arrangement** (or G) returns.
-  The song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
+- **Log.** What happened, and the song's history.
+
+The switcher over the arrangement opens the song's other two views in its place:
+
+- **Signal flow** (8 or G). With the window to itself but for the toolbars, it opens with all of it in view: the
+  song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
   the sections it plays in) runs through a node for each of its effects into its bus; each bus runs through its
   effects into the master, and the master through its chain out at its loudness. Curves show the sends into the
   reverb and delay returns, and the kick ducking the tracks it ducks. Click a node to change it beside the canvas:
@@ -176,7 +177,12 @@ at the right end **Script**, **Signal flow** and **Log**.
   chain; a bus's or the master's chain; the master's loudness. Right-click a node to add an effect after it, move
   it or take it out. Every change undoes. The arranger's own filter moves, width and saturation are added at render
   and are not on the graph.
-- **Log.** What happened, and the song's history.
+- **Script** (7). The whole song as a script, beside the inspector and the verdict. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
+  The sound browser lists every drum, synth and instrument name. At the end of each line, faint words say what its
+  numbers set ("118 BPM · swing 56%", "16 bars", "-4 dB", "4.5 kHz"), and pointing at a number says it too (**Hints**
+  hides them). With the cursor on a number, Alt+↑ and Alt+↓ change it by its last digit (1 for 118, 0.01 for 0.56;
+  with Shift, ten times as much), and the script runs by itself a moment after the keys rest, so that you hear the
+  change as you would turning a knob.
 
 **Variations** tries a few versions of the song, with a change or two each, and keeps the best one if it beats the
 current song (how many is in its menu); **Improve** runs rounds of that, each from the best version so far. Both run
@@ -472,8 +478,9 @@ shortcuts**), and every action is in the command palette, with its key. Cmd is C
 | N | a new song |
 | Cmd+O, Cmd+S | open a song; save it (download it in the demo) |
 | R | record a take |
-| 1 to 9 | the tabs, in order: Drums, Instruments, Notes, Chords, Mixer, Sounds, Script, Signal flow, Log |
-| G | the signal flow large, in the arrangement's place, and back |
+| 1 to 6, 9 | the tabs: Drums, Instruments, Notes, Chords, Mixer, Sounds; Log |
+| 7, 8 | the Script view, the Signal flow view; the same key again, back to the arrangement |
+| G | the Signal flow view, and back to the arrangement |
 | B | the arrangement's paint tool: a click switches a cell, dragging along a row paints the rest |
 | Cmd+Z, Shift+Cmd+Z | undo, redo |
 | Tab, Shift+Tab | the next control, or the one before |
@@ -482,7 +489,7 @@ shortcuts**), and every action is in the command palette, with its key. Cmd is C
 | ← → | select the previous or next section |
 | ↑ ↓ | select the track above or below: with the section, a cell of the arrangement |
 | Enter, Delete | switch the selected cell's track on or off in its section; off |
-| Escape | let go of the control that has the keyboard; then close the window on top; then let go of the selected track |
+| Escape | let go of the control that has the keyboard; then close the window on top; then back to the arrangement from another view; then let go of the selected track |
 | Cmd+Enter | run the script, in the script editor |
 | Alt+↑ Alt+↓ | in the script editor: the number at the cursor up or down by its last digit (Shift: ten times as much), and the script runs |
 

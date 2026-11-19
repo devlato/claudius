@@ -11,7 +11,7 @@ use claudius_intent::catalogue::ENTRIES;
 use claudius_intent::{Answer, By, Finder, Found};
 use eframe::egui::{self, Align2, Key, Modifiers, RichText, text::LayoutJob, vec2};
 
-use super::{Cx, Tab};
+use super::{Cx, Main, Tab};
 use crate::audio::record::Hearing;
 use crate::theme::{self, Look, TEXT, TEXT_FAINT};
 use crate::widgets::{self, Icon};
@@ -327,7 +327,8 @@ pub(crate) enum Run {
     Phone,
     Paint,
     Tab(Tab),
-    FlowLarge,
+    /// one of the song's views, or the arrangement again when it is the one shown
+    View(Main),
     Variations,
     Improve,
     FixAll,
@@ -386,7 +387,8 @@ pub(crate) fn run_of(id: &str) -> Option<Run> {
         "add_recording" => Run::AddRecording,
         "phone" => Run::Phone,
         "paint" => Run::Paint,
-        "flow_large" => Run::FlowLarge,
+        "flow_large" | "tab:flow" => Run::View(Main::Flow),
+        "tab:script" => Run::View(Main::Script),
         "variations" => Run::Variations,
         "improve" => Run::Improve,
         "fix_all" => Run::FixAll,
@@ -411,8 +413,6 @@ pub(crate) fn run_of(id: &str) -> Option<Run> {
             "chords" => Tab::Harmony,
             "mixer" => Tab::Mixer,
             "sounds" => Tab::Sounds,
-            "script" => Tab::Script,
-            "flow" => Tab::Graph,
             "log" => Tab::Log,
             _ => return None,
         }),
@@ -638,14 +638,17 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::AddRecording => cx.view.import.open = true,
         Run::Phone => cx.view.phone.show(cx.state.phone.is_some()),
         Run::Paint => cx.view.paint = !cx.view.paint,
-        // the dock is not drawn while the signal flow is large: a tab picked shows it again
+        // the dock is drawn with the arrangement only: a tab picked shows it again
         Run::Tab(t) => {
             cx.view.tab = t;
-            super::graph::open_large(cx, false);
+            cx.view.main = Main::Arrangement;
         }
-        Run::FlowLarge => {
-            let large = cx.state.song.is_some() && !cx.view.flow_large;
-            super::graph::open_large(cx, large);
+        Run::View(m) => {
+            let open = cx.view.main != m && cx.state.song.is_some();
+            match m {
+                Main::Flow => super::graph::open(cx, open),
+                _ => cx.view.main = if open { m } else { Main::Arrangement },
+            }
         }
         // as the status bar's buttons do
         Run::Variations => cx.out.push(Command::Mutate { count: cx.view.mutate_count, keep_best: cx.view.keep_best }),
@@ -683,6 +686,10 @@ mod tests {
         }
         for t in Tab::ALL {
             assert!(ENTRIES.iter().any(|e| run_of(e.id) == Some(Run::Tab(t)) && e.name == t.label()), "{}", t.label());
+        }
+        // and the song's two views beside the arrangement, which the switcher shows too
+        for m in [Main::Flow, Main::Script] {
+            assert!(ENTRIES.iter().any(|e| run_of(e.id) == Some(Run::View(m)) && e.name == m.label()), "{}", m.label());
         }
     }
 

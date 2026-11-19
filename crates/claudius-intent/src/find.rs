@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(names("mix")[0], "Mixer");
         assert_eq!(names("loop")[0], "Loop");
         assert_eq!(names("volume")[0], "Mixer", "found by a word it goes by");
-        assert_eq!(names("whiteboard")[0], "Signal flow, large");
+        assert_eq!(names("whiteboard")[0], "Signal flow, or back to the arrangement");
         assert_eq!(names("sample vocals")[0], "Add a recording or sample one...");
         assert!(names("zzzz").is_empty());
         assert!(f.find("mix", None, 10).iter().all(|x| x.by == By::Name));

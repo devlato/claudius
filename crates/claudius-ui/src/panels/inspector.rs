@@ -621,7 +621,9 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     }
                     let tip = "its effects, sends and bus, in the signal flow";
                     if ui.button("Its effects").on_hover_text(tip).clicked() {
-                        cx.view.tab = Tab::Graph;
+                        // the signal flow opened, with all of it in view (as `graph::open`, which takes all of `cx`)
+                        cx.view.main = super::Main::Flow;
+                        cx.view.graph.scene = egui::Rect::ZERO;
                         cx.view.graph.selected = Some(format!("track:{name}"));
                     }
                 },

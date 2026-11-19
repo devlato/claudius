@@ -60,12 +60,13 @@ and the part it is on shows a ring (`focus_ring`).
 │ toolbar: new song, open, save · variations ▾ · improve ▾ · sounds ▾ · export ▾ │
 │          undo / redo · status: the job, its progress and cancel, or up to date │
 ├───────────────────────────────────────────────────────┬───────────────────────┤
-│ arrangement: section blocks, one row per layer with    │ inspector: the        │
-│ a cell per section, the waveform and playhead          │ selected section      │
+│ views: arrangement | signal flow | script (`Main`)     │ inspector: the        │
+│ arrangement: section blocks, one row per layer with    │ selected section      │
+│ a cell per section, the waveform and playhead          │                       │
 ├───────────────────────────────────────────────────────┤                       │
-│ dock: drums · instruments · notes · chords · mixer ·  │ verdict: scores,       │
-│       sounds · and at the right: script · signal flow │ issues, ears, bands    │
-│       · log                                           │                        │
+│ dock (with the arrangement): drums · instruments ·    │ verdict: scores,       │
+│       notes · chords · mixer · sounds · and at the     │ issues, ears, bands    │
+│       right: log                                      │                        │
 ├───────────────────────────────────────────────────────┴───────────────────────┤
 │ status: connection, server, audio errors, volume, shortcuts                    │
 └───────────────────────────────────────────────────────────────────────────────┘
@@ -81,9 +82,9 @@ and the part it is on shows a ring (`focus_ring`).
 | parts (Instruments) | style, sound, register (drag on a keyboard), density, reseed | `set_part` |
 | piano roll (Notes) | a part's cycle over a progression from `PartView::cycles`, on a grid of beats and pitches: click adds a note at the grid (1/16 to 1/2), a drag moves a note or, by its right edge, makes it longer, right-click takes it out; a drag edits a draft sent when let go, and a cycle the theory engine writes is written out by the first edit. The demo writes its cycles with the same code it plays them with (`mock::synth::write_cycles`) and plays a cycle written out | `set_notes` |
 | harmony (Chords) | which progression each section plays; progressions as chord chips, from the key's diatonic chords or as text | `set_section`, `set_progression` |
-| script | the song as a script, highlighted, Run with Cmd or Ctrl+Enter, errors marking their line, sounds to insert, the reference | `run_script` |
+| script | one of the song's three views (`Main::Script`), beside the inspector and the verdict: the song as a script, highlighted, Run with Cmd or Ctrl+Enter, errors marking their line, sounds to insert, the reference | `run_script` |
 | sounds | the packs and every sound name; click one to put it on a part | `set_part` |
-| graph (Signal flow) | the song's signal as nodes and edges (`SongView::graph`, laid out in columns from the tracks to the finished song) in an `egui::Scene` to pan and zoom, in the dock's tab or, `View::flow_large`, in the arrangement's place with the side panel and the dock put away (`graph::large`); the inspector beside it edits the node chosen: a track's mix, bus, sections and sound, an effect's settings (each JSON field by its type, the rest as JSON text), a chain's effects added from `EFFECT_TEMPLATES`, moved or taken out, the master's loudness | `set_mix`, `toggle_layer`, `set_part`, `set_fx`, `run_script` (the master's loudness) |
+| graph (Signal flow) | the song's signal as nodes and edges (`SongView::graph`, laid out in columns from the tracks to the finished song) in an `egui::Scene` to pan and zoom, as one of the song's three views (`Main::Flow`, `View::main`, from the switcher `panels::views`), in the main area with the window to itself but for the toolbars; the inspector beside it edits the node chosen: a track's mix, bus, sections and sound, an effect's settings (each JSON field by its type, the rest as JSON text), a chain's effects added from `EFFECT_TEMPLATES`, moved or taken out, the master's loudness | `set_mix`, `toggle_layer`, `set_part`, `set_fx`, `run_script` (the master's loudness) |
 | verdict | read only: the total, a bar per score, issues with their targets, the ears, the tonal balance | |
 | log | read only: `State.log`, filterable | |
 
