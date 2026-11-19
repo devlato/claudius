@@ -669,7 +669,15 @@ pub fn describe(changes: &[Change]) -> String {
                     .into_iter()
                     .map(|n| to.iter().find(|(old, _)| *old == n).map_or(n, |(_, new)| new.clone()))
                     .collect();
-                if !to.is_empty() && before == names(&c.after) {
+                let after = names(&c.after);
+                // the same order as `list` keeps it, either way: the elements in both in the order they were, those
+                // added at the end, those taken out gone (a rename made together with an add or a removal)
+                let kept = |from: &[String], to: &[String]| -> Vec<String> {
+                    let mut order: Vec<String> = from.iter().filter(|n| to.contains(n)).cloned().collect();
+                    order.extend(to.iter().filter(|n| !from.contains(n)).cloned());
+                    order
+                };
+                if !to.is_empty() && kept(&before, &after) == after && kept(&after, &before) == before {
                     continue;
                 }
                 let what = LISTS.iter().find(|(l, _)| *l == list.as_str()).map_or("element", |(_, w)| w);
@@ -918,6 +926,29 @@ mod tests {
         assert!(said.contains(&format!("renamed the {old} section to chorus")), "{said}");
         assert!(said.contains(&format!("renamed the {last} section to coda")), "{said}");
         assert!(!said.contains("took out") && !said.contains("added") && !said.contains("another order"), "{said}");
+        // made together with a section added at the end, or with the last one taken out, the order is still the same
+        let mut grown = house.clone();
+        grown.form[1].name = "chorus".into();
+        let mut tag = grown.form[0].clone();
+        tag.name = "tag".into();
+        grown.form.push(tag);
+        let said = describe(&round_trip(&a, &json(&Some(grown))));
+        assert!(
+            said.contains(&format!("renamed the {old} section to chorus")) && said.contains("added the tag section"),
+            "{said}"
+        );
+        assert!(!said.contains("another order"), "{said}");
+        let mut shrunk = house.clone();
+        shrunk.form[1].name = "chorus".into();
+        shrunk.form.pop();
+        let said = describe(&round_trip(&a, &json(&Some(shrunk))));
+        assert!(said.contains(&format!("took out the {last} section")) && said.contains("to chorus"), "{said}");
+        assert!(!said.contains("another order"), "{said}");
+        // and an order that did change, with a rename beside it, is still said
+        let mut swapped = house.clone();
+        swapped.form[1].name = "chorus".into();
+        swapped.form.swap(0, 2);
+        assert!(describe(&round_trip(&a, &json(&Some(swapped)))).contains("put the sections in another order"));
         // a list of things without names, by place: grown, shrunk, and changed whole
         round_trip(&json!({"l": [1, 2]}), &json!({"l": [1, 2, 3, 4]}));
         round_trip(&json!({"l": [1, 2, 3]}), &json!({"l": [1]}));
