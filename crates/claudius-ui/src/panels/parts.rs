@@ -19,7 +19,9 @@ fn is_black(n: i32) -> bool {
 
 /// a piano strip from A0 to C8 with the register lit; drag across it to set a new range
 fn keyboard(ui: &mut Ui, register: &mut (i32, i32), color: Color32, width: f32) -> egui::Response {
-    let (rect, mut resp) = ui.allocate_exact_size(vec2(width, 30.0), Sense::click_and_drag());
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 30.0), Sense::click_and_drag());
+    // dragged across, left to right, to set a range
+    let mut resp = resp.on_hover_and_drag_cursor(egui::CursorIcon::ResizeHorizontal);
     let whites: Vec<i32> = (LOW..=HIGH).filter(|n| !is_black(*n)).collect();
     let ww = rect.width() / whites.len() as f32;
     let x_of_white = |n: i32| -> f32 { rect.left() + whites.iter().position(|w| *w == n).unwrap_or(0) as f32 * ww };

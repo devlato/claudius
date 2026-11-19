@@ -134,6 +134,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 (lane < n_lanes).then_some((lane, step))
             };
             let hover = resp.hover_pos().and_then(cell_at);
+            if hover.is_some() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
             let solo = super::any_solo(song);
             for (li, d) in song.drums.iter().enumerate() {
                 let y = gy + li as f32 * row_h;

@@ -30,6 +30,50 @@ fn ringed() -> egui::Id {
     egui::Id::unique("claudius: the control that drew its own focus ring")
 }
 
+/// The pointer says what a press does wherever the widget under it has not said so itself (a field shows the text bar, a
+/// value its arrows, a clip the grab): the hand over the small things that can be pressed which egui's widgets and the
+/// studio's leave plain (a box to tick, a choice, a header that opens, a card), as buttons have it
+/// (`Visuals::interact_cursor`); over a button that is off, the sign that it cannot be pressed now. A whole canvas that
+/// takes presses keeps the arrow: what each part of it does, it says itself. Run once a frame, after everything is drawn.
+pub fn pointer(ctx: &egui::Context) {
+    let Some(at) = ctx.pointer_hover_pos() else { return };
+    // the widget on top under the pointer as it was made, with what it senses (the hit test counts a widget that is off
+    // as sensing nothing), and what a click would press
+    let (top, click) = ctx.viewport(|vp| {
+        let top = vp
+            .hits
+            .contains_pointer
+            .last()
+            .and_then(|w| vp.this_pass.widgets.get(w.id).or_else(|| vp.prev_pass.widgets.get(w.id)).copied());
+        (top, vp.hits.click)
+    });
+    let over = |w: &egui::WidgetRect| w.interact_rect.contains(at);
+    if let Some(w) = top
+        && !w.enabled
+        && (w.sense.senses_click() || w.sense.senses_drag())
+        && over(&w)
+    {
+        ctx.set_cursor_icon(egui::CursorIcon::NotAllowed);
+        return;
+    }
+    if ctx.output(|o| o.cursor_icon) != egui::CursorIcon::Default || ctx.dragged_id().is_some() {
+        return;
+    }
+    if let Some(w) = click
+        && w.enabled
+        && w.sense.senses_click()
+        && over(&w)
+        && w.interact_rect.width() <= SMALL.x
+        && w.interact_rect.height() <= SMALL.y
+    {
+        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+}
+
+/// the largest a thing pressed may be for `pointer` to give it the hand: anything larger is a canvas, whose parts say
+/// what they do themselves
+const SMALL: Vec2 = Vec2::new(640.0, 64.0);
+
 /// The ring around whatever has the keyboard, drawn once a frame after everything else: egui's own controls (buttons,
 /// menus, fields, checkboxes, links) and every area that takes a click get it as the painted controls do, over the
 /// control on its own layer, cut to what of it shows.
@@ -339,7 +383,9 @@ pub fn knob(
 ) -> Response {
     // small enough for a mixer strip to hold three in a row
     let d = 24.0;
-    let (rect, mut response) = ui.allocate_exact_size(vec2(d + 4.0, d + 13.0), Sense::click_and_drag());
+    let (rect, response) = ui.allocate_exact_size(vec2(d + 4.0, d + 13.0), Sense::click_and_drag());
+    // turned by dragging up and down
+    let mut response = response.on_hover_and_drag_cursor(egui::CursorIcon::ResizeVertical);
     let (lo, hi) = (*range.start(), *range.end());
     let bipolar = lo < 0.0 && hi > 0.0;
     if response.dragged() {
@@ -412,8 +458,11 @@ pub fn fader(
     enabled: bool,
 ) -> Response {
     let (lo, hi) = (*range.start(), *range.end());
-    let (rect, mut response) =
+    let (rect, response) =
         ui.allocate_exact_size(vec2(44.0, height), if enabled { Sense::click_and_drag() } else { Sense::hover() });
+    // moved by dragging up and down
+    let mut response =
+        if enabled { response.on_hover_and_drag_cursor(egui::CursorIcon::ResizeVertical) } else { response };
     let track = Rect::from_min_max(
         pos2(rect.center().x + 6.0 - 2.0, rect.top() + 8.0),
         pos2(rect.center().x + 6.0 + 2.0, rect.bottom() - 8.0),
@@ -925,6 +974,43 @@ mod tests {
         // the fonts' textures, which nothing draws here
         out.textures_delta.clear();
         (out.shapes.iter().filter(|s| matches!(&s.shape, Shape::Rect(r) if r.stroke == ring)).count(), id)
+    }
+
+    /// The pointer over what can be pressed shows the hand, a button egui draws and a box it draws alike; over a control
+    /// that is off, the sign that it cannot be pressed now; over a canvas that takes presses, the arrow, its parts saying
+    /// what they do themselves.
+    #[test]
+    fn the_pointer_says_what_a_press_does() {
+        use egui::CursorIcon::{Default as Arrow, NotAllowed, PointingHand};
+        let ctx = egui::Context::default();
+        // the studio's own looks, which give a button the hand
+        crate::theme::apply(&ctx, crate::theme::Look::Dark);
+        let shown: [(&str, Shows, egui::CursorIcon); 4] = [
+            ("a button", &|ui| ui.button("Play"), PointingHand),
+            ("a box to tick", &|ui| ui.checkbox(&mut true, "Loop"), PointingHand),
+            ("a button that is off", &|ui| ui.add_enabled(false, egui::Button::new("Play")), NotAllowed),
+            ("a canvas that takes presses", &|ui| ui.allocate_exact_size(vec2(900.0, 400.0), Sense::click()).1, Arrow),
+        ];
+        let screen = Rect::from_min_size(Pos2::ZERO, vec2(1280.0, 900.0));
+        for (what, show, want) in shown {
+            // a frame with the pointer at `at`: the cursor it ends with, and where the control is
+            let run = |at: Option<Pos2>| -> (egui::CursorIcon, Rect) {
+                let events = at.map(|p| vec![egui::Event::PointerMoved(p)]).unwrap_or_default();
+                let input = egui::RawInput { screen_rect: Some(screen), events, ..Default::default() };
+                let mut rect = Rect::NOTHING;
+                let mut out = ctx.run_ui(input, |ui| {
+                    rect = show(ui).rect;
+                    pointer(ui.ctx());
+                });
+                // the fonts' textures, which nothing draws here
+                out.textures_delta.clear();
+                (out.platform_output.cursor_icon, rect)
+            };
+            let (_, rect) = run(None);
+            // what the pointer is over is known a frame after it gets there
+            run(Some(rect.center()));
+            assert_eq!(run(Some(rect.center())).0, want, "{what}");
+        }
     }
 
     #[test]

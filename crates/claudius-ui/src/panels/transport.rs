@@ -970,6 +970,7 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
                     let selected = f.example == Some(e.name);
                     let color = theme::section_color(["drop", "groove", "break", "build"][i % 4]);
                     let (rect, r) = ui.allocate_exact_size(vec2(300.0, 58.0), Sense::click());
+                    let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
                     let fill = if selected {
                         theme::alpha(color, 0.22)
                     } else if r.hovered() {
@@ -1088,6 +1089,7 @@ fn genre_cards(
                         ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
                     );
                     let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
+                    let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
                     let fill = if selected {
                         theme::alpha(color, 0.22)
                     } else if r.hovered() {
