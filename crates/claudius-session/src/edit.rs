@@ -498,7 +498,9 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             build,
             build_style,
             build_amount,
+            build_bars,
             gap,
+            gap_beats,
             impact,
             fills,
             source,
@@ -557,6 +559,17 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             }
             if let Some(x) = build_amount {
                 s.build_amount = x.clamp(0.0, 1.0);
+            }
+            // so do its bars (none: as long as its style makes each part); a gap's length turns the gap on
+            if let Some(x) = build_bars {
+                s.build_bars = (*x > 0).then(|| (*x).min(256));
+                s.build |= *x > 0;
+            }
+            if let Some(x) = gap_beats {
+                if x.is_nan() || *x <= 0.0 {
+                    return Some(Err(format!("a gap lasts some beats, more than none ({x})")));
+                }
+                (s.gap_beats, s.gap) = (x.min(64.0), true);
             }
             let said = format!("section {index} ({})", s.name);
             // its place in the takes last, so that layers set with it do not turn the takes off again
@@ -720,7 +733,9 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32, like: Op
         build: false,
         build_style: BuildStyle::Classic,
         build_amount: 0.5,
+        build_bars: None,
         gap: false,
+        gap_beats: 1.0,
         impact: false,
         fills: false,
         takes: Default::default(),
@@ -1031,6 +1046,26 @@ mod tests {
             (SectionKind::Bridge, &new.layers, &new.prog)
         );
         assert_eq!(bp.harmony.progressions["bridge"], chords);
+    }
+
+    #[test]
+    fn a_sections_build_up_stacks_styles_and_takes_its_bars_and_its_gap_its_beats() {
+        let mut bp = song();
+        let set = cmd(
+            &json!({"cmd": "set_section", "index": 1, "build_style": "roll+riser", "build_bars": 4, "gap_beats": 2}),
+        );
+        change(&set, &mut bp, 1).unwrap().unwrap();
+        let s = &bp.form[1];
+        assert_eq!((s.build_style.name(), s.build, s.build_bars), ("roll+riser".to_string(), true, Some(4)));
+        assert_eq!((s.gap, s.gap_beats), (true, 2.0));
+        // none: each part its own length again
+        let back = cmd(&json!({"cmd": "set_section", "index": 1, "build_bars": 0}));
+        change(&back, &mut bp, 1).unwrap().unwrap();
+        assert_eq!(bp.form[1].build_bars, None);
+        let none = cmd(&json!({"cmd": "set_section", "index": 1, "gap_beats": 0}));
+        assert!(change(&none, &mut bp, 1).unwrap().unwrap_err().contains("a gap lasts some beats"));
+        let wrong = cmd(&json!({"cmd": "set_section", "index": 1, "build_style": "roll+swirl"}));
+        assert!(change(&wrong, &mut bp, 1).unwrap().unwrap_err().contains("no build-up 'swirl'"));
     }
 
     #[test]

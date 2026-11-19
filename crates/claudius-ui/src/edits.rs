@@ -122,7 +122,9 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             build,
             build_style,
             build_amount,
+            build_bars,
             gap,
+            gap_beats,
             impact,
             fills,
             source,
@@ -142,6 +144,16 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             if let Some(v) = build_amount {
                 s.build_amount = v.clamp(0.0, 1.0);
+            }
+            // so do its bars, and a gap's length turns the gap on
+            if let Some(v) = build_bars {
+                (s.build_bars, s.build) = ((*v > 0).then(|| (*v).min(256)), s.build || *v > 0);
+            }
+            if let Some(v) = gap_beats {
+                if v.is_nan() || *v <= 0.0 {
+                    return Some(Err(format!("a gap lasts some beats, more than none ({v})")));
+                }
+                (s.gap_beats, s.gap) = (v.min(64.0), true);
             }
             if let Some(v) = name {
                 s.name = v.clone();

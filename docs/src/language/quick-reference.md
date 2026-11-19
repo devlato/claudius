@@ -42,7 +42,7 @@ Everything on one page. Each name links to its full entry.
 | [`form([sec(...), ...])`](form.md#form) | the whole form; repeated names become `drop2`, `drop3` |
 | [`sec(kind, bars, layers)`](form.md#sec) | kinds `intro verse build drop break hook groove outro bridge`; layers `"kick hat"`, `[...]`, `"*"` |
 | [`.name() .energy() .prog() .variant()`](form.md#section-methods) | |
-| [`.build() .gap() .impact() .fills() .filter_in()`](form.md#what-the-flags-do) | each also takes `true` / `false` |
+| [`.build() .gap() .impact() .fills() .filter_in()`](form.md#what-the-flags-do) | each also takes `true` / `false`; `.build("roll+riser")` stacks styles, `.build_bars(4)` builds over the last 4 bars, `.gap(2)` holds 2 beats |
 | [`section("drop", #{ ... })`](form.md#section) | `bars energy prog variant name layers build gap impact fills filter_in`; by name or 0-based index |
 | [`layer("break", "lead", true)`](form.md#layer) | one track on or off in one section |
 

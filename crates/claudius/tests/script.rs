@@ -1356,6 +1356,126 @@ fn a_build_up_takes_a_style_and_how_hard_it_builds_prints_them_back_and_plays_th
 }
 
 #[test]
+fn build_ups_stack_their_styles_take_the_bars_asked_and_gaps_last_the_beats_asked() {
+    use claudius::model::{Blueprint, BuildParts, BuildStyle};
+    let song = |section: &str| {
+        let code = format!(
+            r#"
+            blank("house");
+            tempo(124);
+            prog("A", "i VI III VII");
+            drum("kick", "x...x...x...x...");
+            drum("clap", "....x.......x...");
+            drum("hat", "..x...x...x...x.");
+            part("bass", #{{ style: "pulse" }});
+            form([sec("groove", 8, "kick clap hat bass"), sec("groove", 8, "kick clap hat bass").fills(false){section},
+                  sec("drop", 8, "kick clap hat bass")]);
+            "#
+        );
+        script::run(&code, None, None).unwrap_or_else(|e| panic!("{section}: {e}")).bp.unwrap()
+    };
+    // the second section ends on beat 64
+    let end = 64.0;
+    let notes = |bp: &Blueprint, lane: &str, from: f64, to: f64| {
+        let p = compose::arrange(bp);
+        p.tracks
+            .iter()
+            .find(|t| t.name == lane)
+            .map_or(0, |t| t.notes.iter().filter(|n| n.t >= from && n.t < to).count())
+    };
+    let first = |bp: &Blueprint, lane: &str| {
+        let p = compose::arrange(bp);
+        p.tracks.iter().find(|t| t.name == lane).and_then(|t| t.notes.iter().map(|n| n.t).reduce(f64::min))
+    };
+    // where the music's highpass sweep sets out from: the point before its top
+    let sweep_from = |bp: &Blueprint| {
+        let p = compose::arrange(bp);
+        p.mix.buses.get("music").and_then(|c| {
+            c.iter().find_map(|e| match e {
+                claudius::fx::Effect::Filter {
+                    mode: claudius::dsp::filter::FilterMode::Hp,
+                    cutoff: claudius::dsp::env::Param::Curve(points),
+                    ..
+                } => {
+                    let top = (0..points.len()).max_by(|&a, &b| points[a].1.total_cmp(&points[b].1))?;
+                    points.get(top.checked_sub(1)?).map(|p| p.0)
+                }
+                _ => None,
+            })
+        })
+    };
+    let printed_back = |bp: &Blueprint, said: &str| {
+        let printed = script::to_script(bp);
+        assert!(printed.contains(said), "{said} in\n{printed}");
+        assert!(script::run(&printed, None, None).unwrap().bp.unwrap() == *bp, "{said}: it rebuilds exactly");
+    };
+
+    // a roll and a riser stacked: the roll, the kick out and the riser, and no sweep
+    let stacked = song(r#".build("roll+riser")"#);
+    let style = stacked.form[1].build_style;
+    assert_eq!(style.name(), "roll+riser");
+    let all = BuildParts { roll: true, kick_out: true, riser: true, sweep: false, drums_out: false };
+    assert_eq!(style.parts(), all);
+    assert!(notes(&stacked, "clap", end - 4.0, end) >= 8, "the roll");
+    assert_eq!(notes(&stacked, "kick", end - 4.0, end), 0, "the kick out");
+    assert!(first(&stacked, "riser").is_some(), "the riser");
+    assert_eq!(sweep_from(&stacked), None, "no sweep");
+    printed_back(&stacked, r#".build("roll+riser")"#);
+    assert_eq!(BuildStyle::parse("riser + roll").unwrap(), style, "in any order");
+    assert_eq!(BuildStyle::parse("roll+roll").unwrap(), BuildStyle::Roll, "one alone is that style");
+    assert!(BuildStyle::parse("roll+swirl").unwrap_err().contains("or several with +"));
+    // a song keeps it by its name, as it keeps every style
+    assert_eq!(serde_json::to_string(&style).unwrap(), r#""roll+riser""#);
+    assert_eq!(serde_json::from_str::<BuildStyle>(r#""roll+riser""#).unwrap(), style);
+    assert_eq!(serde_json::from_str::<BuildStyle>(r#""drop_out""#).unwrap(), BuildStyle::DropOut);
+    assert!(serde_json::from_str::<BuildStyle>(r#""swirl""#).is_err());
+
+    // over its last 2 bars: the roll, the riser and the sweep all set out 8 beats before the end
+    let short = song(".build().build_bars(2)");
+    assert_eq!(short.form[1].build_bars, Some(2));
+    assert_eq!(first(&short, "riser"), Some(end - 8.0));
+    assert_eq!(sweep_from(&short), Some(end - 8.0));
+    let rolled = claudius::theory::rhythm::snare_roll(8.0).len();
+    assert_eq!(notes(&short, "clap", end - 8.0, end), rolled, "the roll alone over the last 2 bars");
+    printed_back(&short, ".build_bars(2)");
+    // the kick leaves no earlier than the build-up sets out: as hard as it goes, it would leave two bars
+    let one = song(r#".build("classic", 1).build_bars(1)"#);
+    assert_eq!(notes(&one, "kick", end - 4.0, end), 0);
+    assert!(notes(&one, "kick", end - 8.0, end - 4.0) > 0, "no earlier than its last bar");
+    let hard = song(r#".build("classic", 1)"#);
+    assert_eq!(notes(&hard, "kick", end - 8.0, end), 0, "where without its bars it leaves two");
+
+    // a gap of two beats: nothing but the riser in the section's last two, then the drop on its beat
+    let gapped = song(".gap(2)");
+    assert_eq!((gapped.form[1].gap, gapped.form[1].gap_beats), (true, 2.0));
+    for lane in ["kick", "clap", "hat", "bass"] {
+        assert_eq!(notes(&gapped, lane, end - 2.0, end), 0, "{lane} in the gap");
+    }
+    assert!(notes(&gapped, "kick", end - 4.0, end - 2.0) > 0, "until the gap");
+    assert!(notes(&gapped, "kick", end, end + 1.0) > 0, "the drop comes in on its beat");
+    printed_back(&gapped, ".gap(2)");
+    let one_beat = song(".gap()");
+    assert_eq!(one_beat.form[1].gap_beats, 1.0, "a beat, as gaps always were");
+    assert!(notes(&one_beat, "kick", end - 2.0, end - 1.0) > 0 && notes(&one_beat, "kick", end - 1.0, end) == 0);
+    printed_back(&song(".gap(0.5).gap(false)"), ".gap(0.5).gap(false)");
+    let e = script::run(r#"blank("house"); form([sec("drop", 8).gap(0)]);"#, None, None).err().expect("refused");
+    assert!(e.contains("a gap lasts"), "{e}");
+
+    // section() turns the build-up on with its bars and the gap with its beats, unless it says otherwise
+    let with = |map: &str| {
+        let code = format!(r#"section(0, #{{ {map} }});"#);
+        script::run(&code, Some(song("")), None).unwrap().bp.unwrap().form[0].clone()
+    };
+    let s = with("build_bars: 4");
+    assert!(s.build && s.build_bars == Some(4), "{s:?}");
+    assert!(!with("build_bars: 4, build: false").build);
+    let s = with("gap: 2");
+    assert!(s.gap && s.gap_beats == 2.0, "{s:?}");
+    let s = with("gap_beats: 0.5, gap: false");
+    assert!(!s.gap && s.gap_beats == 0.5, "{s:?}");
+}
+
+#[test]
 fn pads_that_strike_notes_play_on_through_a_drop_out_and_no_fill_of_the_drummers_plays_on_them_or_stops_them() {
     use claudius::model::Sound;
     let code = r#"
