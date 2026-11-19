@@ -176,8 +176,8 @@ by itself.
 - `mutate` (count, keep_best) tries a few variations a producer would try (a section again or left out, a part or a
   layer more or fewer, another sound, an effect, an equalizer move, a drum step's feel, a sample re-chopped), biased
   toward the issues, and keeps the best one if it beats the song. Good for ideas or when the score is stuck.
-- `evolve` (generations, children) searches longer, 10 to 40 seconds per generation. When it outlasts the call,
-  follow it with `status`.
+- `evolve` (generations, children) searches longer, 10 to 40 seconds per generation. When it outlasts the call (45
+  s), the call says it is still going: follow it with `status`, which gives its answer once it is done.
 - `change_genre` (genre, seed) when the person wants the song in another style ("make it lofi", "what would this be
   as drum and bass", "try it as trip hop with idm drums": `trip_hop+idm`): the song stays (its form, chords, key, its
   lead's melody, its recordings and written notes), and the genre's drums, bass, parts, sounds and mix play it. Its

@@ -2,8 +2,8 @@
 //! through a `Backend`: the session in this process, or a claudius app that is already running (through its HTTP
 //! API), so an assistant connected with `claudius mcp` edits the very song the person has open in the studio.
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use claudius_api::{ChatMessage, Command, Reply, SoundList, State, TakeStatus};
 use rmcp::handler::server::wrapper::Parameters;
@@ -1034,9 +1034,29 @@ pub struct PacksArgs {
     pub names: Vec<String>,
 }
 
+/// How long a tool waits for its work before it answers that the work goes on: an assistant's link gives up on a call
+/// after a minute or so (the desktop app's after about 80 s), and remaking or sampling a long recording, or rendering a
+/// long song, can take longer.
+const CALL: Duration = Duration::from_secs(45);
+
+/// A tool's work that went on past its call (`Studio::bounded`): what it is, since when, and the task doing it.
+struct Pending {
+    what: String,
+    since: Instant,
+    task: tokio::task::JoinHandle<Result<String, String>>,
+}
+
 #[derive(Clone)]
 pub struct Studio {
     b: Backend,
+    /// a tool's work that went on past its call, whose answer `status` gives
+    pending: Arc<Mutex<Option<Pending>>>,
+}
+
+/// a command's work in words, as its tool is called: `remake`, `sample_song`
+fn doing(c: &Command) -> String {
+    let name = serde_json::to_value(c).ok().and_then(|v| v.get("cmd").and_then(|n| n.as_str()).map(String::from));
+    name.map_or_else(|| "the change".into(), |n| format!("`{n}`"))
 }
 
 /// what the assistant's client calls itself, as it said when it connected: its title, else its name
@@ -1063,7 +1083,54 @@ fn new_lines(before: &[String], after: &[String]) -> Vec<String> {
 
 impl Studio {
     pub fn new(b: Backend) -> Self {
-        Studio { b }
+        Studio { b, pending: Default::default() }
+    }
+
+    /// `work`, a tool's (`what`, in words), waited for up to `CALL`: its answer, or, when it goes on longer, an answer
+    /// that says so. It goes on all the same, and `status` says how it goes and gives its answer once it has one.
+    async fn bounded<F>(&self, what: String, work: F) -> Result<String, String>
+    where
+        F: std::future::Future<Output = Result<String, String>> + Send + 'static,
+    {
+        self.bounded_for(CALL, what, work).await
+    }
+
+    async fn bounded_for<F>(&self, limit: Duration, what: String, work: F) -> Result<String, String>
+    where
+        F: std::future::Future<Output = Result<String, String>> + Send + 'static,
+    {
+        let since = Instant::now();
+        let mut task = tokio::spawn(work);
+        match tokio::time::timeout(limit, &mut task).await {
+            Ok(done) => done.map_err(|e| format!("{what} failed: {e}"))?,
+            Err(_) => {
+                let said = format!(
+                    "{what} is still going after {} s, as it can on a long recording or a long song. Call status in a \
+                     minute to see how it goes: its answer comes there once it is done. The person sees it in the \
+                     studio meanwhile.",
+                    limit.as_secs()
+                );
+                *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(Pending { what, since, task });
+                Ok(said)
+            }
+        }
+    }
+
+    /// what `status` says of a tool's work that went on past its call: its answer once it has one (once), or how long
+    /// it has gone on
+    async fn pending_said(&self) -> Option<String> {
+        let p = self.pending.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+        if !p.task.is_finished() {
+            let said = format!("{} is still going ({} s so far)\n", p.what, p.since.elapsed().as_secs());
+            *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(p);
+            return Some(said);
+        }
+        let answer = match p.task.await {
+            Ok(Ok(answer)) => answer,
+            Ok(Err(why)) => format!("it failed: {why}"),
+            Err(e) => format!("it failed: {e}"),
+        };
+        Some(format!("{} is done:\n{answer}\n\n", p.what))
     }
 
     fn describe(&self, st: &State) -> String {
@@ -1094,7 +1161,13 @@ impl Studio {
         self.b.settled(Duration::from_secs(240)).await
     }
 
+    /// a command, and with `listen` the song rendered and judged after it, within a call (`bounded`)
     async fn edit(&self, c: Command, listen: bool) -> Result<String, String> {
+        let me = self.clone();
+        self.bounded(doing(&c), async move { me.edit_now(c, listen).await }).await
+    }
+
+    async fn edit_now(&self, c: Command, listen: bool) -> Result<String, String> {
         let r = self.b.command(c).await?;
         if !r.ok {
             return Err(r.message);
@@ -1106,8 +1179,13 @@ impl Studio {
         Ok(format!("{}\n\n{}", r.message, self.describe(&st)))
     }
 
-    /// pieces offered, with where to hear each, as the claudius serving them names its files
+    /// pieces offered, with where to hear each, as the claudius serving them names its files, within a call (`bounded`)
     async fn pieces(&self, c: Command) -> Result<String, String> {
+        let me = self.clone();
+        self.bounded(doing(&c), async move { me.pieces_now(c).await }).await
+    }
+
+    async fn pieces_now(&self, c: Command) -> Result<String, String> {
         let r = self.b.command(c).await?;
         if !r.ok {
             return Err(r.message);
@@ -1126,7 +1204,74 @@ impl Studio {
         Ok(format!("{}\nto hear:\n{}", r.message, files.join("\n")))
     }
 
+    /// a job, followed for up to `timeout` seconds, within a call (`bounded`)
     async fn job(&self, c: Command, timeout: u64) -> Result<String, String> {
+        let me = self.clone();
+        self.bounded(doing(&c), async move { me.job_now(c, timeout).await }).await
+    }
+
+    /// the release kit made and checked (`publish`)
+    async fn publish_now(&self, a: PublishArgs) -> Result<String, String> {
+        let st = self.b.state().await?;
+        let mut d = st.release.map(|r| r.details).ok_or("no song to release: make one first")?;
+        let set = |field: &mut String, v: Option<String>| {
+            if let Some(v) = v {
+                *field = v;
+            }
+        };
+        set(&mut d.artist, a.artist);
+        set(&mut d.title, a.title);
+        set(&mut d.version, a.version);
+        set(&mut d.album, a.album);
+        set(&mut d.genre, a.genre);
+        set(&mut d.subgenre, a.subgenre);
+        set(&mut d.date, a.date);
+        set(&mut d.label, a.label);
+        set(&mut d.owner, a.owner);
+        set(&mut d.isrc, a.isrc);
+        set(&mut d.upc, a.upc);
+        for (list, given) in
+            [(&mut d.featuring, a.featuring), (&mut d.writers, a.writers), (&mut d.producers, a.producers)]
+        {
+            if let Some(g) = given {
+                *list = g;
+            }
+        }
+        if let Some(e) = a.explicit {
+            d.explicit = e;
+        }
+        if a.made.is_some() {
+            d.made = a.made;
+        }
+        let r = self.b.command(Command::SetRelease { details: Box::new(d), artwork: a.artwork }).await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        let st = match st.render.as_ref().is_some_and(|r| r.version >= st.song_version) {
+            true => self.b.state().await?,
+            false => self.heard(false).await?,
+        };
+        let release = st.release.ok_or("no song to release")?;
+        let problems = release.checks.iter().filter(|c| c.level == "problem").count();
+        let mut text = match (release.checked, problems) {
+            (0, _) => "not checked yet: the song has no render".to_string(),
+            (_, 0) => "ready for a distributor".to_string(),
+            (_, n) => format!("{n} problem(s), marked --, to fix before a distributor takes it"),
+        };
+        if !release.checks.is_empty() {
+            text = format!("{text}\n{}", crate::app::report_lines(&release.checks));
+        }
+        if a.write {
+            let r = self.b.command(Command::WriteKit { path: a.path }).await?;
+            text = format!("{text}\n\n{}", r.message);
+            if !r.ok {
+                return Err(text);
+            }
+        }
+        Ok(text)
+    }
+
+    async fn job_now(&self, c: Command, timeout: u64) -> Result<String, String> {
         let before = self.b.state().await?.log;
         let r = self.b.command(c).await?;
         if !r.ok {
@@ -1235,8 +1380,8 @@ impl Studio {
         description = "Render the song and judge it: loudness and true peak, scores (mix, arc, theory, genre, production, and time when a recording plays on it: whether each keeps the song's tempo and beat, which cuts the total when one does not), issues with where to fix them, and what earshot hears (genre fit against its usual confusions, production quality against typical flaws, what it sounds like). The person hears the render in the claudius studio."
     )]
     async fn listen(&self, Parameters(a): Parameters<ListenArgs>) -> Result<String, String> {
-        let st = self.heard(a.stems).await?;
-        Ok(self.describe(&st))
+        let me = self.clone();
+        self.bounded("`listen`".into(), async move { me.heard(a.stems).await.map(|st| me.describe(&st)) }).await
     }
 
     #[tool(
@@ -1265,14 +1410,15 @@ impl Studio {
         annotations(read_only_hint = true)
     )]
     async fn status(&self) -> Result<String, String> {
+        let mut out = self.pending_said().await.unwrap_or_default();
         let st = self.b.state().await?;
         let log: Vec<String> = st.log.iter().rev().take(25).rev().cloned().collect();
-        let mut out = match &st.busy {
+        out.push_str(&match &st.busy {
             Some(b) => {
                 format!("busy: {b}{}\n", st.progress.map(|p| format!(" ({:.0} %)", p * 100.0)).unwrap_or_default())
             }
             None => "idle\n".into(),
-        };
+        });
         out.push_str(&format!("log:\n{}\n", log.join("\n")));
         if let Some(v) = &st.verdict {
             out.push_str(&views::verdict_text(v));
@@ -1390,75 +1536,24 @@ impl Studio {
         description = "Export the song as audio files: wav (24-bit, 48 kHz), wav:16 (CD: 16-bit, 44.1 kHz), wav:32 (float), aiff, flac, flac:16, alac (Apple Lossless), mp3 (320 kbps), mp3:v0, mp3:192, mp3:128, aac (256 kbps .m4a), opus (160 kbps, the smallest for the web), opus:96, ogg (Vorbis). Each is format[:quality][@rate]. Writes them into the song's folder (or path), named after the song, rendering first when the song changed since its last render."
     )]
     async fn export(&self, Parameters(a): Parameters<ExportArgs>) -> Result<String, String> {
-        let st = self.b.state().await?;
-        if st.render.as_ref().is_none_or(|r| r.version < st.song_version) {
-            self.heard(false).await?;
-        }
-        let r = self.b.command(Command::Export { formats: a.formats, path: a.path }).await?;
-        if r.ok { Ok(r.message) } else { Err(r.message) }
+        let me = self.clone();
+        self.bounded("`export`".into(), async move {
+            let st = me.b.state().await?;
+            if st.render.as_ref().is_none_or(|r| r.version < st.song_version) {
+                me.heard(false).await?;
+            }
+            let r = me.b.command(Command::Export { formats: a.formats, path: a.path }).await?;
+            if r.ok { Ok(r.message) } else { Err(r.message) }
+        })
+        .await
     }
 
     #[tool(
         description = "Check the song for release as stores and distributors do (its artwork, its audio, the licences of its sounds, its details), and with write, write a release kit: the WAVs and the cover a distributor takes, and release.txt with the answers its form asks for. Give only what the person told you: the artist, the songwriters' full legal names, the artwork file, and how the song was made, which you must never choose for them. Renders first when the song changed. Problems (--) stop the kit."
     )]
     async fn publish(&self, Parameters(a): Parameters<PublishArgs>) -> Result<String, String> {
-        let st = self.b.state().await?;
-        let mut d = st.release.map(|r| r.details).ok_or("no song to release: make one first")?;
-        let set = |field: &mut String, v: Option<String>| {
-            if let Some(v) = v {
-                *field = v;
-            }
-        };
-        set(&mut d.artist, a.artist);
-        set(&mut d.title, a.title);
-        set(&mut d.version, a.version);
-        set(&mut d.album, a.album);
-        set(&mut d.genre, a.genre);
-        set(&mut d.subgenre, a.subgenre);
-        set(&mut d.date, a.date);
-        set(&mut d.label, a.label);
-        set(&mut d.owner, a.owner);
-        set(&mut d.isrc, a.isrc);
-        set(&mut d.upc, a.upc);
-        for (list, given) in
-            [(&mut d.featuring, a.featuring), (&mut d.writers, a.writers), (&mut d.producers, a.producers)]
-        {
-            if let Some(g) = given {
-                *list = g;
-            }
-        }
-        if let Some(e) = a.explicit {
-            d.explicit = e;
-        }
-        if a.made.is_some() {
-            d.made = a.made;
-        }
-        let r = self.b.command(Command::SetRelease { details: Box::new(d), artwork: a.artwork }).await?;
-        if !r.ok {
-            return Err(r.message);
-        }
-        let st = match st.render.as_ref().is_some_and(|r| r.version >= st.song_version) {
-            true => self.b.state().await?,
-            false => self.heard(false).await?,
-        };
-        let release = st.release.ok_or("no song to release")?;
-        let problems = release.checks.iter().filter(|c| c.level == "problem").count();
-        let mut text = match (release.checked, problems) {
-            (0, _) => "not checked yet: the song has no render".to_string(),
-            (_, 0) => "ready for a distributor".to_string(),
-            (_, n) => format!("{n} problem(s), marked --, to fix before a distributor takes it"),
-        };
-        if !release.checks.is_empty() {
-            text = format!("{text}\n{}", crate::app::report_lines(&release.checks));
-        }
-        if a.write {
-            let r = self.b.command(Command::WriteKit { path: a.path }).await?;
-            text = format!("{text}\n\n{}", r.message);
-            if !r.ok {
-                return Err(text);
-            }
-        }
-        Ok(text)
+        let me = self.clone();
+        self.bounded("`publish`".into(), async move { me.publish_now(a).await }).await
     }
 
     #[tool(
@@ -1523,8 +1618,12 @@ impl Studio {
         annotations(read_only_hint = true)
     )]
     async fn analyze(&self, Parameters(a): Parameters<PathArgs>) -> Result<String, String> {
-        let r = self.b.command(Command::Analyze { path: a.path }).await?;
-        if r.ok { Ok(r.message) } else { Err(r.message) }
+        let b = self.b.clone();
+        self.bounded("`analyze`".into(), async move {
+            let r = b.command(Command::Analyze { path: a.path }).await?;
+            if r.ok { Ok(r.message) } else { Err(r.message) }
+        })
+        .await
     }
 
     #[tool(
@@ -1997,6 +2096,7 @@ What it does, and the tools for it:
 - Out: save, open, export (WAV, FLAC, ALAC, MP3, AAC, Opus, Vorbis), publish (checks it for release and writes a release kit).
 - The studio's chat: wait_for_message, called again whenever it returns, and send_message.
 - status and stop follow a running job; install_packs downloads the sample packs; version says which claudius you drive and whether the person's studio follows it (call it when they say the studio does not show what you did).
+- A call whose work takes longer than 45 s (remaking or sampling a long recording, rendering a long song) answers that it is still going instead of waiting on; status says how it goes, and gives its answer once it is done.
 
 guide reads the skills built into claudius: songs (how to make songs well), remix, setup, and the script, the verdict, the genres and the tools in full. Where the claudius skills are not installed, read guide songs before the first song. The scores guide; the person's taste decides."
 )]
@@ -2101,6 +2201,38 @@ mod tests {
         let at = crate::spawn(app, std::net::SocketAddr::from(([127, 0, 0, 1], 0)), Default::default()).unwrap();
         assert_eq!(probe(&format!("http://{at}"), &None), Probe::Claudius(env!("CARGO_PKG_VERSION").into()));
         assert!(!older_than_this(env!("CARGO_PKG_VERSION")) && older_than_this("0.2.0") && older_than_this(""));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_call_whose_work_outlasts_it_says_so_and_status_gives_the_answer_once_it_is_done() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let studio = Studio::new(Backend::Local { app, base: "http://127.0.0.1:0".into() });
+        // work done within the call answers in it
+        let quick = studio.bounded_for(Duration::from_millis(500), "`quick`".into(), async { Ok("done".into()) });
+        assert_eq!(quick.await.unwrap(), "done");
+        assert!(studio.pending_said().await.is_none(), "nothing goes on");
+        // work that goes on: the call says so, and status says how it goes, then gives its answer, once
+        let slow = studio.bounded_for(Duration::from_millis(50), "`remake`".into(), async {
+            tokio::time::sleep(Duration::from_millis(400)).await;
+            Ok("remade song.mp3 as house".into())
+        });
+        let said = slow.await.unwrap();
+        assert!(said.starts_with("`remake` is still going after 0 s") && said.contains("Call status"), "{said}");
+        let going = studio.status().await.unwrap();
+        assert!(going.starts_with("`remake` is still going (0 s so far)\nidle"), "{going}");
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        let done = studio.status().await.unwrap();
+        assert!(done.starts_with("`remake` is done:\nremade song.mp3 as house\n\nidle"), "{done}");
+        assert!(!studio.status().await.unwrap().contains("remade"), "given once");
+        // and work that fails says why
+        let failing = studio.bounded_for(Duration::from_millis(10), "`analyze`".into(), async {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            Err("cannot open song.mp3".into())
+        });
+        assert!(failing.await.is_ok(), "the call itself answers");
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        let failed = studio.status().await.unwrap();
+        assert!(failed.starts_with("`analyze` is done:\nit failed: cannot open song.mp3"), "{failed}");
     }
 
     #[tokio::test(flavor = "multi_thread")]

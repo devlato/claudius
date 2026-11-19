@@ -137,8 +137,10 @@ A client connected over HTTP (`/mcp`) always works on that server's session; the
 ## The tools
 
 A tool that edits the song waits until the change is rendered and judged, then answers with the song and the
-verdict, so the assistant hears the result of every change. Each tool that waits gives up after a few minutes and
-says the job is still running; `status` follows it from there.
+verdict, so the assistant hears the result of every change. An assistant's link gives up on a call after a minute or
+so (the desktop app's after about 80 s), so a tool whose work takes longer than 45 s (remaking or sampling a long
+recording, rendering a long song, a mutation, an evolution, a save) answers then that it is still going, and the work
+goes on. `status` says how it goes, and gives its answer once it is done.
 
 | tool | parameters | what it does |
 |---|---|---|
@@ -154,7 +156,7 @@ says the job is still running; `status` follows it from there.
 | `quick_fix` | `target` (an issue's, as the verdict's `quick fix (<target>)` lines name it; none: all) | makes the verdict's [quick fixes](../getting-started/studio.md#quick-fixes), the issues one change fixes, as one edit |
 | `mutate` | `count` (4, 1 to 32), `keep_best` (true) | tries variations steered by the critic's issues and keeps the best if it beats the song |
 | `evolve` | `generations` (3, 1 to 20), `children` (6, 2 to 32) | runs an evolutionary search from the song and keeps the best candidate if it beats the song |
-| `status` | | idle or busy (with progress), the last 25 log lines, the latest verdict |
+| `status` | | a tool's work that went on past its call: how long it has gone on, or its answer once it is done (given once); then idle or busy (with progress), the last 25 log lines, the latest verdict |
 | `version` | | which claudius the assistant talks to: these tools' version, the claudius they drive and where it answers, and whether a studio follows it (one that asked for the song in the last minute); a claudius before 0.11 has no `version` tool |
 | `undo`, `redo` | | takes back or brings back the last change, then renders |
 | `stop` | | stops a mutation after the candidate in progress, an evolution after its generation, or a pack download after the pack in progress; a render always finishes |
@@ -203,8 +205,9 @@ Details that matter when you read an assistant's transcript:
 - `request_take` does not wait for the person. The assistant calls `wait_for_take` until the take arrives: it
   returns as soon as the person sends it or says Not now, and an assistant whose calls time out can ask for fewer
   `seconds` and call it more often.
-- `listen` waits up to 240 s, `save` 240 s, `evolve` 280 s and `mutate` 300 s. `mutate` and `evolve` answer with the
-  log lines the job wrote (one per candidate and its score) and then the song.
+- Past 45 s, a call answers that its work is still going, and `status` gives the answer. Behind that, `listen`
+  follows the render for up to 240 s, `save` 240 s, `evolve` 280 s and `mutate` 300 s. `mutate` and `evolve` answer
+  with the log lines the job wrote (one per candidate and its score) and then the song.
 - A `seed` is optional everywhere. Without one, the session picks one from the clock; `new_song` names it in its
   message and `get_song` shows it in the script's first line, so the song can be made again.
 - `save` without a path writes to `~/Music/claudius/<genre>-<title>-<seed>`. Paths are on the computer running
