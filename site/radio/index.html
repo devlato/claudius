@@ -59,9 +59,21 @@
 
   <div class="radio-controls">
     <button id="tune" class="btn btn-get" type="button">Tune in</button>
+    <button id="skip" class="btn" type="button" disabled>Skip</button>
     <label class="radio-volume">Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
   </div>
+  <div class="radio-controls radio-song">
+    <button id="download" class="btn" type="button" disabled>Download this song</button>
+    <a id="open" class="btn" href="/studio/?mock" aria-disabled="true" target="_blank" rel="noopener">Open it in the studio</a>
+  </div>
   <p id="status" class="radio-status" role="status"></p>
+
+  <details id="genres" class="radio-genres">
+    <summary>Genres: <span id="genres-said">every one</span></summary>
+    <p class="radio-small">Keep the station to one genre or a few: it plays the next song it writes from them, mixed
+      in as before. The address keeps the choice, so a station of your own can be shared.</p>
+    <div id="genre-list" class="radio-genre-list"></div>
+  </details>
 
   <section aria-labelledby="played-title">
     <h2 id="played-title" class="radio-label">Played</h2>

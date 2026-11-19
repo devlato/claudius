@@ -34,6 +34,26 @@ no song is heard out of its key.
 Each change is scheduled on the audio clock as soon as the next song arrives, so it lands on the beat even in a tab
 no one is looking at. A song that arrives too late to blend on the outro comes in on the outgoing one's next bar line.
 
+## The genres
+
+**Genres**, under the controls, keeps the station to the genres chosen: one, and every song is of it, at other tempos
+and in other keys within its range; or a few, each song mixed into the next as before (fewer than five come round
+again sooner than every fifth song). A choice holds from the next song the station writes, and the first song is one
+of them. The address keeps the choice (`/radio/?genres=house,deep_house`), so a station of your own can be shared and
+starts on its genres. Opening the list before tuning in starts the engine, which says what it plays.
+
+## Skip, keep, open
+
+- **Skip** brings the next song in on the playing one's next beat: the playing song's last beat goes into the echo
+  and it is cut, as an echo out ends a song. While the next song is still being written, it comes in as soon as it
+  is.
+- **Download this song** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo
+  exports), and saves it.
+- **Open it in the studio** opens the [studio demo](studio.md#carrying-on-in-claudius) on the same song, which its
+  engine writes again from what the station asked for: its genre, seed, tempo and key. There every part of it can be
+  changed, sampled, exported or carried on in claudius.
+
 The page is `site/radio/index.html` and `site/assets/radio.js`; it drives the engine as the studio demo does (the
 `new_song` command, the renders it sends back), and `site/tests/radio.spec.mjs` checks it goes on air and mixes a song
-into the next (`?soon` starts the first song 20 seconds before it gives way).
+into the next (`?soon` starts the first song 20 seconds before it gives way), and that a station kept to two genres
+plays only them, hands its song over as an MP3, links it to the studio and skips to the next.

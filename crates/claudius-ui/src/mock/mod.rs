@@ -121,23 +121,60 @@ fn demo_release() -> ReleaseView {
     }
 }
 
+/// The demo's first song: the one the page's address names, as the radio opens a song it plays in the studio
+/// (`?mock&genre=house&seed=12&bpm=124&key=A+minor&sampled=0`), else `FIRST`.
+fn opening() -> Command {
+    #[cfg(target_arch = "wasm32")]
+    if let Some(asked) = web_sys::window()
+        .and_then(|w| w.location().search().ok())
+        .and_then(|q| web_sys::UrlSearchParams::new_with_str(&q).ok())
+        .and_then(|p| asked_song(|k| p.get(k)))
+    {
+        return asked;
+    }
+    let (genre, seed) = FIRST;
+    Command::NewSong {
+        genre: genre.into(),
+        seed: Some(seed),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    }
+}
+
+/// The song an address asks the demo to open first, by what `get` finds in it: its genre (or a fusion, `trip_hop+idm`),
+/// and its seed, tempo, key and whether it is built on samples, each as `new_song` takes it; none without a genre.
+#[cfg(any(target_arch = "wasm32", test))]
+fn asked_song(get: impl Fn(&str) -> Option<String>) -> Option<Command> {
+    let genre = get("genre").filter(|g| {
+        !g.is_empty() && g.len() <= 64 && g.chars().all(|c| c.is_ascii_alphanumeric() || "_+".contains(c))
+    })?;
+    let sampled = get("sampled").and_then(|s| match s.as_str() {
+        "0" | "false" => Some(false),
+        "1" | "true" => Some(true),
+        _ => None,
+    });
+    Some(Command::NewSong {
+        genre,
+        seed: get("seed").and_then(|s| s.parse().ok()),
+        bpm: get("bpm").and_then(|b| b.parse::<f64>().ok()).filter(|b| (40.0..=240.0).contains(b)),
+        key: get("key").filter(|k| !k.trim().is_empty() && k.len() <= 32),
+        loops: false,
+        sampled,
+        sample_search: None,
+        complexity: None,
+    })
+}
+
 impl Mock {
     /// starts the engine, which makes the demo's first song; `ctx` is woken when the engine or the sampler says
     /// something
     pub fn new(ctx: Option<egui::Context>) -> Mock {
         let mut engine = Link::new(ctx.clone());
-        let (genre, seed) = FIRST;
-        let first = Command::NewSong {
-            genre: genre.into(),
-            seed: Some(seed),
-            bpm: None,
-            key: None,
-            loops: false,
-            sampled: None,
-            sample_search: None,
-            complexity: None,
-        };
-        engine.command(OPENING, &first);
+        engine.command(OPENING, &opening());
         Mock {
             engine,
             state: State::default(),
@@ -715,6 +752,32 @@ mod tests {
         assert!(older, "neither a preview nor a render of the change while windows play it");
         // which comes by itself once the studio stops asking for windows
         until(&mut mock, &mut now, rendered);
+    }
+
+    #[test]
+    fn an_address_naming_a_song_opens_the_demo_on_it_as_the_radio_links_one() {
+        let address: std::collections::BTreeMap<&str, &str> =
+            [("genre", "deep_house"), ("seed", "812"), ("bpm", "121.5"), ("key", "F minor"), ("sampled", "0")].into();
+        let get = |a: &std::collections::BTreeMap<&str, &str>, k: &str| a.get(k).map(|v| v.to_string());
+        let Some(Command::NewSong { genre, seed, bpm, key, sampled, .. }) = asked_song(|k| get(&address, k)) else {
+            panic!("a song")
+        };
+        assert_eq!(
+            (genre.as_str(), seed, bpm, key.as_deref(), sampled),
+            ("deep_house", Some(812), Some(121.5), Some("F minor"), Some(false))
+        );
+        // a genre alone, and a fusion; what is not a number or out of range left to the engine to choose
+        let fusion: std::collections::BTreeMap<&str, &str> =
+            [("genre", "trip_hop+idm"), ("bpm", "900"), ("seed", "x")].into();
+        let Some(Command::NewSong { genre, seed, bpm, key, sampled, .. }) = asked_song(|k| get(&fusion, k)) else {
+            panic!("a fusion")
+        };
+        assert_eq!((genre.as_str(), seed, bpm, key, sampled), ("trip_hop+idm", None, None, None, None));
+        // no genre, or one that is no name, opens the demo's own first song
+        let none: std::collections::BTreeMap<&str, &str> = [("seed", "3")].into();
+        assert!(asked_song(|k| get(&none, k)).is_none());
+        let odd: std::collections::BTreeMap<&str, &str> = [("genre", "<script>")].into();
+        assert!(asked_song(|k| get(&odd, k)).is_none());
     }
 
     #[test]

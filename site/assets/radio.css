@@ -79,6 +79,54 @@
   align-items: center;
 }
 
+.radio-song {
+  margin-top: 12px;
+}
+
+.radio-song a[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.radio-genres {
+  margin: 0 0 32px;
+  padding: 14px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.radio-genres summary {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.radio-genre-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 24px;
+}
+
+.radio-genre-list fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.radio-genre-list legend {
+  margin-bottom: 4px;
+  color: var(--text-faint);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.radio-genre-list label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
 .radio-volume {
   display: flex;
   gap: 10px;

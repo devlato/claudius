@@ -8,6 +8,10 @@
 // another tempo comes in after the outgoing one echoes out, or now and then after it stops like a record on a
 // turntable. Every change is scheduled on the audio clock when the song arrives, so it lands on the beat even in a
 // tab that is not being looked at.
+//
+// The station keeps to the genres chosen (`?genres=house,techno`, or the page's list), skips to the next song on the
+// next beat, hands the song on air over as a file (encoded in the engine's worker, as the studio exports), and opens it
+// in the studio demo, which writes the same song again from what the station asked for.
 
 const ENGINE = "/studio/claudius-engine_loader.js";
 const RATE = 48000;
@@ -24,6 +28,13 @@ const SOON = new URLSearchParams(location.search).has("soon");
 // the families whose songs are usually in a minor key
 const MINOR = new Set(["hip hop", "drum and bass", "bass music", "techno and trance", "hard dance", "electronic", "house", "edm"]);
 const NOTES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+// the genres the station keeps to (none: every one it plays), from the address or the page's list
+const keepTo = new Set(
+  (new URLSearchParams(location.search).get("genres") || "")
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean),
+);
 
 const $ = (id) => document.getElementById(id);
 const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
@@ -67,6 +78,9 @@ class Engine {
     this.held = [];
     this.waiting = null;
     this.genres = [];
+    // files asked for (`encode`), by their ids
+    this.encoding = new Map();
+    this.encodes = 0;
     this.ready = new Promise((resolve, reject) => {
       this.onReady = resolve;
       this.onFailed = reject;
@@ -80,24 +94,34 @@ class Engine {
     };
   }
 
-  post(json) {
+  /** `json` to the engine, with `audio` handed over rather than copied */
+  post(json, audio) {
     if (!this.listening) {
-      this.held.push(json);
+      this.held.push([json, audio]);
       return;
     }
-    this.worker.postMessage({ json: JSON.stringify(json) });
+    if (audio) this.worker.postMessage({ json: JSON.stringify(json), audio }, [audio.buffer]);
+    else this.worker.postMessage({ json: JSON.stringify(json) });
   }
 
   heard(data) {
     // a message sent before the worker first speaks would be lost: what was held goes now
     if (!this.listening) {
       this.listening = true;
-      for (const j of this.held.splice(0)) this.worker.postMessage({ json: JSON.stringify(j) });
+      for (const [j, audio] of this.held.splice(0)) this.post(j, audio);
     }
     let v;
     try {
       v = JSON.parse(data.json);
     } catch {
+      return;
+    }
+    if (v.encoded) {
+      const asked = this.encoding.get(v.encoded.id);
+      this.encoding.delete(v.encoded.id);
+      if (!asked) return;
+      if (v.encoded.error || !data.bytes) asked.reject(new Error(v.encoded.error || "the engine sent no file"));
+      else asked.resolve({ bytes: data.bytes, extension: v.encoded.extension, mime: v.encoded.mime });
       return;
     }
     if (v.state && v.state.genres && v.state.genres.length && !this.genres.length) {
@@ -126,6 +150,16 @@ class Engine {
     }
     this.waiting = null;
     w.resolve({ state: v.state, audio: data.audio });
+  }
+
+  /** `audio` (interleaved stereo at 48 kHz) as a file in `format` (`mp3`), tagged with `title`: its bytes, the
+   *  extension of its name and its media type */
+  encode(format, title, audio) {
+    return new Promise((resolve, reject) => {
+      const id = ++this.encodes;
+      this.encoding.set(id, { resolve, reject });
+      this.post({ encode: { id, spec: format, title } }, audio);
+    });
   }
 
   /** the song `spec` asks for, written and rendered whole; `preview` hears its first bars before */
@@ -178,12 +212,12 @@ function buffer(audio) {
   return b;
 }
 
-/** a song on a deck of its own: its sound through a low shelf (its bass), a high-pass and a fader, and a send to the
- *  echo */
-function deck(state, audio) {
+/** a song on a deck of its own: its sound (`audio`, or a buffer of it) through a low shelf (its bass), a high-pass and a
+ *  fader, and a send to the echo; with the song the station asked the engine for (`spec`) */
+function deck(state, audio, spec) {
   const song = state.song;
   const src = ctx.createBufferSource();
-  src.buffer = buffer(audio);
+  src.buffer = audio instanceof AudioBuffer ? audio : buffer(audio);
   const low = ctx.createBiquadFilter();
   low.type = "lowshelf";
   low.frequency.value = 200;
@@ -214,8 +248,13 @@ function deck(state, audio) {
     sections: song.sections,
     seconds: src.buffer.duration,
     t0: 0,
+    state,
+    spec,
   };
 }
+
+/** the song on deck `d` on a fresh deck, for one whose source was scheduled to start and is let go of instead */
+const again = (d) => deck(d.state, d.src.buffer, d.spec);
 
 const bar = (d) => 240 / d.bpm;
 
@@ -317,17 +356,48 @@ function mix(a, b, how) {
   return { at: next, label: "in as the last song echoed out" };
 }
 
+/** The playing song `a` let go of now and `b` in on its next beat: `a`'s last beat into the echo and cut, as an echo
+ *  out does, `b` from its start. What was scheduled for `a` is taken back first. */
+function cut(a, b) {
+  const now = ctx.currentTime;
+  for (const p of [a.fader.gain, a.low.gain, a.thin.frequency, a.send.gain, a.src.playbackRate]) {
+    p.cancelScheduledValues(now);
+    p.setValueAtTime(p.value, now);
+  }
+  const beat = bar(a) / 4;
+  const at = a.t0 + Math.ceil((now + 0.15 - a.t0) / beat) * beat;
+  echo.delay.delayTime.setValueAtTime(0.75 * beat, now);
+  a.send.gain.linearRampToValueAtTime(1, at);
+  a.fader.gain.setValueAtTime(a.fader.gain.value, at);
+  a.fader.gain.linearRampToValueAtTime(0, at + 0.05);
+  halt(a, at + 0.1);
+  start(b, at);
+  return { at, label: "skipped to, in on the beat" };
+}
+
 // ---- the station ----
 
 let onAir = null;
 let next = null;
 let planned = null;
 const recent = [];
+// a skip asked for while the next song is still being written: it comes in as soon as it is
+let skipping = false;
+
+/** the genres the station plays: those chosen, or every one */
+function station() {
+  const chosen = engine.genres.filter((g) => keepTo.has(g.name));
+  return chosen.length ? chosen : engine.genres;
+}
 
 /** what to play after `now`: most of the time a genre that mixes into it beat for beat, at its tempo (or twice or half
  *  of it) and in a key of the same notes; else another tempo and key, which comes in after an echo or a stop */
 function plan(now) {
-  const pool = engine.genres.filter((g) => g.name !== now.genre && !recent.includes(g.name));
+  const all = station();
+  const other = all.filter((g) => g.name !== now.genre);
+  // a station of a few genres plays them again sooner than every fifth song, and one of a single genre plays only it
+  const fresh = other.filter((g) => !recent.includes(g.name));
+  const pool = fresh.length ? fresh : other.length ? other : all;
   const seed = 1 + Math.floor(Math.random() * 999_999);
   const fits = (g, bpm) => bpm >= g.bpm[0] * 0.98 && bpm <= g.bpm[1] * 1.02;
   const mixable = [];
@@ -338,7 +408,7 @@ function plan(now) {
     const m = pick(mixable);
     return { genre: m.g.name, bpm: m.bpm, key: nextKey(now.key, m.g.family), seed, how: "blend" };
   }
-  const g = pick(pool.length ? pool : engine.genres);
+  const g = pick(pool);
   const bpm = Math.round(g.bpm[0] + Math.random() * (g.bpm[1] - g.bpm[0]));
   const key = { tonic: Math.floor(Math.random() * 12), minor: MINOR.has(g.family) };
   return { genre: g.name, bpm, key, seed, how: Math.random() < 0.2 ? "brake" : "echo" };
@@ -368,8 +438,9 @@ async function queue() {
   remember(spec.genre);
   try {
     const song = await engine.song(spec);
-    const b = deck(song.state, song.audio);
-    const m = mix(onAir, b, spec.how);
+    const b = deck(song.state, song.audio, spec);
+    const m = skipping ? cut(onAir, b) : mix(onAir, b, spec.how);
+    skipping = false;
     next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: m.blend };
     planned = null;
   } catch (e) {
@@ -398,6 +469,8 @@ function tick() {
   }
   if (!onAir) return;
   const at = t - onAir.t0;
+  const link = studio(onAir);
+  if ($("open").getAttribute("href") !== link) $("open").setAttribute("href", link);
   show("now-title", onAir.title);
   show("now-meta", `${said(onAir.genre)} · ${Math.round(onAir.bpm * 10) / 10} BPM · ${onAir.keyText}`);
   $("now-bar").style.width = `${Math.min(100, (100 * at) / onAir.seconds)}%`;
@@ -407,7 +480,128 @@ function tick() {
     const how = next.blend ? "mixes in" : "comes in";
     show("next", `${d.title}: ${said(d.genre)}, ${Math.round(d.bpm)} BPM, ${d.keyText}; ${how} ${clock(next.at - t)} from now`);
   } else if (planned) {
-    show("next", `writing a ${said(planned.genre)} song at ${planned.bpm} BPM in ${keyName(planned.key)}…`);
+    const when = skipping ? ", to come in as soon as it is written" : "";
+    show("next", `writing a ${said(planned.genre)} song at ${planned.bpm} BPM in ${keyName(planned.key)}${when}…`);
+  }
+}
+
+/** where the studio demo writes the song on deck `d` again, as the station asked the engine for it */
+function studio(d) {
+  const q = new URLSearchParams({ genre: d.spec.genre, seed: String(d.spec.seed), bpm: String(d.spec.bpm), sampled: "0" });
+  if (d.spec.key) q.set("key", keyName(d.spec.key));
+  return `/studio/?mock&${q}`;
+}
+
+/** the next song in now, on the playing one's next beat; or, while it is still being written, as soon as it is */
+function skip() {
+  if (!onAir || !ctx) return;
+  if (!next) {
+    skipping = true;
+    status("Skipping: the next song comes in as soon as it is written");
+    tick();
+    return;
+  }
+  // its source was scheduled to start later: it never starts, and a fresh deck plays the song
+  halt(next.deck, ctx.currentTime);
+  const b = again(next.deck);
+  const m = cut(onAir, b);
+  next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: false };
+}
+
+/** the song on air as a file to keep: its audio, as it plays, encoded in the engine's worker */
+async function download() {
+  const d = onAir;
+  if (!d || !engine) return;
+  const button = $("download");
+  button.disabled = true;
+  status(`Making a file of ${d.title}…`);
+  const b = d.src.buffer;
+  const [l, r] = [b.getChannelData(0), b.getChannelData(1)];
+  const audio = new Float32Array(2 * b.length);
+  for (let i = 0; i < b.length; i++) {
+    audio[2 * i] = l[i];
+    audio[2 * i + 1] = r[i];
+  }
+  try {
+    const file = await engine.encode("mp3", d.title, audio);
+    const url = URL.createObjectURL(new Blob([file.bytes], { type: file.mime }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${d.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, " ") || "claudius radio"}.${file.extension}`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    status(`${d.title} is in your downloads`);
+  } catch (e) {
+    status(`${d.title} could not be made a file: ${e.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// ---- the genres ----
+
+/** the list of genres to keep to, by family, once the engine says what it plays; a choice holds from the next song
+ *  written, and the address keeps it, to share the station */
+function genreList() {
+  const list = $("genre-list");
+  if (list.childElementCount || !engine) return;
+  const families = new Map();
+  for (const g of engine.genres) {
+    const f = g.family || "other";
+    if (!families.has(f)) families.set(f, []);
+    families.get(f).push(g);
+  }
+  for (const [family, genres] of [...families].sort(([a], [b]) => a.localeCompare(b))) {
+    const set = document.createElement("fieldset");
+    const legend = document.createElement("legend");
+    legend.textContent = family;
+    set.append(legend);
+    for (const g of genres) {
+      const label = document.createElement("label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = g.name;
+      box.checked = keepTo.has(g.name);
+      box.addEventListener("change", () => choose(g.name, box.checked));
+      label.append(box, ` ${said(g.name)}`);
+      set.append(label);
+    }
+    list.append(set);
+  }
+  sayGenres();
+}
+
+function choose(genre, kept) {
+  if (kept) keepTo.add(genre);
+  else keepTo.delete(genre);
+  const q = new URLSearchParams(location.search);
+  if (keepTo.size) q.set("genres", [...keepTo].join(","));
+  else q.delete("genres");
+  const query = q.toString().replace(/%2C/g, ",");
+  history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
+  sayGenres();
+}
+
+function sayGenres() {
+  const n = engine ? station().length : keepTo.size;
+  const words = !keepTo.size ? "every one" : keepTo.size <= 3 ? [...keepTo].map(said).join(", ") : `${n} chosen`;
+  show("genres-said", words);
+}
+
+/** the engine started for the list of genres before the station is tuned in */
+async function genresWanted() {
+  if (!$("genres").open) return;
+  if (!engine) {
+    engine = new Engine();
+    show("genres-said", "loading the list…");
+  }
+  try {
+    await engine.ready;
+    genreList();
+  } catch (e) {
+    status(`The list of genres could not be had: ${e.message}`);
   }
 }
 
@@ -426,10 +620,12 @@ async function tuneIn() {
   }
   button.disabled = true;
   wire();
-  engine = new Engine();
+  engine = engine || new Engine();
   status("Starting the engine…");
   await engine.ready;
-  const g = pick(engine.genres.filter((x) => OPENERS.includes(x.name)));
+  genreList();
+  const openers = station().filter((x) => OPENERS.includes(x.name));
+  const g = pick(openers.length ? openers : station());
   const spec = { genre: g.name, bpm: Math.round((g.bpm[0] + g.bpm[1]) / 2), seed: 1 + Math.floor(Math.random() * 999_999) };
   remember(spec.genre);
   status(`Writing a ${said(spec.genre)} song at ${spec.bpm} BPM…`);
@@ -437,13 +633,13 @@ async function tuneIn() {
   const song = await engine.song(spec, (state, audio) => {
     // the first bars, to play while the rest renders
     if (early || SOON) return;
-    early = deck(state, audio);
+    early = deck(state, audio, spec);
     start(early, ctx.currentTime + 0.1);
     onAir = early;
     tick();
     status("On air while the rest of it renders");
   });
-  const whole = deck(song.state, song.audio);
+  const whole = deck(song.state, song.audio, spec);
   if (early) {
     // the whole song takes over where its first bars are (or where they ended, when they ran out before it came),
     // with a crossfade too short to hear
@@ -463,6 +659,8 @@ async function tuneIn() {
   status("On air");
   button.disabled = false;
   button.textContent = "Pause";
+  for (const id of ["skip", "download"]) $(id).disabled = false;
+  $("open").removeAttribute("aria-disabled");
   queue();
 }
 
@@ -482,6 +680,10 @@ $("tune").addEventListener("click", () => {
     $("tune").textContent = "Tune in";
   });
 });
+$("skip").addEventListener("click", skip);
+$("download").addEventListener("click", () => download());
+$("genres").addEventListener("toggle", () => genresWanted());
+sayGenres();
 $("volume").addEventListener("input", (e) => {
   if (master) master.gain.setTargetAtTime(Number(e.target.value), ctx.currentTime, 0.05);
 });
