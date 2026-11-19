@@ -9,6 +9,7 @@ use qrcodegen::{QrCode, QrCodeEcc};
 
 use super::{Cx, small};
 use crate::theme::{TEXT, TEXT_DIM};
+use crate::widgets;
 
 #[derive(Default)]
 pub struct Phone {
@@ -124,10 +125,14 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         } else {
             // it stopped: the demo opened again in another tab took the phone, or claudius stopped serving the page
             ui.label(RichText::new("The phone's page is not served here now.").color(TEXT));
-            ui.add_space(6.0);
-            if ui.button("Serve it here").clicked() {
-                cx.view.phone.serve();
-            }
+            widgets::foot(ui, |ui| {
+                if widgets::primary(ui, "Serve it here", true).clicked() {
+                    cx.view.phone.serve();
+                }
+                if ui.button("Close").clicked() {
+                    cx.view.phone.open = false;
+                }
+            });
         }
         return;
     };
@@ -160,11 +165,20 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         "It has pads, keys and a turntable with this song's sounds. Play the song here, tap ● on the phone to record a \
          take, and tap it again to put the take in the song.",
     ));
-    ui.add_space(8.0);
-    if ui.button("Stop serving the page").clicked() {
-        cx.view.phone.ask = Some(false);
-        cx.view.phone.open = false;
-    }
+    // the window's foot: done with it, the page stays served (the phone button stays lit); or no more phones
+    widgets::foot(ui, |ui| {
+        if widgets::primary(ui, "Done", true).clicked() {
+            cx.view.phone.open = false;
+        }
+        let stop = ui
+            .button("Stop serving the page")
+            .on_hover_text("The phones playing along stop, and this address no longer opens the page.");
+        if stop.clicked() {
+            cx.view.phone.ask = Some(false);
+            cx.view.phone.open = false;
+        }
+        ui.label(small("Closed, it stays served."));
+    });
 }
 
 /// the page's address on this computer: its own (127.0.0.1) for the page a claudius serves on the network

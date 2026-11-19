@@ -11,7 +11,8 @@ The phone button after **Record** in the studio's top bar opens **Play from a ph
 for phones, and the window shows its address as a QR code: point the phone's camera at it and open the link. The
 address carries a key of its own, which the phone keeps, so the page stays open on that phone until the studio stops
 serving it (**Stop serving the page**) or claudius quits; the next time, the address has a new key. The window says
-when a phone has the page open, and the phone button stays lit while the page is served.
+when a phone has the page open; **Done** closes it and leaves the page served, and the phone button stays lit while it
+is.
 
 In the demo, the code opens the same page on claudius' site instead, which reaches the demo's tab through a relay on
 the site ([below](#with-the-demo)).
