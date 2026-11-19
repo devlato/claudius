@@ -367,7 +367,8 @@ pub fn remembered_version(path: &str) -> Option<u64> {
 /// takes, a song in a fraction of a second, which its ten times larger decoded file does not save
 const KEPT_DECODED: f64 = 30.0;
 
-/// whether decoded audio (interleaved stereo) is short enough to keep in the cache `decoded` (`KEPT_DECODED`)
+/// whether decoded audio (interleaved stereo) is short enough to keep in the cache `decoded` (`KEPT_DECODED`, which is
+/// the largest file that cache keeps, `config::cache::DECODED`)
 fn kept_decoded(interleaved: &[f32]) -> bool {
     (interleaved.len() / 2) as f64 <= KEPT_DECODED * config::SRF
 }
@@ -578,6 +579,13 @@ pub fn midi_to_hz(p: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// the decoded cache's largest file (`config::cache::DECODED`) is the longest sound the loader keeps in it
+    #[test]
+    fn the_decoded_cache_keeps_the_largest_file_the_loader_keeps() {
+        let largest = (KEPT_DECODED * config::SRF) as u64 * 2 * 4;
+        assert_eq!(config::cache::DECODED.largest, largest);
+    }
 
     #[test]
     fn a_file_that_will_not_open_says_how_to_set_it_right() {

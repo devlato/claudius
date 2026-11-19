@@ -105,21 +105,30 @@ pub mod cache {
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
 
-    /// the caps: decoded sounds, and sounds stretched to a tempo
-    pub const DECODED: u64 = 2 << 30;
-    pub const STRETCHED: u64 = 1 << 30;
+    /// A cache's cap: what its folder may hold in all, and the largest file it keeps now (a larger one an earlier
+    /// claudius kept, read again, is taken out and made anew, so the trimming takes such files out first).
+    #[derive(Clone, Copy, Debug)]
+    pub struct Cap {
+        pub total: u64,
+        pub largest: u64,
+    }
+
+    /// the caps: decoded sounds (30 seconds at most, as raw stereo floats at the engine's rate), and sounds stretched
+    /// to a tempo
+    pub const DECODED: Cap = Cap { total: 2 << 30, largest: 30 * 48_000 * 2 * 4 };
+    pub const STRETCHED: Cap = Cap { total: 1 << 30, largest: u64::MAX };
 
     /// what the cache `name` keeps under `key`, marked used; a cache's first use in a process trims it to `cap`
-    /// (`due`), so that a folder an earlier claudius grew past it is trimmed whether claudius reads it or writes to it
-    pub fn get(name: &str, key: &str, cap: u64) -> Option<Vec<u8>> {
+    /// (`due`), so that a folder an earlier claudius grew past it is trimmed whether claudius reads it or writes to it.
+    /// The file asked for is marked used before that trimming, which therefore keeps it.
+    pub fn get(name: &str, key: &str, cap: Cap) -> Option<Vec<u8>> {
         let dir = super::cache_dir(name);
+        let path = dir.join(key);
+        used(&path);
         if due(name, false) {
             trim(&dir, cap);
         }
-        let path = dir.join(key);
-        let bytes = std::fs::read(&path).ok()?;
-        used(&path);
-        Some(bytes)
+        std::fs::read(&path).ok()
     }
 
     /// what the cache `name` keeps under `key` taken out of it (a sound kept before such sounds stopped being kept)
@@ -159,7 +168,7 @@ pub mod cache {
 
     /// keeps `bytes` in the cache `name` under `key`, written whole (a part file renamed), and now and then trims the
     /// cache to `cap` (`due`)
-    pub fn put(name: &str, key: &str, bytes: &[u8], cap: u64) {
+    pub fn put(name: &str, key: &str, bytes: &[u8], cap: Cap) {
         let dir = super::cache_dir(name);
         let path = dir.join(key);
         let tmp = path.with_extension(format!("{}.tmp", super::process_id()));
@@ -172,8 +181,9 @@ pub mod cache {
     }
 
     /// the files of `dir` used least lately removed until what it holds is three quarters of `cap`, when it holds more
-    /// than `cap`; part files of other processes are left alone. Returns how many bytes were freed.
-    pub fn trim(dir: &Path, cap: u64) -> u64 {
+    /// than `cap`, those larger than any the cache keeps now first, whenever they were used; part files of other
+    /// processes are left alone. Returns how many bytes were freed.
+    pub fn trim(dir: &Path, cap: Cap) -> u64 {
         let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
         // when each was used last, as its file says: a file that cannot say counts as used longest ago
         let mut files: Vec<(_, u64, PathBuf)> = entries
@@ -185,11 +195,11 @@ pub mod cache {
             })
             .collect();
         let mut held: u64 = files.iter().map(|(_, len, _)| len).sum();
-        if held <= cap {
+        if held <= cap.total {
             return 0;
         }
-        files.sort_by_key(|(used, _, _)| *used);
-        let (goal, mut freed) = (cap / 4 * 3, 0);
+        files.sort_by_key(|(used, len, _)| (*len <= cap.largest, *used));
+        let (goal, mut freed) = (cap.total / 4 * 3, 0);
         for (_, len, path) in files {
             if held <= goal {
                 break;
@@ -301,14 +311,55 @@ mod tests {
         }
         // another process's file being written is left alone
         std::fs::write(dir.join("e.123.tmp"), vec![0u8; 100]).unwrap();
-        assert_eq!(cache::trim(&dir, 400), 0, "within its cap");
+        let cap = |total| cache::Cap { total, largest: u64::MAX };
+        assert_eq!(cache::trim(&dir, cap(400)), 0, "within its cap");
         // 400 held, the cap 300: down to three quarters of it, so the two used least lately go
-        assert_eq!(cache::trim(&dir, 300), 200);
+        assert_eq!(cache::trim(&dir, cap(300)), 200);
         let mut left: Vec<String> =
             std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         left.sort();
         assert_eq!(left, ["c.f32", "d.f32", "e.123.tmp"]);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A file larger than any the cache keeps now (an earlier claudius's, which the next read takes out anyway) goes
+    /// first when the folder is trimmed, however lately it was used; and the file a cache's first read asks for is kept
+    /// by the trimming that read sets off, however long ago it was used.
+    #[test]
+    fn a_trim_takes_out_what_is_no_longer_kept_first_and_keeps_the_file_being_read() {
+        let dir = std::env::temp_dir().join(format!("claudius-cache-largest-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let now = std::time::SystemTime::now();
+        let put = |name: &str, len: usize, ago: u64| {
+            let p = dir.join(name);
+            std::fs::write(&p, vec![0u8; len]).unwrap();
+            let f = std::fs::File::options().write(true).open(&p).unwrap();
+            f.set_modified(now - std::time::Duration::from_secs(ago)).unwrap();
+        };
+        // the oversized file used last, two small ones before it
+        put("old.f32", 100, 300);
+        put("older.f32", 100, 400);
+        put("huge.f32", 300, 10);
+        assert_eq!(cache::trim(&dir, cache::Cap { total: 400, largest: 200 }), 300, "the oversized file alone goes");
+        assert!(dir.join("old.f32").is_file() && dir.join("older.f32").is_file());
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        // a cache's first read, past its cap: the file it reads, used longest ago, is the one kept
+        let name = format!("claudius-cache-read-{}", std::process::id());
+        let cache = cache_dir(&name);
+        for (i, key) in ["wanted.f32", "b.f32", "c.f32", "d.f32"].iter().enumerate() {
+            let p = cache.join(key);
+            std::fs::write(&p, vec![1u8; 100]).unwrap();
+            let f = std::fs::File::options().write(true).open(&p).unwrap();
+            f.set_modified(now - std::time::Duration::from_secs(100 * (4 - i as u64))).unwrap();
+        }
+        let got = cache::get(&name, "wanted.f32", cache::Cap { total: 300, largest: u64::MAX });
+        assert_eq!(got.map(|b| b.len()), Some(100), "read, and kept");
+        assert!(cache.join("wanted.f32").is_file());
+        let left = std::fs::read_dir(&cache).unwrap().count();
+        assert_eq!(left, 2, "down to three quarters of the cap: the file read and the one used last");
+        std::fs::remove_dir_all(&cache).unwrap();
     }
 
     #[test]
