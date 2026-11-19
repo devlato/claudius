@@ -211,8 +211,10 @@ Details that matter when you read an assistant's transcript:
   with the log lines the job wrote (one per candidate and its score) and then the song.
 - A `seed` is optional everywhere. Without one, the session picks one from the clock; `new_song` names it in its
   message and `get_song` shows it in the script's first line, so the song can be made again.
-- `save` without a path writes to `~/Music/claudius/<genre>-<title>-<seed>`. Paths are on the computer running
-  claudius, and a shared claudius refuses paths outside its folders.
+- `save` without a path writes to the folder the song lives in under `~/Music/claudius` (the one it was opened from
+  or saved to), else to `~/Music/claudius/<genre>-<title>-<seed>`. `rename_song {title}` (through `command`) renames
+  a song, and the folder claudius named for it moves with its history. Paths are on the computer running claudius,
+  and a shared claudius refuses paths outside its folders.
 - Everything the studio does, an assistant can do: each of the studio's controls sends one command, and each
   command has a tool of its own or goes through `command` (a test keeps it so). `command` covers the edits the studio
   makes that have no tool: `set_tempo`, `set_key`, `set_swing`, `set_progression`, `add_section`, `remove_section`,

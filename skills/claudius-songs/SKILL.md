@@ -198,6 +198,7 @@ People say what they hear, not which setting to change. The usual requests, and 
 | "faster", "slower", "in a minor key" | `tempo()`, `key()` in a script, or `command` `set_tempo`, `set_key` |
 | "the bass / vocals / hats are too loud (quiet)" | `mix(track, #{ level })` 2 to 3 dB at a time |
 | "I don't like this bass (sound)" | `swap_sound` with the track; it lists what else it could play |
+| "call it ...", "rename the song" | `command` `rename_song` (`{"cmd": "rename_song", "title": "Night Drive"}`): its saved folder moves with it |
 | "make it longer / shorter" | sections: `command` `add_section` (a kind and bars after one), `remove_section`, or `form()` |
 | "the drop should hit harder" | [Making a section hit harder](#making-a-section-hit-harder) |
 | "more like reggae / trap / disco" | `generate_track` with that genre for the part, or a new song fused with it |

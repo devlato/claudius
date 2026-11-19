@@ -1886,6 +1886,12 @@ pub enum Command {
         #[serde(default)]
         path: Option<String>,
     },
+    /// Give the song another title: an edit undo takes back. A song saved in a folder claudius named for it (in the
+    /// songs folder, named for its genre, a title and its seed) moves to the folder its new title names, with its
+    /// history, and is saved there.
+    RenameSong {
+        title: String,
+    },
     SetTempo {
         bpm: f64,
     },
