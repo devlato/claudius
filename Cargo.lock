@@ -8330,6 +8330,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "claudius-intent",
+ "serde_json",
  "sha2",
  "xshell",
 ]

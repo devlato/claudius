@@ -128,6 +128,7 @@
 - [Development setup](contributing/setup.md)
 - [Making a change](contributing/first-change.md)
 - [Code style and review](contributing/review.md)
+- [Benchmarks](contributing/benchmarks.md)
 - [Writing docs](contributing/docs.md)
 - [Releasing](contributing/releasing.md)
 - [Working with AI agents](contributing/agents.md)

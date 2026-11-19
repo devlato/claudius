@@ -5,6 +5,11 @@
 The line above loads `AGENTS.md`, the rules for every agent and person working here. This file adds what is
 particular to Claude Code; [Working with AI agents](docs/src/contributing/agents.md) explains the setup for people.
 
+Its Experiments section is how we work on anything machine learning or AI and on every change that might not be an
+improvement: a benchmark of real music, the baseline of the last accepted change, a comparison item by item with
+statistics, and only a significant improvement ships. Read it, and
+[Benchmarks](docs/src/contributing/benchmarks.md), before such work.
+
 ## The hooks
 
 `.claude/settings.json` runs `.claude/hooks/guard.sh` before each command and each edit. It holds you to the rules

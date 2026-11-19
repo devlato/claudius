@@ -33,6 +33,29 @@ what you need to act.
 - **Notes for the changelog** that need more than the PR title (an upgrade step, a highlight) go under
   `## [Unreleased]` in `CHANGELOG.md`, in the same pull request.
 
+## Experiments
+
+Work on anything that learns or listens (the critic, the analysis of recordings, the stems, the request model, the
+generator's choices) and every change that might not be an improvement is an experiment, measured before it ships.
+`docs/src/contributing/benchmarks.md` (Benchmarks in the contributor guide) explains why and how.
+
+- **Measure against real music.** The yardstick is a large, varied corpus of real songs people listen to: many in
+  each genre, across decades, languages and cultures, instruments, and ways of mixing and producing. Never claudius's
+  own songs: claudius's songs before and after a change, judged by claudius's own critic, show breakage and nothing
+  more.
+- **Keep a baseline.** Every accepted change keeps its benchmark results, item by item, as the baseline the next
+  experiment is compared with.
+- **Compare item by item, with statistics.** Run the experiment on the same benchmark, pair each item with the
+  baseline's, and give the difference with a confidence interval and a significance test, overall and in every slice
+  (genre, decade, language, source). Name the items that got worse, not only the averages.
+- **Ship only an improvement.** A change goes in when it improves the benchmark significantly and no slice gets
+  significantly worse. If it does not, iterate on it until it does. Never loosen a benchmark, a test or the bar to
+  get there.
+- **Tune on one part, confirm on another.** Choose settings on a tuning split and report the result on a held-out
+  split the tuning never saw. A sealed set is read only through its scores.
+- **Show it in the pull request:** the benchmark, the baseline, the comparison, its slices and the items that got
+  worse.
+
 ## Commands
 
 Make a change and open a pull request:
