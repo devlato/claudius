@@ -74,6 +74,14 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e(
+        "radio",
+        "Radio...",
+        "a station of songs claudius writes as it plays them, music to listen to, one genre after another mixed like a \
+         dj set, background music, skip a song, keep one",
+        "the ? menu",
+        "",
+    ),
+    e(
         "phone",
         "Play from a phone...",
         "mobile, pads, keys, a turntable to scratch, a controller",
