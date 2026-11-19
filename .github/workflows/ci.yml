@@ -58,7 +58,11 @@ jobs:
   test:
     name: tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # room for a build with no cache, which only main's runs save, and only a run that finishes: the dependencies,
+    # then the tests (on Windows in November 2026 about 34 minutes of building and 12 of tests, and 55 minutes in all,
+    # against 35 with the cache). A run cut off by this limit saves no cache, and every run after it builds from
+    # nothing again.
+    timeout-minutes: 80
     # Windows has not been verified to build yet, so it reports without blocking
     continue-on-error: ${{ matrix.experimental }}
     strategy:

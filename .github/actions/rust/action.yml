@@ -30,18 +30,30 @@ runs:
   using: composite
   steps:
     # with no toolchain named, rustup installs the active one, components and targets included: the one in
-    # rust-toolchain.toml, unless the job sets RUSTUP_TOOLCHAIN (the MSRV and fuzz jobs do)
+    # rust-toolchain.toml, unless the job sets RUSTUP_TOOLCHAIN (the MSRV and fuzz jobs do).
+    # A job that caches installs it into a rustup home of its own, with nothing else in it: rust-cache keys the cache
+    # on every toolchain rustup lists, and the runner images come with toolchains of their own that nothing here
+    # builds with, so a new image (Windows with Rust 1.100, in November 2026) found no cache and built everything
+    # again, which on Windows took longer than the tests job had.
     - name: Rust toolchain
       shell: bash
       env:
         TARGETS: ${{ inputs.targets }}
         COMPONENTS: ${{ inputs.components }}
+        OWN_HOME: ${{ inputs.cache }}
       run: |
+        if [ "$OWN_HOME" = true ]; then
+          export RUSTUP_HOME="$RUNNER_TEMP/rustup"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV" # zizmor: ignore[github-env] a fixed value
+        fi
         rustup toolchain install --profile minimal
+        # the default too, for a command run outside the repository, where rust-toolchain.toml does not reach
+        rustup default "$(rustup show active-toolchain | cut -d' ' -f1)"
         IFS=, read -ra targets <<< "$TARGETS"
         if [ "${#targets[@]}" -gt 0 ]; then rustup target add "${targets[@]}"; fi
         IFS=, read -ra components <<< "$COMPONENTS"
         if [ "${#components[@]}" -gt 0 ]; then rustup component add "${components[@]}"; fi
+        rustup toolchain list
         rustc --version
 
     # ort-sys unpacks ONNX Runtime outside target/, and the cached build-script output points there, so the two are
