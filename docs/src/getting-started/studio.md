@@ -144,7 +144,8 @@ at the right end **Script**, **Signal flow** and **Log**.
   much of it. The lane's name shows what it has.
 - **Instruments.** The bass, chords, pad, lead and arpeggio parts: their writing style, their sound (a synth or a
   sampled instrument, with the swap button beside it), their range and how busy they are. **Reseed** rewrites a part.
-- **Notes.** A part's notes over one of its progressions, as a piano roll: a grid of beats and pitches. Click an
+- **Notes.** A part's notes over one of its progressions, as a piano roll: a grid of beats and pitches. The part, the
+  progression and the grid are chosen at the top. Click an
   empty place to add a note, drag a note to move it, drag its right edge to make it longer or shorter, right-click it
   to take it out; the grid (1/16 to 1/2) is what notes snap to. The notes the theory engine writes are shown faint,
   and the first change writes them out for you to edit; **Back to the theory engine** lets it write them again. The
