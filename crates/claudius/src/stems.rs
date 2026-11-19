@@ -134,24 +134,24 @@ mod tagging {
     ];
 
     /// the tagger, loaded the first time it is asked for, with the places of its classes of a voice; none while its
-    /// model is not in the cache and may not be downloaded, or when it cannot load, which is said once
+    /// model is not in the cache and may not be downloaded, or when it cannot load, which is said once. Its absence is
+    /// not kept: once the ears allow the download (`may_download`), the next song asks for it again and loads it, as
+    /// the separator is loaded.
     fn tagger() -> Option<&'static (earshot::ced::Ced, Vec<usize>)> {
         static T: OnceLock<Option<(earshot::ced::Ced, Vec<usize>)>> = OnceLock::new();
-        T.get_or_init(|| {
-            let cache = earshot::models::default_cache_dir();
-            let offline = !super::downloads();
-            if offline && !earshot::ced::Ced::cached(&cache) {
-                return None;
+        let cache = earshot::models::default_cache_dir();
+        let offline = !super::downloads();
+        if T.get().is_none() && offline && !earshot::ced::Ced::cached(&cache) {
+            return None;
+        }
+        T.get_or_init(|| match earshot::ced::Ced::load(&cache, offline, earshot::models::default_threads()) {
+            Ok(ced) => {
+                let voice = VOICE.iter().filter_map(|v| ced.labels.iter().position(|l| l == v)).collect();
+                Some((ced, voice))
             }
-            match earshot::ced::Ced::load(&cache, offline, earshot::models::default_threads()) {
-                Ok(ced) => {
-                    let voice = VOICE.iter().filter_map(|v| ced.labels.iter().position(|l| l == v)).collect();
-                    Some((ced, voice))
-                }
-                Err(e) => {
-                    eprintln!("claudius: the voice cannot be told from the instruments: {e:#}");
-                    None
-                }
+            Err(e) => {
+                eprintln!("claudius: the voice cannot be told from the instruments: {e:#}");
+                None
             }
         })
         .as_ref()
