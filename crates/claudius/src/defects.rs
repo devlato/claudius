@@ -31,8 +31,13 @@ pub struct Cut {
     pub edge: usize,
 }
 
-/// the dropouts the critic counts (`dropouts_per_minute`): 80 ms or more, music within 50 ms on either side
-pub const CUT: Cut = Cut { digital: false, edge: 5 };
+/// The dropouts the critic counts (`dropouts_per_minute`): 80 ms or more of digital silence, with the music within
+/// 10 dB of its level in the 20 ms on either side of it, so that an abrupt cut counts and a rest, which keeps its room
+/// and fades, does not. Chosen on the tuning shards of the critic's benchmark of real songs (0 and 1) among four ways
+/// of telling a cut from a rest: of 1,143 songs as they are, two read any dropout (1.2 a minute at most), where the
+/// first way read 27 (5.4 at most), and the copies cut to silence every two seconds read 27.3 a minute at the median,
+/// as they did under every way.
+pub const CUT: Cut = Cut { digital: true, edge: 2 };
 
 /// a sample's size under which a frame is digital silence: two steps of 16 bits
 const FLOOR: f32 = 2.0 / 32_768.0;

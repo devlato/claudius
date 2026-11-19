@@ -217,9 +217,10 @@ pub const DEFECT_CUT: f64 = 0.5;
 const CLIPPED: (f64, f64) = (0.001, 0.26);
 
 /// the dropouts a minute (`defects::dropouts_per_minute`) from which a recording is heard as cut, and at which wholly.
-/// Chosen on the tuning shards as `CLIPPED` is: from above all but one song in a hundred as it is (0.42 a minute at the
-/// 99th percentile), to the median of the copies with a quarter of a second of silence every two seconds (27.6).
-const DROPOUTS: (f64, f64) = (0.45, 27.6);
+/// Chosen on the tuning shards as `CLIPPED` is: from two a minute, above every song as it is (1.2 at most, two of
+/// 1,143 reading any), so that a song's few abrupt stops cost it nothing, to the median of the copies with a quarter of
+/// a second of silence every two seconds (27.3).
+const DROPOUTS: (f64, f64) = (2.0, 27.3);
 
 /// how far `v` is from `from` towards `to`, 0..1
 fn ramp(v: f64, (from, to): (f64, f64)) -> f64 {
@@ -256,16 +257,6 @@ fn defect_checks(
             ),
             issues,
         );
-    }
-    // the experiment's other ways of telling a cut from a rest, measured beside it (not weighed)
-    for (name, cut) in [
-        ("dropouts_digital", crate::defects::Cut { digital: true, edge: 5 }),
-        ("dropouts_abrupt", crate::defects::Cut { digital: false, edge: 2 }),
-        ("dropouts_both", crate::defects::Cut { digital: true, edge: 2 }),
-    ] {
-        if let Some(rate) = crate::defects::dropouts_with(x, cut) {
-            m.insert(name.into(), (rate * 10.0).round() / 10.0);
-        }
     }
     if let Some(rate) = crate::defects::dropouts_per_minute(x) {
         m.insert("dropouts_per_minute".into(), (rate * 10.0).round() / 10.0);
