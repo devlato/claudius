@@ -32,11 +32,31 @@
 //! - **spread**, how much claudius's songs differ from one another, as a share of how much the real ones do (mean
 //!   cosine distance between pairs): shown, never judged, as neither more nor less is better by itself.
 //!
+//! `remake` hears claudius's remakes of real songs in a genre (`--how`: `flip`, a new song on a recording's hook and
+//! pieces of it, or `rework`, the recording all through with the genre under it), the yardstick for a change to how a
+//! recording is remade: the dataset's songs in the shards of `--half` that are in `--sources` (a folder `embed` or
+//! `eval_critic` downloaded into), at most `--most` (40) of them, those tagged with a genre people remake (`SOURCES`:
+//! pop, rock, dance, hip hop and the like) and with none of the target genre's own tags, each remade with each of
+//! `--seeds` (1..2) as the studio remakes it (its stems separated by the ears, which may download their model), against
+//! the real songs of the genre in the same half. It writes a line for each remake (after one that says which way each
+//! metric is better, and which `--primary` names: `typical` unless told otherwise):
+//!
+//! - **typical**, how alike the remake is to the ten real songs of the genre most like it (cosine).
+//! - **identified**, whether it is heard as the genre: nearer to its real songs' centroid than to any other genre's.
+//! - **slowed**, how far the remake moved the recording from its own speed: the absolute natural log of the rate it
+//!   plays the recording at (a flip its hook, a rework all of it), as the song counts it, at its own tempo, half or
+//!   twice it; 0 for a recording played at its own speed, 0.29 for one slowed or sped by a quarter. Lower is better.
+//!
+//! and prints the kernel audio distance between the remakes and the real songs beside the means.
+//!
 //! ```text
 //! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
 //!     [--most 300] [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
 //!     [--out FILE] [--genres a,b,...] [--threads N] [--keep DIR]
+//! cargo run --release -p claudius --example eval_genres -- remake REAL --sources DIR --genre G
+//!     [--how flip|rework] [--seeds 1..2] [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b]
+//!     [--threads N] [--keep DIR]
 //! ```
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -48,6 +68,7 @@ use std::sync::{Mutex, mpsc};
 
 use claudius::compose::{self, Options};
 use claudius::ears::Ears;
+use claudius::model::{Blueprint, Sound};
 use claudius::{export, genres, render};
 use serde_json::{Value, json};
 
@@ -90,6 +111,38 @@ const GENRES: &[(&str, &str, &[&str], &[&str])] = &[
 const FEWEST: usize = 15;
 const NEAREST: usize = 10;
 
+/// The dataset's genres whose songs `remake` remakes: what people take to a remake, not soundtracks, classical music
+/// or ambient beds. A song counts under the first of these it is tagged with.
+const SOURCES: &[&str] = &[
+    "pop",
+    "rock",
+    "dance",
+    "hiphop",
+    "rap",
+    "rnb",
+    "soul",
+    "funk",
+    "disco",
+    "house",
+    "techno",
+    "trance",
+    "electropop",
+    "dancepop",
+    "poprock",
+    "indie",
+    "alternative",
+    "punkrock",
+    "metal",
+    "reggae",
+    "latin",
+    "folk",
+    "popfolk",
+    "country",
+    "blues",
+    "jazz",
+    "electronic",
+];
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
@@ -122,9 +175,30 @@ fn main() {
             threads,
             flag("--keep").map(PathBuf::from),
         ),
+        (Some("remake"), Some(real)) => match (flag("--sources"), flag("--genre")) {
+            (Some(sources), Some(genre)) => remake(
+                Path::new(real),
+                &Remakes {
+                    sources: PathBuf::from(sources),
+                    genre,
+                    how: flag("--how").unwrap_or_else(|| "flip".into()),
+                    seeds: range("--seeds", (1, 2)),
+                    half: flag("--half").unwrap_or_else(|| "tune".into()),
+                    most: flag("--most").and_then(|m| m.parse().ok()).unwrap_or(40),
+                    primary: flag("--primary")
+                        .map_or_else(|| vec!["typical".to_string()], |p| p.split(',').map(String::from).collect()),
+                },
+                &flag("--out").map_or_else(|| PathBuf::from("remakes.jsonl"), PathBuf::from),
+                threads,
+                flag("--keep").map(PathBuf::from),
+            ),
+            _ => Err("remake needs --sources DIR and --genre G".into()),
+        },
         _ => Err("usage: eval_genres embed DIR [--shards 0..99] [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres run REAL [--seeds 1..20] [--half tune|confirm] [--out FILE] [--genres a,b] \
-                  [--threads N] [--keep DIR]"
+                  [--threads N] [--keep DIR]\n       \
+                  eval_genres remake REAL --sources DIR --genre G [--how flip|rework] [--seeds 1..2] \
+                  [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]"
             .into()),
     };
     if let Err(e) = result {
@@ -364,6 +438,57 @@ fn hundredths(x: f64) -> f64 {
     (x * 1e4).round() / 1e4
 }
 
+/// the shards' parity a half takes: the even ones to tune on, the odd ones to confirm on
+fn parity_of(half: &str) -> Result<u64, String> {
+    match half {
+        "tune" => Ok(0),
+        "confirm" => Ok(1),
+        other => Err(format!("--half is tune or confirm, not {other}")),
+    }
+}
+
+/// the real songs `embed` heard in the shards of `parity`, by genre
+fn real_songs(real: &Path, parity: u64) -> Result<BTreeMap<String, Vec<Vec<f64>>>, String> {
+    let mut by_genre: BTreeMap<String, Vec<Vec<f64>>> = BTreeMap::new();
+    for line in std::fs::read_to_string(real).map_err(|e| format!("{}: {e}", real.display()))?.lines() {
+        let v: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
+        if v["shard"].as_u64().is_some_and(|s| s % 2 == parity)
+            && let (Some(g), Some(e)) = (v["genre"].as_str(), v["emb"].as_array())
+        {
+            by_genre.entry(g.to_string()).or_default().push(e.iter().filter_map(Value::as_f64).collect());
+        }
+    }
+    Ok(by_genre)
+}
+
+/// each genre's centroid, of those with enough real songs to measure
+fn centroids_of(by_genre: &BTreeMap<String, Vec<Vec<f64>>>) -> Vec<(String, Vec<f64>)> {
+    by_genre.iter().filter(|(_, s)| s.len() >= FEWEST).map(|(g, s)| (g.clone(), centroid(s))).collect()
+}
+
+/// the kernel's width from the real songs alone, so that it is the same for every version of the generator
+fn width(reals: &[Vec<f64>]) -> f64 {
+    let mut d = Vec::new();
+    for (i, a) in reals.iter().enumerate() {
+        for b in &reals[i + 1..] {
+            d.push(dist2(a, b).sqrt());
+        }
+    }
+    median(d).max(1e-6)
+}
+
+/// how alike a song is to the `NEAREST` real songs most like it
+fn typical_of(e: &[f64], reals: &[Vec<f64>]) -> f64 {
+    let mut c: Vec<f64> = reals.iter().map(|r| cosine(e, r)).collect();
+    c.sort_by(|a, b| b.total_cmp(a));
+    c.iter().take(NEAREST).sum::<f64>() / NEAREST.min(c.len()).max(1) as f64
+}
+
+/// the genre whose real songs' centroid a song is nearest
+fn heard_as<'a>(e: &[f64], centroids: &'a [(String, Vec<f64>)]) -> Option<&'a str> {
+    centroids.iter().max_by(|a, b| cosine(e, &a.1).total_cmp(&cosine(e, &b.1))).map(|(g, _)| g.as_str())
+}
+
 /// A song of genre `g` made with `seed`, rendered as it is made, written at the dataset's bitrate into `dir` and heard.
 fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path) -> Result<Vec<f64>, String> {
     let bp = compose::generate(g, seed, &Options { sampled: Some(false), ..Options::default() }, None);
@@ -387,23 +512,9 @@ fn run(
     threads: usize,
     keep: Option<PathBuf>,
 ) -> Result<(), String> {
-    let parity = match half {
-        "tune" => 0,
-        "confirm" => 1,
-        other => return Err(format!("--half is tune or confirm, not {other}")),
-    };
-    // the real songs of each genre in the half
-    let mut by_genre: BTreeMap<String, Vec<Vec<f64>>> = BTreeMap::new();
-    for line in std::fs::read_to_string(real).map_err(|e| format!("{}: {e}", real.display()))?.lines() {
-        let v: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
-        if v["shard"].as_u64().is_some_and(|s| s % 2 == parity)
-            && let (Some(g), Some(e)) = (v["genre"].as_str(), v["emb"].as_array())
-        {
-            by_genre.entry(g.to_string()).or_default().push(e.iter().filter_map(Value::as_f64).collect());
-        }
-    }
-    let centroids: Vec<(String, Vec<f64>)> =
-        by_genre.iter().filter(|(_, s)| s.len() >= FEWEST).map(|(g, s)| (g.clone(), centroid(s))).collect();
+    let parity = parity_of(half)?;
+    let by_genre = real_songs(real, parity)?;
+    let centroids = centroids_of(&by_genre);
     let measured: Vec<&(&str, &str, &[&str], &[&str])> = GENRES
         .iter()
         .filter(|(g, ..)| by_genre.get(*g).is_some_and(|s| s.len() >= FEWEST))
@@ -453,33 +564,9 @@ fn run(
             eprintln!("{g}: fewer than two songs heard");
             continue;
         }
-        // the kernel's width from the real songs alone, so that it is the same for every version of the generator
-        let mut d = Vec::new();
-        for (i, a) in reals.iter().enumerate() {
-            for b in &reals[i + 1..] {
-                d.push(dist2(a, b).sqrt());
-            }
-        }
-        let sigma = median(d).max(1e-6);
-        let typical = mine
-            .iter()
-            .map(|e| {
-                let mut c: Vec<f64> = reals.iter().map(|r| cosine(e, r)).collect();
-                c.sort_by(|a, b| b.total_cmp(a));
-                c.iter().take(NEAREST).sum::<f64>() / NEAREST.min(c.len()) as f64
-            })
-            .sum::<f64>()
-            / mine.len() as f64;
-        let identified = mine
-            .iter()
-            .filter(|e| {
-                centroids
-                    .iter()
-                    .max_by(|a, b| cosine(e, &a.1).total_cmp(&cosine(e, &b.1)))
-                    .is_some_and(|(best, _)| best == g)
-            })
-            .count() as f64
-            / mine.len() as f64;
+        let sigma = width(reals);
+        let typical = mine.iter().map(|e| typical_of(e, reals)).sum::<f64>() / mine.len() as f64;
+        let identified = mine.iter().filter(|e| heard_as(e, &centroids) == Some(*g)).count() as f64 / mine.len() as f64;
         let (kad, spread) = (kad(&mine, reals, sigma), spread(&mine) / spread(reals).max(1e-9));
         println!("{g}\t{}\t{}\t{kad:.3}\t{typical:.3}\t{identified:.2}\t{spread:.2}", reals.len(), mine.len());
         let line = json!({
@@ -494,5 +581,226 @@ fn run(
         });
         writeln!(f, "{line}").map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
+
+/// a remake heard, or why not: its embedding and how far it moved its recording from its own speed (`slowed`)
+type Heard = Result<(Vec<f64>, f64), String>;
+
+/// what `remake` remakes and how
+struct Remakes {
+    /// the folder of the dataset's audio and its tags
+    sources: PathBuf,
+    genre: String,
+    /// `flip` or `rework`
+    how: String,
+    seeds: Vec<u64>,
+    half: String,
+    /// the most songs remade
+    most: usize,
+    /// the metrics a change is made to improve
+    primary: Vec<String>,
+}
+
+/// a real song a remake is made of
+struct Source {
+    id: String,
+    path: PathBuf,
+    /// the first of `SOURCES` it is tagged with
+    tag: &'static str,
+}
+
+/// The songs of the shards of `parity` in `dir` that a remake in `genre` is made of: tagged with one of `SOURCES` and
+/// with none of the genre's own tags (a trip hop song remade as trip hop says nothing), whose audio is there, in the
+/// dataset's order, `most` at most.
+fn sources(dir: &Path, parity: u64, genre: &str, most: usize) -> Result<Vec<Source>, String> {
+    let tsv = std::fs::read_to_string(dir.join("raw_30s_cleantags.tsv")).map_err(|e| format!("the tags: {e}"))?;
+    let own: &[&str] = GENRES.iter().find(|(g, ..)| *g == genre).map_or(&[], |(_, _, tags, _)| *tags);
+    let mut out = Vec::new();
+    for line in tsv.lines().skip(1) {
+        let cols: Vec<&str> = line.split('\t').map(str::trim).collect();
+        let (Some(id), Some(path)) = (cols.first(), cols.get(3)) else { continue };
+        let Some((s, file)) = path.split_once('/') else { continue };
+        if !s.parse::<u64>().is_ok_and(|s| s % 2 == parity) {
+            continue;
+        }
+        let tags: BTreeSet<&str> = cols.iter().filter_map(|c| c.strip_prefix("genre---")).collect();
+        if own.iter().any(|t| tags.contains(t)) {
+            continue;
+        }
+        let Some(tag) = SOURCES.iter().find(|t| tags.contains(*t)) else { continue };
+        let audio = dir.join(s).join(file.replace(".mp3", ".low.mp3"));
+        if audio.is_file() {
+            out.push(Source { id: id.to_string(), path: audio, tag });
+        }
+        if out.len() == most {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+/// How far a remake moved its recording from the recording's own speed: the absolute natural log of the rate it plays
+/// it at (a flip its hook and the passages it plays in its sections, `sampling::PHRASE` and the names it numbers from
+/// it; a rework all of it, `remix::ORIGINAL` or its voice), as the song counts it: at its own tempo, half or twice it.
+/// None when no recording plays in it.
+fn slowed(bp: &Blueprint) -> Option<f64> {
+    let whole = [claudius::remix::ORIGINAL, claudius::remix::VOICE];
+    let recording = |name: &str| name.starts_with(claudius::sampling::PHRASE) || whole.contains(&name);
+    let own = bp.loops.iter().filter(|l| recording(&l.name)).find_map(|l| match &l.sound {
+        Sound::Loop { bpm, .. } if *bpm > 0.0 => Some(*bpm),
+        _ => None,
+    })?;
+    [0.5, 1.0, 2.0].into_iter().map(|k: f64| (k * bp.bpm / own).ln().abs()).min_by(f64::total_cmp)
+}
+
+/// The recording at `src` remade in genre `g` as `how` says with each of `seeds`, as the studio remakes it (its stems
+/// apart, analysed with them): each seed's embedding and how far it moved the recording from its own speed
+/// (`heard_remake`).
+fn remake_song(
+    ears: &Ears,
+    lib: Option<&dyn compose::Library>,
+    g: &genres::GenreProfile,
+    how: &str,
+    src: &Source,
+    seeds: &[u64],
+    dir: &Path,
+) -> Vec<(u64, Heard)> {
+    let x = match claudius::audio::load(&src.path) {
+        Ok(x) => x,
+        Err(e) => return seeds.iter().map(|&s| (s, Err(format!("{}: {e:#}", src.id)))).collect(),
+    };
+    let stems = claudius::stems::of(&x, &mut |_| {});
+    let a = claudius::analysis::song::analyze_with(&x, stems.as_deref(), None);
+    let name = src.path.file_name().map_or_else(|| src.id.clone(), |n| n.to_string_lossy().into_owned());
+    let s = claudius::remix::Source { x: &x, name: &name, a: &a, stems: stems.as_deref() };
+    let made = Made { ears, lib, g, how, id: &src.id, dir };
+    seeds.iter().map(|&seed| (seed, heard_remake(&made, &s, seed))).collect()
+}
+
+/// what a remake of one recording is made with, and where it is written
+struct Made<'a> {
+    ears: &'a Ears,
+    lib: Option<&'a dyn compose::Library>,
+    g: &'a genres::GenreProfile,
+    how: &'a str,
+    id: &'a str,
+    dir: &'a Path,
+}
+
+/// The recording `s` remade with `seed`, rendered as it is made, written at the dataset's bitrate and heard: its
+/// embedding and how far it moved the recording from its own speed (`slowed`).
+fn heard_remake(m: &Made, s: &claudius::remix::Source, seed: u64) -> Heard {
+    let takes = m.dir.join(format!("{}-{seed}", m.id));
+    let opts = Options::default();
+    let bp = match m.how {
+        "flip" => claudius::remix::remix(s, m.g, seed, &opts, m.lib, &takes, Some(m.ears)),
+        "rework" => claudius::remix::rework(s, m.g, seed, &opts, m.lib, &takes),
+        other => Err(format!("--how is flip or rework, not {other}")),
+    }
+    .map_err(|e| format!("{} {seed}: {e}", m.id))?;
+    let moved = slowed(&bp).ok_or_else(|| format!("{} {seed}: no recording plays in it", m.id))?;
+    let project = compose::arrange(&bp);
+    let r = render::render(&project, &render::Options::default()).map_err(|e| format!("{} {seed}: {e:#}", m.id))?;
+    let spec: export::Spec = AS_THE_DATASET.parse().map_err(|e| format!("{e}"))?;
+    let path = m.dir.join(format!("{}-{seed}.mp3", m.id));
+    let bytes = export::encode(&r.master, &spec, &export::tags(&bp.title)).map_err(|e| format!("{e:#}"))?;
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    let e = m.ears.embed_refs(std::slice::from_ref(&path)).map_err(|e| format!("{e:#}"))?;
+    let e = e.into_iter().next().map(|e| kept(&e)).ok_or_else(|| format!("{} {seed}: nothing heard", m.id))?;
+    Ok((e, moved))
+}
+
+/// The sources' remakes of `r`, heard against the real songs of the genre in the same half, a line each into `out`.
+fn remake(real: &Path, r: &Remakes, out: &Path, threads: usize, keep: Option<PathBuf>) -> Result<(), String> {
+    let parity = parity_of(&r.half)?;
+    let g = genres::get(&r.genre).map_err(|e| format!("{e:#}"))?;
+    let by_genre = real_songs(real, parity)?;
+    let centroids = centroids_of(&by_genre);
+    let reals = by_genre
+        .get(&r.genre)
+        .filter(|s| s.len() >= FEWEST)
+        .ok_or_else(|| format!("{} has fewer than {FEWEST} real songs in the {} half", r.genre, r.half))?;
+    let songs = sources(&r.sources, parity, &r.genre, r.most)?;
+    if songs.is_empty() {
+        return Err(format!("no song to remake in {} for the {} half", r.sources.display(), r.half));
+    }
+    // a song's stems are separated as the studio separates them, the ears' model downloaded first when it is not there
+    claudius::stems::may_download();
+    let scratch = keep.unwrap_or_else(|| std::env::temp_dir().join(format!("eval-remakes-{}", std::process::id())));
+    std::fs::create_dir_all(&scratch).map_err(|e| e.to_string())?;
+    eprintln!("remaking {} songs as {} ({}), seeds {:?}", songs.len(), r.genre, r.how, r.seeds);
+    let next = AtomicUsize::new(0);
+    let (tx, rx) = mpsc::channel::<(usize, u64, Heard)>();
+    std::thread::scope(|scope| {
+        for _ in 0..threads {
+            let tx = tx.clone();
+            let (songs, next, scratch, g) = (&songs, &next, &scratch, &g);
+            scope.spawn(move || {
+                let ears = match Ears::load(false) {
+                    Ok(e) => e,
+                    Err(e) => return eprintln!("no ears: {e:#}"),
+                };
+                // the samples installed here, as the studio's remakes draw on them, and none fetched
+                let lib = claudius::library::Library::open().ok().filter(|l| !l.is_empty());
+                let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(song) = songs.get(i) else { break };
+                    for (seed, heard) in remake_song(&ears, lib_ref, g, &r.how, song, &r.seeds, scratch) {
+                        let _ = tx.send((i, seed, heard));
+                    }
+                }
+            });
+        }
+        drop(tx);
+    });
+    let mut heard: BTreeMap<(usize, u64), (Vec<f64>, f64)> = BTreeMap::new();
+    for (i, seed, h) in rx {
+        match h {
+            Ok(h) => {
+                heard.insert((i, seed), h);
+            }
+            Err(e) => eprintln!("{e}"),
+        }
+    }
+    if heard.len() < 2 {
+        return Err("fewer than two remakes heard".into());
+    }
+    let mut f = std::fs::File::create(out).map_err(|e| e.to_string())?;
+    let head = json!({"better": {"slowed": "lower"}, "primary": r.primary});
+    writeln!(f, "{head}").map_err(|e| e.to_string())?;
+    let mut embs = std::fs::File::create(scratch.join("embeddings.jsonl")).map_err(|e| e.to_string())?;
+    let (mut typical, mut identified, mut moved) = (0.0, 0usize, 0.0);
+    for ((i, seed), (e, slow)) in &heard {
+        let src = &songs[*i];
+        let item = format!("{}:{seed}", src.id);
+        let t = typical_of(e, reals);
+        let id = heard_as(e, &centroids) == Some(r.genre.as_str());
+        typical += t;
+        identified += usize::from(id);
+        moved += slow;
+        let line = json!({
+            "item": item,
+            "slice": {"source": src.tag},
+            "metrics": {"typical": hundredths(t), "identified": id, "slowed": hundredths(*slow)},
+        });
+        writeln!(f, "{line}").map_err(|e| e.to_string())?;
+        writeln!(embs, "{}", json!({"item": item, "emb": e})).map_err(|e| e.to_string())?;
+    }
+    let mine: Vec<Vec<f64>> = heard.values().map(|(e, _)| e.clone()).collect();
+    let n = heard.len() as f64;
+    println!("genre\thow\treal\tremakes\tkad\ttypical\tidentified\tslowed");
+    println!(
+        "{}\t{}\t{}\t{}\t{:.3}\t{:.3}\t{:.2}\t{:.3}",
+        r.genre,
+        r.how,
+        reals.len(),
+        heard.len(),
+        kad(&mine, reals, width(reals)),
+        typical / n,
+        identified as f64 / n,
+        moved / n
+    );
     Ok(())
 }
