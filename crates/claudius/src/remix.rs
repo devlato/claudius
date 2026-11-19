@@ -674,6 +674,36 @@ fn apart(src: &Source, sings: bool) -> Apart {
     }
 }
 
+/// How far a flip stretches a sung hook to the genre's tempo before it plays it at its own speed under the genre's
+/// range, in a genre whose phrase says how far under it may (`SampleNeed::under`): a tenth, about what a voice is not
+/// heard to be stretched by.
+const SUNG_STRETCH: f64 = 0.10;
+
+/// The tempo a flip gives a song built on a sung hook of `bpm`, in a genre that plays `range` and plays a record at its
+/// own speed as far as `under` beneath it (`SampleNeed::under`; none in a genre that does not say): none when the hook
+/// plays at its own speed in the range (at its own tempo, half or twice it), which the song then takes as a sampler
+/// plays a record. When the nearest of those is within a stretch of `SUNG_STRETCH` of the range, the range's edge
+/// nearest it, which stretches the hook the least; further, the fastest of them that `under` reaches below the range,
+/// at which the hook plays at its own speed (a pop record of 125 as trip hop at 62); else that edge again.
+fn sung_tempo(bpm: f64, range: (f64, f64), under: f64) -> Option<f64> {
+    if under <= 0.0 || bpm <= 0.0 {
+        return None;
+    }
+    let speeds = [bpm, bpm / 2.0, bpm * 2.0];
+    let off = |t: f64| (range.0 / t).ln().max((t / range.1).ln()).max(0.0);
+    let nearest = speeds.into_iter().min_by(|a, b| off(*a).total_cmp(&off(*b)))?;
+    if off(nearest) == 0.0 {
+        return None;
+    }
+    let floor = range.0 * (1.0 - under);
+    let below = speeds.into_iter().filter(|t| (floor..range.0).contains(t)).max_by(f64::total_cmp);
+    let t = match below {
+        Some(t) if off(nearest) > SUNG_STRETCH => t,
+        _ => nearest.clamp(range.0, range.1),
+    };
+    Some((t * 100.0).round() / 100.0)
+}
+
 /// Whether a hook of `bpm`, with a pulse as clear as `pulse`, plays in its own key in a song of a genre that samples
 /// as `n` does at a tempo in `range`: a voice sings in it (`sung`), which the genre does not mean to be sped up or
 /// slowed down (`SampleNeed::speeds_voices`), and it meets the genre's tempo at its own pitch some way (`meets`:
@@ -746,7 +776,16 @@ pub fn remix(
         root: None,
         pulse: Some(a.pulse_clarity),
     };
-    let drum_bars = crate::sampling::need(g, Role::Break).and_then(|_| break_of(a, &struck, &sustained, seed));
+    // a sung hook plays at its own speed under the genre's range as far as the genre plays a record so (`sung_tempo`),
+    // and the song takes that tempo; the recording's own drums are the break only while the song plays near their
+    // tempo: in half time they would play on at the recording's over the genre's, whose own drums play instead
+    let sung = crate::sampling::need(g, Role::Phrase)
+        .filter(|n| opts.bpm.is_none() && sings && voice_in_it && !n.speeds_voices)
+        .and_then(|n| sung_tempo(bpm, g.bpm, n.under));
+    let opts = &Options { bpm: opts.bpm.or(sung), ..opts.clone() };
+    let near = sung.is_none_or(|t| (t / bpm).ln().abs() <= SUNG_STRETCH);
+    let drum_bars =
+        crate::sampling::need(g, Role::Break).filter(|_| near).and_then(|_| break_of(a, &struck, &sustained, seed));
     let drums = match drum_bars {
         Some(b) => {
             let (path, bpm) = piece(b, &struck)?;
@@ -785,6 +824,23 @@ pub fn remix(
     let without = if voice_in_it { "its drums" } else { "its drums and its voice" };
     let key = if in_key { ", in its own key for the voice in it" } else { "" };
     let mut said = vec![format!("its hook ({}) without {without}{key}", hook.said())];
+    if let Some(t) = sung {
+        // the hook's rate as the song counts it, at its own tempo, half or twice it
+        let rate =
+            [0.5, 1.0, 2.0].map(|k| k * t / bpm).into_iter().min_by(|x, y| x.ln().abs().total_cmp(&y.ln().abs()));
+        let rate = rate.unwrap_or(1.0);
+        let time = match t / bpm {
+            r if (r - 0.5).abs() < 0.01 => " in half time",
+            r if (r - 2.0).abs() < 0.01 => " in double time",
+            _ => "",
+        };
+        let speed = match rate {
+            r if (r - 1.0).abs() < 0.005 => "at its own speed".to_string(),
+            r if r < 1.0 => format!("slowed {:.0}%", (1.0 - r) * 100.0),
+            r => format!("sped up {:.0}%", (r - 1.0) * 100.0),
+        };
+        said.push(format!("at {t:.0} BPM{time}, the hook {speed}"));
+    }
     if let Some(v) = verse {
         said.push(format!("another passage of it ({})", v.said()));
     }
@@ -1324,7 +1380,11 @@ mod tests {
 
     /// `recording`'s stems: its melody the vocals, its chords the rest, and no bass
     fn recording_apart() -> Stems {
-        let bar = 2.5;
+        recording_apart_at(2.5)
+    }
+
+    /// `recording_apart` with bars of `bar` seconds
+    fn recording_apart_at(bar: f64) -> Stems {
         let n = (16.0 * bar * SRF) as usize;
         let (mut chords, mut melody, mut drums) = (Stereo::zeros(n), Stereo::zeros(n), Stereo::zeros(n));
         let roots = [57.0, 53.0, 48.0, 55.0];
@@ -1928,6 +1988,52 @@ mod tests {
         };
         assert_eq!(transposed(&sung), [0, 0]);
         assert!(transposed(&recording()).iter().any(|&s| s != 0));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_sung_hook_plays_at_its_own_speed_under_a_genres_range_as_far_as_the_genre_plays_a_record_so() {
+        let trip_hop = (78.0, 94.0);
+        // a pop record of 125 in half time, a fifth under trip hop's slowest, rather than stretched by a quarter
+        assert_eq!(sung_tempo(125.0, trip_hop, 0.25), Some(62.5));
+        assert_eq!(sung_tempo(120.0, trip_hop, 0.25), Some(60.0));
+        // a ballad of 65 at its own tempo
+        assert_eq!(sung_tempo(65.0, trip_hop, 0.25), Some(65.0));
+        // a little outside, stretched to the nearest edge; 110, whose half is under the quarter, as little as it can
+        assert_eq!(sung_tempo(100.0, trip_hop, 0.25), Some(94.0));
+        assert_eq!(sung_tempo(75.0, trip_hop, 0.25), Some(78.0));
+        assert_eq!(sung_tempo(110.0, trip_hop, 0.25), Some(94.0));
+        // one at its own speed in the range, as it is or in half time, and a genre that does not say, as before
+        assert_eq!(sung_tempo(90.0, trip_hop, 0.25), None);
+        assert_eq!(sung_tempo(170.0, trip_hop, 0.25), None);
+        assert_eq!(sung_tempo(96.0, (120.0, 126.0), 0.0), None);
+        let need = |g: &str| crate::sampling::need(&crate::genres::get(g).unwrap(), Role::Phrase).unwrap().under;
+        assert!(need("trip_hop") > 0.0 && need("house") == 0.0);
+    }
+
+    #[test]
+    fn a_trip_hop_flip_of_a_fast_sung_record_plays_it_at_its_own_speed_in_half_time_on_trip_hops_drums() {
+        // a record of 125 whose melody, a voice's, sings over its chords
+        let s = recording_apart_at(1.92);
+        let mut x = s.music();
+        x.add_at(&s.drums, 0, 1.0, 1.0);
+        let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
+        let dir = std::env::temp_dir().join(format!("claudius-flip-half-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
+        let g = crate::genres::get("trip_hop").unwrap();
+        let bp = remix(&src, &g, 3, &Options::default(), None, &dir, None).unwrap();
+        let phrase = bp.loops.iter().find(|l| l.name == PHRASE).expect("the hook plays");
+        let Sound::Loop { bpm, .. } = phrase.sound else { panic!("a loop") };
+        // under trip hop's range, the hook at its own speed and in its own key, not stretched into the range
+        assert!(bp.bpm < g.bpm.0, "{} BPM", bp.bpm);
+        assert!((bp.bpm / bpm).ln().abs() < 0.01 && phrase.transpose == 0, "{bpm} in a song at {}", bp.bpm);
+        assert!(bp.lineage.iter().any(|l| l.contains("the hook at its own speed")), "{:?}", bp.lineage);
+        // trip hop's drums, not the record's playing on at twice the song's tempo
+        assert!(
+            !bp.loops.iter().any(|l| l.name == BREAK),
+            "{:?}",
+            bp.loops.iter().map(|l| &l.name).collect::<Vec<_>>()
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
