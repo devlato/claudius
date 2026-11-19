@@ -410,9 +410,7 @@ impl Studio {
         }
         if let Some(got) = chosen(Want::Song) {
             match got {
-                Ok(file) if file.name.to_lowercase().ends_with(".zip") => {
-                    self.backend.open_project(&file.name, file.bytes)
-                }
+                Ok(file) if claudius_api::is_project(&file.name) => self.backend.open_project(&file.name, file.bytes),
                 #[cfg(not(target_arch = "wasm32"))]
                 Ok(file) if let Some(project) = file.as_project() => match project {
                     Ok((name, zip)) => self.backend.open_project(&name, zip),

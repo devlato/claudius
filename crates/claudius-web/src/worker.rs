@@ -199,8 +199,7 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         let id = ask["id"].as_u64().unwrap_or(0);
         match e.host.project() {
             Ok(zip) => {
-                let json =
-                    serde_json::json!({ "encoded": { "id": id, "extension": "zip", "mime": "application/zip" } });
+                let json = serde_json::json!({ "encoded": { "id": id, "extension": claudius::song::PROJECT_EXTENSION, "mime": "application/octet-stream" } });
                 post_bytes(&e.scope, &json, js_sys::Uint8Array::from(zip.as_slice()));
             }
             Err(why) => post(&e.scope, &serde_json::json!({ "encoded": { "id": id, "error": why } }), None),

@@ -25,7 +25,7 @@ impl Want {
     /// the kinds of file it offers: what they are, and their extensions
     pub fn kinds(self) -> (&'static str, &'static [&'static str]) {
         match self {
-            Want::Song => ("a claudius song", &["json", "rhai", "zip"]),
+            Want::Song => ("a claudius song", &["claudius", "json", "rhai", "zip"]),
             Want::Audio | Want::Recording => {
                 ("audio", &["wav", "mp3", "flac", "m4a", "aac", "aif", "aiff", "ogg", "opus", "caf"])
             }
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn each_want_offers_its_kinds_of_file() {
-        assert_eq!(Want::Song.accept(), ".json,.rhai,.zip");
+        assert_eq!(Want::Song.accept(), ".claudius,.json,.rhai,.zip");
         assert!(Want::Audio.kinds().1.contains(&"m4a") && Want::Audio.accept().starts_with(".wav,.mp3,"));
         assert_eq!(Want::Cover.kinds(), ("an image", &["png", "jpg", "jpeg"][..]));
     }

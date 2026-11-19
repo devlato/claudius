@@ -808,8 +808,8 @@ impl App {
         if let Err(e) = self.readable(&path) {
             return no(e, v);
         }
-        if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
-            let name = path.file_name().map_or_else(|| "project.zip".into(), |n| n.to_string_lossy().into_owned());
+        if song::is_project(&path.display().to_string()) {
+            let name = path.file_name().map_or_else(|| "project.claudius".into(), |n| n.to_string_lossy().into_owned());
             return match std::fs::read(&path) {
                 Ok(zip) => self.open_project(&name, &zip),
                 Err(e) => no(format!("cannot read {}: {e}", path.display()), v),

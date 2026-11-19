@@ -133,6 +133,18 @@ const MOST_FILES: usize = 10_000;
 /// (its files under a folder of its name, with Finder's `__MACOSX/` beside it), unpacks as the project in it. A file it
 /// holds outside itself (`../`) is refused, and so is a zip with no blueprint.json, or one that unpacks to more than
 /// 2 GB or 10,000 files.
+/// A project's file extension: a project is a zip (`pack_project`) by a name of its own, so that a browser keeps it
+/// whole rather than unpacking it as Safari does a `.zip`, and a system can open it with claudius. A `.zip` of the same
+/// (what earlier demos saved, or a song folder zipped by hand) opens as well. The studio's `claudius_api` has the same.
+pub const PROJECT_EXTENSION: &str = "claudius";
+
+/// whether `name` names a project file: a `.claudius`, or a `.zip` as earlier demos saved them
+pub fn is_project(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(PROJECT_EXTENSION) || e.eq_ignore_ascii_case("zip"))
+}
+
 pub fn unpack_project(bytes: &[u8], name: &str, songs: &Path) -> Result<PathBuf> {
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).with_context(|| format!("{name} is not a zip"))?;
     let files = project_entries(&mut zip, name)?;

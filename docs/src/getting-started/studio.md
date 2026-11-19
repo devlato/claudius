@@ -89,7 +89,8 @@ of its sound; **Its tempo** gives the open song its tempo, and **Its key and cho
 its parts, to play until it listens to another. The demo plays the file you chose, as it is, without its parts.
 **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
-the song it opens. It also opens a project the demo saved, a `.zip`: claudius unpacks it into a song folder of its own
+the song it opens. It also opens a project the demo saved, a `.claudius` file (or the `.zip` an earlier demo saved):
+claudius unpacks it into a song folder of its own
 ([Carrying on in claudius](#carrying-on-in-claudius)).
 
 ## The panels
@@ -321,26 +322,29 @@ assistant swaps a sound with
 ## Carrying on in claudius
 
 A song begun in the [demo](https://claudius.devlato.com/studio/?mock) goes on in claudius. The demo's **Export** menu
-downloads it as **claudius project (.zip)**: its `blueprint.json` and `song.rhai`, and under `samples/` every sample
+downloads it as a **Project file (.claudius)**, named after the song: a zip of its `blueprint.json` and `song.rhai`,
+and under `samples/` every sample
 it plays, cut from the free libraries' recordings, with the recording it came from beside each (its page, who made it
 and its licence) in a `.json`, and their credits in `credits.txt`. A sample is kept as 24-bit FLAC, and a drum hit as
 the 32-bit WAV the demo cut it as, so nothing of them is lost.
 
-[Install claudius](install.md), then **Open** the zip in the studio, or have an assistant `open` it: claudius unpacks
+[Install claudius](install.md), then **Open** the file in the studio, or have an assistant `open` it: claudius unpacks
 it into a song folder of its own under `~/Music/claudius`, named after the file, and opens the song there, playing
-the samples the zip brought. From then on it is a song like any other: it saves into that folder, and credits the
+the samples the file brought. From then on it is a song like any other: it saves into that folder, and credits the
 recordings it plays in the folder's `credits.txt`
 ([Where they go, and credits](../guide/online-samples.md#where-they-go-and-credits)). A zip with a file that would
 land outside its folder is not opened, nor one that would unpack to more than 2 GB or 10,000 files.
 
-Safari unpacks a zip it downloads into a folder. Choose the `blueprint.json` in that folder: the studio app brings the
-samples beside it along, as the zip would have, and the song opens in a folder of its own all the same. A project's
-folder zipped again, as Finder or Explorer zips one, opens as the demo's zip does.
+The file is a zip by a name of its own so that a browser keeps it whole: Safari unpacks a `.zip` it downloads into a
+folder. claudius opens the `.zip` projects earlier demos saved all the same, and a project's folder zipped again, as
+Finder or Explorer zips one. A folder Safari unpacked opens too: choose the `blueprint.json` in it, and the studio app
+brings the samples beside it along, as the file would have.
 
-The demo opens its projects too: **Open**, then **Choose a file...** and the zip, and the song is open in the page
+The demo opens its projects too: **Open**, then **Choose a file...** and the `.claudius` file, and the song is open in the page
 again with the samples and takes it plays, each crediting the recording it came from, so that you can carry on where
 you left off without installing anything. The page keeps nothing once it is closed, so download the project again
-when you have changed the song. A zip that holds no `blueprint.json`, or plays a file it does not hold, is not opened.
+when you have changed the song. A project that holds no `blueprint.json`, or plays a file it does not hold, is not
+opened.
 
 The demo opens on the song its address names, which its engine writes again from the same genre and seed: the
 [radio](radio.md)'s **Open it in the studio** links a song it plays that way
