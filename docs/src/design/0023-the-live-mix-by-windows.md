@@ -42,12 +42,15 @@ The live mix comes first by windows of the song, and the runtime of 0019 replace
 
 - **The page's player** (the web studio connected to a claudius) plays on Web Audio: the render decoded once into a
   buffer, played from it on the audio clock. A window goes into the buffer over what the render holds there, faded in
-  and out over 5 ms as on the desktop, and a source started again at the moment it would be fades in over the one
-  playing, which may have read the buffer when it started; both play the same up to the window, which comes after it.
+  and out over 5 ms as on the desktop; a window of the same version that follows on from the last is joined to it, the
+  last one's end written back as it came and no fade between the two, so that a run of windows plays through as one
+  stretch. A source started again at the moment it would be fades in over the one playing, which may have read the
+  buffer when it started; both play the same up to the window, which comes after it.
   Its audio runs at 48 kHz, claudius's rate, because a browser decodes a render to the rate its audio runs at and a
   window has to fit the buffer sample for sample (where a browser will not run at 48 kHz, each window is resampled to
   the rate it does run at). A new render takes over from where the song has got to, fading in over the one before,
-  and play and pause fade in and out, so that nothing clicks. It once played a whole file through an audio element,
+  and play and pause fade in and out, so that nothing clicks. A play, pause, stop or seek while a render is still on
+  its way counts: the render plays, or does not, from where the song was left, as on the desktop. It once played a whole file through an audio element,
   over which nothing could be played.
 
 The demo's engine makes no windows yet: its preview (the last render with the twelve seconds from the playhead

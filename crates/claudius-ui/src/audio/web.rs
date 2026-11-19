@@ -9,6 +9,7 @@ use eframe::egui;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode};
 
+use super::seam::{self, Seam};
 use super::{Pcm, Source};
 
 /// how long a window fades in and out against what it plays over, in seconds, as on the desktop
@@ -33,8 +34,13 @@ pub struct Player {
     /// the volume, which every source plays through
     volume: Option<GainNode>,
     buffer: Option<AudioBuffer>,
-    /// a load being decoded, with whether to play once it is, and from where
-    decoding: Option<(Decoded, bool, f64)>,
+    /// a load being decoded
+    decoding: Option<Decoded>,
+    /// play the load being decoded once it is: the song played when it began, or play was pressed since, and not
+    /// paused or stopped after, as the desktop player keeps it
+    play_on_arrival: bool,
+    /// where the last window of the live mix written into the buffer ends, for one that carries on from it
+    seam: Option<Seam>,
     playing: Option<Playing>,
     /// where the song is when not playing, or where it was when the source playing started, in seconds
     offset: f64,
@@ -66,6 +72,8 @@ impl Player {
             volume,
             buffer: None,
             decoding: None,
+            play_on_arrival: false,
+            seam: None,
             playing: None,
             offset: 0.0,
             started: 0.0,
@@ -89,10 +97,13 @@ impl Player {
         let was_playing = self.is_playing();
         let pos = if keep_position { self.position() } else { 0.0 };
         // a song that carries on plays the audio it had until the new audio is ready, which then takes over where the
-        // song has got to; another song stops the one before
+        // song has got to; another song stops the one before, and is where it plays from (or a play, pause, stop or
+        // seek meanwhile says otherwise)
         if !(keep_position && was_playing) {
             self.halt();
+            self.offset = pos;
         }
+        self.play_on_arrival = was_playing;
         self.pcm = None;
         self.loaded = true;
         self.error = None;
@@ -120,7 +131,7 @@ impl Player {
                 });
             }
         }
-        self.decoding = Some((decoded, was_playing, pos));
+        self.decoding = Some(decoded);
         self.tick();
     }
 
@@ -129,25 +140,30 @@ impl Player {
         self.halt();
         self.buffer = None;
         self.decoding = None;
+        self.play_on_arrival = false;
+        self.seam = None;
         self.pcm = None;
         self.loaded = false;
         self.offset = 0.0;
     }
 
     pub fn tick(&mut self) {
-        // a load decoded: it plays from where the one before it was, as it was
-        let done = self.decoding.as_ref().and_then(|(d, _, _)| d.borrow_mut().take());
-        if let Some(done) = done
-            && let Some((_, play, pos)) = self.decoding.take()
-        {
+        // a load decoded: it plays from where the song is now, as the song is now, whatever was pressed while it was
+        // on its way
+        let done = self.decoding.as_ref().and_then(|d| d.borrow_mut().take());
+        if let Some(done) = done {
+            self.decoding = None;
+            let play = std::mem::take(&mut self.play_on_arrival);
             match done {
                 Ok(buffer) => {
                     // the audio before played on while this one was decoded: it takes over from where the song is now,
-                    // fading in over it
+                    // fading in over it; or the song is where it was left (where the load began, or a pause, stop or
+                    // seek since)
                     let carried = self.playing.is_some();
-                    let pos = if carried { self.position() } else { pos };
+                    let pos = self.position();
                     let fits = pos < buffer.duration();
                     self.buffer = Some(buffer);
+                    self.seam = None;
                     match &self.ctx {
                         Some(ctx) if carried && fits => {
                             let when = ctx.current_time() + AHEAD;
@@ -157,7 +173,7 @@ impl Player {
                         _ => {
                             self.halt();
                             self.offset = if fits { pos } else { 0.0 };
-                            if play {
+                            if carried || play {
                                 self.play();
                             }
                         }
@@ -178,10 +194,11 @@ impl Player {
     }
 
     /// A window of the live mix, of the song at `version`, from `start` seconds: written into the buffer over what the
-    /// render holds there, faded in and out over `FADE` against it, and heard at once by a source started again at the
-    /// moment it would be, fading in over the one before (both play the same up to the window, which comes after it).
-    pub fn patch(&mut self, _version: u64, start: f64, pcm: std::sync::Arc<Pcm>) {
-        let (Some(ctx), Some(buffer)) = (&self.ctx, &self.buffer) else { return };
+    /// render holds there, faded in and out over `FADE` against it, or joined to the window before when it carries on
+    /// from it (`seam::put`), and heard at once by a source started again at the moment it would be, fading in over the
+    /// one before (both play the same up to the window, which comes after it).
+    pub fn patch(&mut self, version: u64, start: f64, pcm: std::sync::Arc<Pcm>) {
+        let Some(buffer) = self.buffer.as_mut() else { return };
         let rate = buffer.sample_rate() as f64;
         // a browser that would not run at claudius's rate decoded the render to its own: the window follows it
         let resampled;
@@ -192,29 +209,12 @@ impl Player {
             &resampled
         };
         let first = (start * rate).round().max(0.0) as usize;
-        let total = buffer.length() as usize;
-        let frames = pcm.frames().min(total.saturating_sub(first));
-        if frames == 0 {
+        let fade = (FADE * rate) as usize;
+        if !seam::put(buffer, &mut self.seam, version, first, &pcm.samples, pcm.channels as usize, fade) {
             return;
         }
-        let fade = ((FADE * rate) as usize).clamp(1, frames / 2 + 1);
-        let channels = pcm.channels.max(1) as usize;
-        for ch in 0..buffer.number_of_channels() as usize {
-            let mut held = vec![0.0f32; frames];
-            if buffer.copy_from_channel_with_start_in_channel(&mut held, ch as i32, first as u32).is_err() {
-                return;
-            }
-            for (i, h) in held.iter_mut().enumerate() {
-                let w = pcm.samples[i * channels + ch.min(channels - 1)];
-                let k = ((i + 1).min(frames - i) as f32 / fade as f32).min(1.0);
-                *h = *h * (1.0 - k) + w * k;
-            }
-            if buffer.copy_to_channel_with_start_in_channel(&held, ch as i32, first as u32).is_err() {
-                return;
-            }
-        }
         // the source playing may have read the buffer when it started: one started again plays what it holds now
-        if self.playing.is_some() {
+        if let (Some(ctx), true) = (&self.ctx, self.playing.is_some()) {
             let when = ctx.current_time() + AHEAD;
             let at = self.position_at(when);
             self.start(at, when, FADE);
@@ -231,6 +231,10 @@ impl Player {
     }
 
     pub fn play(&mut self) {
+        // pressed while the audio is on its way: it plays once it is here
+        if self.decoding.is_some() {
+            self.play_on_arrival = true;
+        }
         let Some(ctx) = &self.ctx else { return };
         if self.buffer.is_none() || self.playing.is_some() {
             return;
@@ -248,6 +252,7 @@ impl Player {
     }
 
     pub fn pause(&mut self) {
+        self.play_on_arrival = false;
         if self.playing.is_some() {
             self.offset = self.position();
             self.halt();
@@ -362,6 +367,25 @@ impl Player {
                 let _ = scheduled(&p.source).stop();
             }
         }
+    }
+}
+
+/// the page's buffer, which a window of the live mix goes into
+impl seam::Channels for AudioBuffer {
+    fn channels(&self) -> usize {
+        self.number_of_channels() as usize
+    }
+
+    fn frames(&self) -> usize {
+        self.length() as usize
+    }
+
+    fn read(&self, ch: usize, at: usize, into: &mut [f32]) -> bool {
+        self.copy_from_channel_with_start_in_channel(into, ch as i32, at as u32).is_ok()
+    }
+
+    fn write(&mut self, ch: usize, at: usize, from: &[f32]) -> bool {
+        self.copy_to_channel_with_start_in_channel(from, ch as i32, at as u32).is_ok()
     }
 }
 

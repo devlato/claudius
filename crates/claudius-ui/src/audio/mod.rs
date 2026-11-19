@@ -1,6 +1,7 @@
 //! Playback of the latest render. Native: the 24-bit WAV master is fetched, decoded and played through rodio by a
-//! custom source (seek, pause, loop regions and position are lock-free atomics). Web: an `HtmlAudioElement` plays
-//! the mp3, `currentTime` is the playhead. Generated audio (the mock's preview) goes through the same players.
+//! custom source (seek, pause, loop regions and position are lock-free atomics). Web: the render decoded once into a
+//! Web Audio buffer and played from it, the audio clock the playhead. Generated audio (the mock's preview) goes through
+//! the same players, and so do the live mix's windows (design 0023).
 
 use std::sync::Arc;
 
@@ -16,6 +17,8 @@ pub mod record;
 pub mod record;
 pub mod take;
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod seam;
 #[cfg(target_arch = "wasm32")]
 mod web;
 #[cfg(target_arch = "wasm32")]
