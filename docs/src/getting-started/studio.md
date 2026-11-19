@@ -332,6 +332,11 @@ again with the samples and takes it plays, each crediting the recording it came 
 you left off without installing anything. The page keeps nothing once it is closed, so download the project again
 when you have changed the song. A zip that holds no `blueprint.json`, or plays a file it does not hold, is not opened.
 
+The demo opens on the song its address names, which its engine writes again from the same genre and seed: the
+[radio](radio.md)'s **Open it in the studio** links a song it plays that way
+(`/studio/?mock&genre=deep_house&seed=812&bpm=121.5&key=F+minor&sampled=0`, each as
+[`new_song`](../guide/mcp.md) takes it). Without a genre it opens its own first song.
+
 ## Help and assistants
 
 A small **(?)** beside a setting whose name is not plain (Intensity, Transitions, Swing, Register, a bus, the

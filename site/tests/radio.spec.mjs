@@ -38,4 +38,38 @@ test.describe("the radio", () => {
       await b.close();
     }
   });
+
+  test("keeps to the genres chosen, hands the song on air over as a file, opens it in the studio and skips", async ({ baseURL }) => {
+    test.setTimeout(420_000);
+    const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const page = await b.newPage({ baseURL, acceptDownloads: true });
+      const problems = [];
+      page.on("pageerror", (e) => problems.push(e.message));
+      await page.goto("/radio/?genres=deep_house,house");
+      await expect(page.locator("#genres-said")).toHaveText("deep house, house");
+      await page.locator("#tune").click();
+      await expect(page.locator("#tune")).toHaveText("Pause", { timeout: 120_000 });
+      await expect(page.locator("#now-meta")).toHaveText(/^(deep house|house) · /);
+      // the studio writes the same song again from what the station asked for
+      const open = await page.locator("#open").getAttribute("href");
+      expect(open).toMatch(/^\/studio\/\?mock&genre=(deep_house|house)&seed=\d+&bpm=[\d.]+&sampled=0/);
+      // the song on air, as an MP3 the engine makes
+      const [file] = await Promise.all([page.waitForEvent("download", { timeout: 240_000 }), page.locator("#download").click()]);
+      expect(file.suggestedFilename()).toMatch(/\.mp3$/);
+      const saved = await file.path();
+      expect(saved).toBeTruthy();
+      await expect(page.locator("#status")).toContainText("is in your downloads");
+      // once the next song is written, Skip brings it in on the next beat, and it is of the genres chosen too
+      const first = await page.locator("#now-title").textContent();
+      await expect(page.locator("#next")).toContainText(/(mixes|comes) in .* from now/, { timeout: 240_000 });
+      await page.locator("#skip").click();
+      await expect(page.locator("#now-title")).not.toHaveText(first, { timeout: 5_000 });
+      await expect(page.locator("#played li").first()).toContainText(first);
+      await expect(page.locator("#now-meta")).toHaveText(/^(deep house|house) · /);
+      expect(problems).toEqual([]);
+    } finally {
+      await b.close();
+    }
+  });
 });
