@@ -16,7 +16,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `edits.rs` | edits applied to a `SongView`, for optimistic updates |
 | `cmds.rs` | builders for commands that change a few fields |
 | `panels/` | one module per panel |
-| `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; the take [recorder](#recording): cpal and midir natively, Web Audio in the browser |
+| `audio/` | the player: rodio natively, Web Audio on the web; the take [recorder](#recording): cpal and midir natively, Web Audio in the browser |
 | `mock/` | the built-in demo: the claudius engine in a Web Worker (in the app, on a thread of its own) ([below](#the-demo)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `claudius_api::words` | not a file of the studio's, but where its words come from: the names a script writes as a person reads them (`sub_bass` "sub bass", `tr909:bd` "kick (TR-909)"), pan ("30% left"), the verdict's measures with their units, effects and their settings, the drums' patterns. What each preset, drum voice and style is comes from the engine, in `SoundList`'s `about` and `styles`; the studio shows the words beside the values and in tooltips, and a name a script writes under them |
@@ -208,7 +208,10 @@ When a new render arrives (`render.version` changed), the player loads it:
   UI thread never blocks the audio thread. Play and pause ramp the gain over about 5 ms so they never click. The
   output device is opened once, when the window starts; if that fails the status bar shows `audio: no audio output:
   ...`.
-- **Web** (`audio/web.rs`): an `HtmlAudioElement` plays the MP3, and `currentTime` is the playhead.
+- **Web** (`audio/web.rs`): Web Audio. The render is decoded once into an `AudioBuffer` and played by a buffer source
+  through a gain; the playhead is where the source started plus the audio clock's time since, through the loop. A seek
+  starts a source again, fading in over the one before; so does a window of the live mix, written into the buffer
+  with a 5 ms fade at each end.
 
 A new render of the same song keeps the playback position (and the loop region, which the studio sets
 separately), so you can listen to a section while you edit it and hear each change land in place.
