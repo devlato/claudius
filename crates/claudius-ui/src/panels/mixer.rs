@@ -21,7 +21,7 @@ const MASTER_W: f32 = 122.0;
 const STRIP_MIN_H: f32 = 200.0;
 
 /// the render's peak envelope at `t` in dB, and its average
-fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
+pub(crate) fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
     let n = render.waveform.len();
     if n == 0 || render.seconds <= 0.0 {
         return None;

@@ -3,6 +3,7 @@
 
 pub mod arrange;
 pub mod assistants;
+pub mod board;
 pub mod chat;
 pub mod graph;
 pub mod harmony;
