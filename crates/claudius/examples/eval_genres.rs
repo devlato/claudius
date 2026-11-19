@@ -32,6 +32,10 @@
 //! - **spread**, how much claudius's songs differ from one another, as a share of how much the real ones do (mean
 //!   cosine distance between pairs): shown, never judged, as neither more nor less is better by itself.
 //!
+//! With `--songs`, `run` also writes a line for each song (its genre and seed the item, its typical and whether it is
+//! identified), the yardstick for a change to one genre: a genre is one item of the lines above, and its songs, made
+//! with the same seeds before and after the change, pair up one by one.
+//!
 //! `remake` hears claudius's remakes of real songs in a genre (`--how`: `flip`, a new song on a recording's hook and
 //! pieces of it, or `rework`, the recording all through with the genre under it), the yardstick for a change to how a
 //! recording is remade: the dataset's songs in the shards of `--half` that are in `--sources` (a folder `embed` or
@@ -53,7 +57,7 @@
 //! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
 //!     [--most 300] [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
-//!     [--out FILE] [--genres a,b,...] [--threads N] [--keep DIR]
+//!     [--out FILE] [--genres a,b,...] [--songs FILE] [--threads N] [--keep DIR]
 //! cargo run --release -p claudius --example eval_genres -- remake REAL --sources DIR --genre G
 //!     [--how flip|rework] [--seeds 1..2] [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b]
 //!     [--threads N] [--keep DIR]
@@ -168,12 +172,15 @@ fn main() {
         ),
         (Some("run"), Some(real)) => run(
             Path::new(real),
-            &range("--seeds", (1, 20)),
-            flag("--half").as_deref().unwrap_or("tune"),
-            &flag("--out").map_or_else(|| PathBuf::from("genres.jsonl"), PathBuf::from),
-            flag("--genres").map(|g| g.split(',').map(String::from).collect()),
+            &Runs {
+                seeds: range("--seeds", (1, 20)),
+                half: flag("--half").unwrap_or_else(|| "tune".into()),
+                out: flag("--out").map_or_else(|| PathBuf::from("genres.jsonl"), PathBuf::from),
+                only: flag("--genres").map(|g| g.split(',').map(String::from).collect()),
+                keep: flag("--keep").map(PathBuf::from),
+                songs: flag("--songs").map(PathBuf::from),
+            },
             threads,
-            flag("--keep").map(PathBuf::from),
         ),
         (Some("remake"), Some(real)) => match (flag("--sources"), flag("--genre")) {
             (Some(sources), Some(genre)) => remake(
@@ -196,7 +203,7 @@ fn main() {
         },
         _ => Err("usage: eval_genres embed DIR [--shards 0..99] [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres run REAL [--seeds 1..20] [--half tune|confirm] [--out FILE] [--genres a,b] \
-                  [--threads N] [--keep DIR]\n       \
+                  [--songs FILE] [--threads N] [--keep DIR]\n       \
                   eval_genres remake REAL --sources DIR --genre G [--how flip|rework] [--seeds 1..2] \
                   [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]"
             .into()),
@@ -503,16 +510,21 @@ fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path) -> Re
 }
 
 /// Each measured genre's songs of `seeds`, heard against its real songs of `half`, a line each into `out`.
-fn run(
-    real: &Path,
-    seeds: &[u64],
-    half: &str,
-    out: &Path,
+/// what `run` makes and where it writes it
+struct Runs {
+    seeds: Vec<u64>,
+    half: String,
+    out: PathBuf,
+    /// the genres measured, when not every one
     only: Option<Vec<String>>,
-    threads: usize,
     keep: Option<PathBuf>,
-) -> Result<(), String> {
-    let parity = parity_of(half)?;
+    /// where to write a line for each song as well (`--songs`), to compare a change to one genre song by song
+    songs: Option<PathBuf>,
+}
+
+fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
+    let (seeds, only) = (&r.seeds, &r.only);
+    let parity = parity_of(&r.half)?;
     let by_genre = real_songs(real, parity)?;
     let centroids = centroids_of(&by_genre);
     let measured: Vec<&(&str, &str, &[&str], &[&str])> = GENRES
@@ -520,7 +532,8 @@ fn run(
         .filter(|(g, ..)| by_genre.get(*g).is_some_and(|s| s.len() >= FEWEST))
         .filter(|(g, ..)| only.as_ref().is_none_or(|o| o.iter().any(|x| x == g)))
         .collect();
-    let scratch = keep.unwrap_or_else(|| std::env::temp_dir().join(format!("eval-genres-{}", std::process::id())));
+    let scratch =
+        r.keep.clone().unwrap_or_else(|| std::env::temp_dir().join(format!("eval-genres-{}", std::process::id())));
     std::fs::create_dir_all(&scratch).map_err(|e| e.to_string())?;
     // every song of every genre, shared out among the threads, each with ears of its own
     let jobs: Vec<(&str, u64)> = measured.iter().flat_map(|(g, ..)| seeds.iter().map(move |&s| (*g, s))).collect();
@@ -551,14 +564,34 @@ fn run(
             Err(e) => eprintln!("{e}"),
         }
     }
-    let mut f = std::fs::File::create(out).map_err(|e| e.to_string())?;
+    let mut f = std::fs::File::create(&r.out).map_err(|e| e.to_string())?;
     let head = json!({"better": {"kad": "lower"}, "primary": ["kad"], "shown": ["spread"]});
     writeln!(f, "{head}").map_err(|e| e.to_string())?;
+    // each song as an item of its own: how alike it is to the real songs of its genre most like it, and whether it is
+    // heard as its genre, paired across two runs by its genre and seed
+    let mut each = match &r.songs {
+        Some(p) => {
+            let mut file = std::fs::File::create(p).map_err(|e| e.to_string())?;
+            writeln!(file, "{}", json!({"primary": ["typical"]})).map_err(|e| e.to_string())?;
+            Some(file)
+        }
+        None => None,
+    };
     println!("genre\treal\tsongs\tkad\ttypical\tidentified\tspread");
     for (g, family, ..) in measured {
         let reals = &by_genre[*g];
         let mut mine = songs.remove(*g).unwrap_or_default();
         mine.sort_by_key(|(s, _)| *s);
+        if let Some(file) = each.as_mut() {
+            for (seed, e) in &mine {
+                let line = json!({
+                    "item": format!("{g}:{seed}"),
+                    "slice": {"family": family, "genre": g},
+                    "metrics": {"typical": hundredths(typical_of(e, reals)), "identified": heard_as(e, &centroids) == Some(*g)},
+                });
+                writeln!(file, "{line}").map_err(|e| e.to_string())?;
+            }
+        }
         let mine: Vec<Vec<f64>> = mine.into_iter().map(|(_, e)| e).collect();
         if mine.len() < 2 {
             eprintln!("{g}: fewer than two songs heard");
