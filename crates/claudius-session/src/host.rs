@@ -108,6 +108,8 @@ pub struct Host {
     played: Option<Instant>,
     /// a mutation or an evolution under way, a candidate at a time (`step`)
     breeding: Option<Breeding>,
+    /// a recording being remade, a stage at a time (`step_listen`), so that a stop sent meanwhile is read between them
+    remaking: Option<Remaking>,
     /// the last pitch check asked for, as it was asked and as the studio shows it, and how many were asked for
     pitch_check: Option<(check::Check, PitchCheck)>,
     asked: u64,
@@ -165,6 +167,7 @@ impl Host {
             playhead: 0.0,
             played: None,
             breeding: None,
+            remaking: None,
             pitch_check: None,
             asked: 0,
             voice: None,
@@ -244,6 +247,79 @@ impl Host {
     /// studio sends (`listen`): analyzed, remade in a genre (a new song, as a new song replaces the old), its vocals
     /// sampled into the song, or its groove taken for the song's drums. What a remake or the sampler keeps of it is kept
     /// in memory (`take::IN_MEMORY`), and goes in the project the page saves.
+    /// What a page's engine is asked to listen to, begun: a remake goes a stage a turn (`step_listen`), and answers
+    /// once it is made or stopped (none now); anything else is listened to at once, as `listen` does.
+    pub fn start_listen(&mut self, l: &crate::listen::Listen, bytes: Vec<u8>) -> Option<Reply> {
+        use crate::listen::{self, Listen};
+        let Listen::Remake { genre, seed, flip, rebuild, .. } = l else { return Some(self.listen(l, bytes)) };
+        if self.remaking.as_ref().is_some_and(|r| !r.stopped) {
+            return Some(self.no("a recording is being remade already: stop it first, or wait for it"));
+        }
+        let name = l.name().to_string();
+        let x = match listen::decode(bytes, &name) {
+            Ok(x) => x,
+            Err(e) => return Some(self.no(e)),
+        };
+        let genre =
+            genre.clone().or_else(|| self.bp.as_ref().map(|b| b.genre.clone())).unwrap_or_else(|| "house".into());
+        if let Err(e) = genres::get(&genre) {
+            return Some(self.no(e.to_string()));
+        }
+        let seed = seed.unwrap_or_else(|| self.seed());
+        self.remaking = Some(Remaking {
+            what: l.what().to_string(),
+            name,
+            x,
+            genre,
+            seed,
+            how: listen::Remade::of(None, Some(*flip), Some(*rebuild)),
+            stems: None,
+            heard: None,
+            stopped: false,
+        });
+        None
+    }
+
+    /// whether a remake is under way (`step_listen`), and what it answers as
+    pub fn remaking(&self) -> Option<&str> {
+        self.remaking.as_ref().map(|r| r.what.as_str())
+    }
+
+    /// The remake under way taken a stage further: the recording taken apart into its parts, then listened to, then
+    /// remade into the song; its answer once it is made, or stopped (the song as it was).
+    pub fn step_listen(&mut self) -> Option<Reply> {
+        use crate::listen;
+        let r = self.remaking.as_mut()?;
+        if r.stopped {
+            let name = r.name.clone();
+            self.remaking = None;
+            return Some(self.no(format!("stopped: {name} was not remade, and the song stays as it was")));
+        }
+        if r.stems.is_none() {
+            r.stems = Some(claudius::stems::of(&r.x, &mut |_| {}));
+            return None;
+        }
+        if r.heard.is_none() {
+            let stems = r.stems.clone().flatten();
+            r.heard = Some(Box::new(claudius::analysis::song::analyze_with(&r.x, stems.as_deref(), None)));
+            return None;
+        }
+        let r = self.remaking.take()?;
+        let (stems, a) = (r.stems.flatten(), r.heard?);
+        let g = match genres::get(&r.genre) {
+            Ok(g) => g,
+            Err(e) => return Some(self.no(e.to_string())),
+        };
+        let lib = self.lib.clone();
+        let dir = std::path::Path::new(take::IN_MEMORY);
+        let with = listen::With { lib: lib.as_deref().map(|l| l as &dyn compose::Library), dir, ears: None };
+        let src = listen::Heard { x: &r.x, path: &r.name, name: &r.name, a: &a, stems: stems.as_deref() };
+        let (bp, verb, told) = listen::remake(&src, &g, r.seed, None, r.how, &with);
+        self.forget_render();
+        let said = format!("{verb} {} as {}{told}:\n{}", r.name, r.genre, listen::analysis_text(&a));
+        Some(self.commit_song(Some(bp), said))
+    }
+
     pub fn listen(&mut self, l: &crate::listen::Listen, bytes: Vec<u8>) -> Reply {
         use crate::listen::{self, Listen};
         let name = l.name().to_string();
@@ -488,18 +564,23 @@ impl Host {
             song: self.bp.as_ref().map(|b| views::song(b, &self.loudness)),
             render: self.render.clone(),
             verdict: self.verdict.clone(),
-            busy: match &self.breeding {
-                Some(b) => {
+            busy: match (&self.remaking, &self.breeding) {
+                (Some(r), _) => Some(r.doing()),
+                (None, Some(b)) => {
                     let (done, all) = b.run.progress();
                     Some(format!("{}: {done} of {all} judged", b.what))
                 }
-                None => self.stale().then(|| "rendering".to_string()),
+                (None, None) => self.stale().then(|| "rendering".to_string()),
             },
-            progress: self.breeding.as_ref().map(|b| {
-                let (done, all) = b.run.progress();
-                done as f32 / all.max(1) as f32
-            }),
-            cancellable: self.breeding.is_some(),
+            progress: match (&self.remaking, &self.breeding) {
+                (Some(r), _) => Some(r.stage() as f32 / 3.0),
+                (None, Some(b)) => {
+                    let (done, all) = b.run.progress();
+                    Some(done as f32 / all.max(1) as f32)
+                }
+                (None, None) => None,
+            },
+            cancellable: self.breeding.is_some() || self.remaking.is_some(),
             can_undo: self.history.can_undo(),
             can_redo: self.history.can_redo(),
             undo_steps: self.history.steps().0,
@@ -795,6 +876,13 @@ impl Host {
                     ..self.breed_settings()
                 };
                 self.breed("evolving", s, true)
+            }
+            // a remake stops before its next stage, and the song stays as it was
+            Command::Cancel if self.remaking.as_ref().is_some_and(|r| !r.stopped) => {
+                if let Some(r) = self.remaking.as_mut() {
+                    r.stopped = true;
+                }
+                self.ok("stopping after the current step")
             }
             Command::Cancel => match self.breeding.is_some() {
                 true => {
@@ -1459,6 +1547,39 @@ impl Host {
 
     fn no(&mut self, msg: impl Into<String>) -> Reply {
         Reply { ok: false, message: msg.into(), version: self.version }
+    }
+}
+
+/// A recording being remade in a page's engine, a stage at a time: taken apart into its parts, listened to, remade.
+struct Remaking {
+    /// what it answers as ("remake")
+    what: String,
+    name: String,
+    x: claudius::audio::Stereo,
+    genre: String,
+    seed: u64,
+    how: crate::listen::Remade,
+    /// the parts it was taken apart into (none, when it could not be), once it has been
+    stems: Option<Option<std::sync::Arc<claudius::stems::Stems>>>,
+    /// what was heard in it, once it has been listened to
+    heard: Option<Box<claudius::analysis::song::Analysis>>,
+    /// a stop asked for: it ends before its next stage, the song as it was
+    stopped: bool,
+}
+
+impl Remaking {
+    /// how many of its three stages are done
+    fn stage(&self) -> usize {
+        usize::from(self.stems.is_some()) + usize::from(self.heard.is_some())
+    }
+
+    /// what it is doing, as the status line says it
+    fn doing(&self) -> String {
+        match self.stage() {
+            0 => format!("taking {} apart into its voice, drums, bass and the rest", self.name),
+            1 => format!("listening to {}", self.name),
+            _ => format!("remaking {} as {}", self.name, self.genre.replace('_', " ")),
+        }
     }
 }
 
@@ -2493,6 +2614,61 @@ mod tests {
         // and a file that is no recording says so
         let r = h.listen(&Listen::Analyze { name: "notes".into(), recording: false }, b"hello".to_vec());
         assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
+    }
+
+    /// A remake on the page goes a stage a turn of its engine (the parts, the listening, the remake), so that a stop
+    /// sent meanwhile is read between them: stopped, the song stays as it was; let be, it is the remake `listen`
+    /// makes at once.
+    #[test]
+    fn a_remake_on_the_page_goes_a_stage_a_turn_and_a_stop_leaves_the_song_as_it_was() {
+        use crate::listen::Listen;
+        let bytes = wav(&a_song());
+        let remake = || Listen::Remake {
+            name: "my song.wav".into(),
+            genre: Some("boom_bap".into()),
+            seed: Some(3),
+            flip: false,
+            rebuild: false,
+        };
+        let song = || {
+            let mut h = Host::new(1);
+            assert!(command(&mut h, json!({"cmd": "new_song", "genre": "lofi", "seed": 5})).ok);
+            h
+        };
+        let shown = |h: &Host| serde_json::to_string(h.blueprint().unwrap()).unwrap();
+        let mut h = song();
+        let before = shown(&h);
+        assert!(h.start_listen(&remake(), bytes.clone()).is_none(), "a remake answers once it is made");
+        assert_eq!(h.remaking(), Some("remake"));
+        let state = h.state();
+        assert!(state.cancellable, "the studio offers its stop");
+        assert!(state.busy.is_some_and(|b| b.starts_with("taking my song.wav apart")), "and says what it does");
+        assert!(h.step_listen().is_none(), "taken apart");
+        assert!(command(&mut h, json!({"cmd": "cancel"})).ok);
+        let r = h.step_listen().expect("stopped before the next stage");
+        assert!(!r.ok && r.message.starts_with("stopped: my song.wav was not remade"), "{}", r.message);
+        assert!(h.remaking().is_none() && !h.state().cancellable);
+        assert_eq!(shown(&h), before, "the song stays as it was");
+        // let be, in three turns, the remake made at once
+        assert!(h.start_listen(&remake(), bytes.clone()).is_none());
+        let mut turns = 0;
+        let r = loop {
+            turns += 1;
+            if let Some(r) = h.step_listen() {
+                break r;
+            }
+        };
+        assert_eq!(turns, 3, "the parts, the listening, the remake");
+        assert!(r.ok && r.message.starts_with("reworked my song.wav as boom_bap"), "{}", r.message);
+        let mut at_once = song();
+        assert!(at_once.listen(&remake(), bytes.clone()).ok);
+        assert_eq!(shown(&h), shown(&at_once), "the same song");
+        // another recording while one is being made waits for it, and anything else is listened to at once
+        assert!(h.start_listen(&remake(), bytes.clone()).is_none());
+        let r = h.start_listen(&remake(), bytes.clone()).expect("refused at once");
+        assert!(!r.ok && r.message.contains("being remade already"), "{}", r.message);
+        let r = h.start_listen(&Listen::Analyze { name: "my song.wav".into(), recording: false }, bytes);
+        assert!(r.is_some_and(|r| r.ok), "an analysis answers at once");
     }
 
     #[test]

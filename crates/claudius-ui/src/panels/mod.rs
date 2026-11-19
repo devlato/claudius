@@ -266,6 +266,9 @@ pub struct NewSongForm {
     pub sample_how: &'static str,
     /// the example song chosen, by its name (`claudius_api::examples`)
     pub example: Option<&'static str>,
+    /// a song this window asked for from a recording (a remake, a flip or a rebuild) is being made: the window closed
+    /// meanwhile, by Cancel, its close button or Escape, stops it
+    pub making: bool,
 }
 
 /// what the New song dialog starts a song from
@@ -586,6 +589,7 @@ impl Default for View {
                 with_recording: WithRecording::default(),
                 sample_how: claudius_api::SAMPLING_WAYS[0].0,
                 example: None,
+                making: false,
             },
             mutate_count: 4,
             keep_best: true,
@@ -661,6 +665,7 @@ impl View {
     /// window of its own (`hears`), which the words of the answer go with.
     pub fn listened(&mut self, what: &str, ok: bool, message: String) {
         self.analyzing = false;
+        self.new_song.making = false;
         if ok && what == "analyze" && self.hears.is_open() {
             self.hears.said(&message);
             self.new_song.open = false;

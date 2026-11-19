@@ -71,7 +71,8 @@ line at the top right. What changed the song closes the dialog when it is done: 
 (`vox1`, `vox2` ... for sampled phrases), the toast says what came of it in a line ("sampled 2 phrases of song.mp3
 into the song: vox1, vox2"), the render it starts is on the line at the top, and the dialog keeps the whole answer
 for when you open it again, as the **Log** tab does. A file claudius could not use leaves the dialog open with the
-answer in it.
+answer in it. **Cancel**, or closing the dialog, while it remakes, flips or rebuilds a recording stops it after the
+step under way, and the song stays as it was.
 
 **What claudius hears** in a recording, the window **See what is in it** opens, shows its tempo (and whether it keeps
 one, or moves with the band), its key and how sure claudius is of it, its feel (straight or swung), its length and its
