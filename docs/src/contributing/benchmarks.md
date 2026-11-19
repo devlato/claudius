@@ -22,7 +22,9 @@ source). The audio stays out of the repository; a benchmark names its songs and 
 
 Every accepted change keeps its benchmark results as the baseline: not only the totals but each item's result (each
 request read right or wrong, each song's section score), so that the next experiment can be paired with it item by
-item. An experiment runs the same benchmark, at the same settings, on the same items.
+item. An experiment runs the same benchmark, at the same settings, on the same items. The baselines are kept in
+`baselines/` at the root of the repository, one file a benchmark, and the pull request whose change is accepted
+replaces its benchmark's file with its own results.
 
 Pairing matters because items differ far more than versions do. Two versions' averages over 300 songs can sit within
 noise of each other while one version is better on 40 songs and worse on 10; the pairs show that, and the averages
