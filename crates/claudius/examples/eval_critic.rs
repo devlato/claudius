@@ -35,9 +35,13 @@
 //!
 //! The ears judge as the studio does when ONNX Runtime and their models are installed; `--no-ears` judges with the
 //! meters alone. Each of the `--threads` (by default as many as the ears' threads leave cores for) loads its own ears.
+//! `--ears-cache DIR` keeps the ears' report of each item in DIR with a fingerprint of the audio they heard, and reads
+//! it back when they are given the same audio again: a change to the critic's other checks then runs again in minutes
+//! rather than hours. A folder holds the reports of one version of the ears; start another when earshot or its models
+//! change.
 //!
 //!   cargo run --release -p claudius --example eval_critic -- DIR [--shards 0..2] [--songs N] [--out FILE]
-//!       [--no-ears] [--threads N]
+//!       [--no-ears] [--threads N] [--ears-cache DIR]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -50,6 +54,7 @@ use claudius::audio::{self, Stereo};
 use claudius::config::SRF;
 use claudius::dsp::filter::{Biquad, BiquadKind};
 use claudius::ears::Ears;
+use claudius::judge::EarsReport;
 use serde_json::{Value, json};
 
 const META: &str = "https://raw.githubusercontent.com/MTG/mtg-jamendo-dataset/master/data";
@@ -511,18 +516,20 @@ fn fetch(dir: &Path, shards: &[u32]) -> Result<(), String> {
 }
 
 /// the lines of a song: as it is, then with each flaw
-fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>, String> {
+fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw], cache: Option<&Path>) -> Result<Vec<Value>, String> {
     let x = audio::load(&song.path).map_err(|e| format!("{}: {e:#}", song.id))?;
-    let hear = |_: &claudius::model::Project, r: &claudius::render::Rendered| {
-        ears.and_then(|e| e.report(&r.master, None, None, true).ok())
+    let total = |x: Stereo, item: &str| {
+        let hear = |_: &claudius::model::Project, r: &claudius::render::Rendered| {
+            ears.and_then(|e| heard(e, &r.master, item, cache))
+        };
+        claudius::song::judge_audio(x, None, Some(&hear)).total
     };
-    let total = |x: Stereo| claudius::song::judge_audio(x, None, Some(&hear)).total;
     let sung = if song.sung { "sung" } else { "not tagged sung" };
     let mut lines = Vec::new();
     // a total the critic cannot give (not a number) counts against it in every metric: the song condemned, at 0; and
     // a pair without both totals not ranked, at the most the song could lose by (-100), and a flawed copy without
     // one counted as praised, so that a change that gives totals where there were none cannot look worse for it
-    let t = total(x.clone());
+    let t = total(x.clone(), &song.id);
     let judged = t.is_finite();
     if !judged {
         eprintln!("{}: the critic gave no total ({t})", song.id);
@@ -534,7 +541,7 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>,
     }));
     let seed = song.id.trim_start_matches("track_").parse::<u64>().unwrap_or(1);
     for f in flaws {
-        let ft = total(f.put(&x, seed.wrapping_mul(31).wrapping_add(*f as u64)));
+        let ft = total(f.put(&x, seed.wrapping_mul(31).wrapping_add(*f as u64)), &format!("{}/{}", song.id, f.name()));
         if !ft.is_finite() {
             eprintln!("{} {}: the critic gave no total ({ft})", song.id, f.name());
         }
@@ -550,6 +557,39 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>,
         }));
     }
     Ok(lines)
+}
+
+/// The ears' report of an item: with `--ears-cache`, kept with a fingerprint of the audio they heard, and read back
+/// when they are given the same audio again (`judge` reaches them only through this).
+fn heard(ears: &Ears, master: &Stereo, item: &str, cache: Option<&Path>) -> Option<EarsReport> {
+    let print = fingerprint(master);
+    let path = cache.map(|d| d.join(format!("{}.json", item.replace('/', "~"))));
+    if let Some(kept) = path.as_ref().and_then(|p| std::fs::read_to_string(p).ok()) {
+        if let Ok(v) = serde_json::from_str::<Value>(&kept) {
+            if v["audio"].as_str() == Some(print.as_str()) {
+                if let Ok(r) = serde_json::from_value::<EarsReport>(v["report"].clone()) {
+                    return Some(r);
+                }
+            }
+        }
+    }
+    let r = ears.report(master, None, None, true).ok()?;
+    if let Some(p) = &path {
+        let _ = std::fs::write(p, json!({"audio": print, "report": r}).to_string());
+    }
+    Some(r)
+}
+
+/// FNV-1a over the bits of every sample of both channels: the same audio, the same fingerprint
+fn fingerprint(x: &Stereo) -> String {
+    let mut h = 0xcbf2_9ce4_8422_2325_u64;
+    for v in x.l.iter().chain(&x.r) {
+        for b in v.to_bits().to_le_bytes() {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+    format!("{h:016x}")
 }
 
 /// a score to the hundredth, as the lines keep it
@@ -602,7 +642,9 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let Some(dir) = args.first().filter(|a| !a.starts_with("--")).map(PathBuf::from) else {
-        eprintln!("usage: eval_critic DIR [--shards 0..2] [--songs N] [--out FILE] [--no-ears] [--threads N]");
+        eprintln!(
+            "usage: eval_critic DIR [--shards 0..2] [--songs N] [--out FILE] [--no-ears] [--threads N] [--ears-cache DIR]"
+        );
         std::process::exit(2);
     };
     let shards: Vec<u32> = flag("--shards")
@@ -643,6 +685,13 @@ fn main() {
         (cores / ears.unwrap_or((cores / 2).clamp(1, 4)).max(1)).max(1)
     });
     let no_ears = args.iter().any(|a| a == "--no-ears");
+    let cache = flag("--ears-cache").map(PathBuf::from);
+    if let Some(c) = &cache
+        && let Err(e) = std::fs::create_dir_all(c)
+    {
+        eprintln!("{}: {e}", c.display());
+        std::process::exit(1);
+    }
     eprintln!(
         "{} songs from shards {:?}, {} judged already; {} flaws; {threads} at a time{}",
         all.len(),
@@ -665,7 +714,7 @@ fn main() {
     std::thread::scope(|scope| {
         for _ in 0..threads.min(todo.len()) {
             let tx = tx.clone();
-            let (todo, next, flaws) = (&todo, &next, &flaws);
+            let (todo, next, flaws, cache) = (&todo, &next, &flaws, cache.as_deref());
             scope.spawn(move || {
                 let ears = if no_ears {
                     None
@@ -675,7 +724,7 @@ fn main() {
                 loop {
                     let i = next.fetch_add(1, Ordering::Relaxed);
                     let Some(song) = todo.get(i) else { break };
-                    if tx.send(judge(song, ears.as_ref(), flaws)).is_err() {
+                    if tx.send(judge(song, ears.as_ref(), flaws, cache)).is_err() {
                         break;
                     }
                 }
