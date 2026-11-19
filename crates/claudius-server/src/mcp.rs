@@ -1019,6 +1019,16 @@ fn example(asked: &str) -> Result<&'static claudius_api::examples::Example, Stri
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ArrangeArgs {
+    /// what the person asks of the song, in their words: "make the drop longer", "the hats quieter in the intro", "add a
+    /// break before the last drop"
+    pub brief: String,
+    /// another of the readings an earlier call listed, by its number (default: the first, the surest)
+    #[serde(default)]
+    pub pick: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MakeSongArgs {
     /// what the person asked for, in their words: "a chill lo-fi beat around 80 bpm in D minor, minimal", "dark
     /// techno at 130", "trip hop with idm drums, lush"
@@ -1159,6 +1169,48 @@ impl Studio {
             return Err(r.message);
         }
         self.b.settled(Duration::from_secs(240)).await
+    }
+
+    /// Reading `pick` (from 1; the first, the surest, by default) of what the palette read in `brief` (`answer`),
+    /// made as one change named for the brief (with `listen`, rendered and judged), with what it read and the other
+    /// readings numbered.
+    async fn arranged(
+        &self,
+        brief: &str,
+        answer: claudius_intent::Answer,
+        pick: Option<usize>,
+        listen: bool,
+    ) -> Result<String, String> {
+        let proposed = answer.proposed;
+        if proposed.is_empty() {
+            let why = if answer.reading {
+                "the small model on this computer is still reading it: call arrange again in a moment"
+            } else {
+                "claudius reads no change to the song in it: say it as commands (command, run_script) instead"
+            };
+            return Err(format!("\"{brief}\": {why}"));
+        }
+        let n = pick.unwrap_or(1);
+        let Some(chosen) = n.checked_sub(1).and_then(|i| proposed.get(i)) else {
+            return Err(format!("there are {} readings of \"{brief}\"; pick one from 1 to {0}", proposed.len()));
+        };
+        let others: Vec<String> = proposed
+            .iter()
+            .enumerate()
+            .filter(|(k, _)| k + 1 != n)
+            .map(|(k, p)| {
+                let detail = if p.detail.is_empty() { String::new() } else { format!(" ({})", p.detail) };
+                format!("{}. {}{detail}", k + 1, p.said)
+            })
+            .collect();
+        let said = format!("read as: {} ({:.0}% sure)", chosen.said, chosen.score * 100.0);
+        let c = Command::Together { said: brief.to_string(), commands: chosen.commands.clone() };
+        let done = self.edit(c, listen).await?;
+        let mut out = format!("{said}\n{done}");
+        if !others.is_empty() {
+            out.push_str(&format!("\n\nother readings (undo, then arrange with `pick`):\n{}", others.join("\n")));
+        }
+        Ok(out)
     }
 
     /// a command, and with `listen` the song rendered and judged after it, within a call (`bounded`)
@@ -1319,6 +1371,20 @@ impl Studio {
         };
         let out = self.edit(song, true).await?;
         Ok(self.in_words(&out).await)
+    }
+
+    #[tool(
+        description = "Change the song as the person asked in their own words, as the studio's palette (Cmd+K) reads them: \"make the drop longer\", \"the hats quieter in the intro\", \"add a break before the last drop\". claudius reads the words into its own changes (by its rules, and its small model where they read nothing), makes the surest reading as one change that undo takes back whole, renders and judges it, and answers with what it read, what it did and the other readings, numbered: to make another instead, undo, then call arrange again with the same brief and `pick`. A brief it reads no change in is answered so; say it as commands or a script then."
+    )]
+    async fn arrange(&self, Parameters(a): Parameters<ArrangeArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        if st.song.is_none() {
+            return Err("no song yet: start one with new_song or make_song".into());
+        }
+        // the palette's reading, with the model that finds by meaning fetched once, as the palette fetches it
+        claudius_session::meaning::fetch_in_background();
+        let answer = claudius_session::host::Host::find(&a.brief, 12, &st);
+        self.arranged(&a.brief, answer, a.pick, true).await
     }
 
     #[tool(
@@ -2089,7 +2155,7 @@ impl Studio {
 
 What it does, and the tools for it:
 - A song in any of its genres, or two fused (trip_hop+idm): find_genre finds one by a name, an era, a scene or a sound; catalog lists them all, with the drums, synths and instruments; new_song starts one; make_song makes one from the person's own words; examples and open_example open the example songs.
-- Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; change_genre plays the whole song in another genre, keeping its form, chords, melody and recordings; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
+- Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; arrange makes a change asked for in the person's words, as the studio's palette reads it; change_genre plays the whole song in another genre, keeping its form, chords, melody and recordings; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
 - Hearing it: listen renders and judges it (the scores, the issues worst first, what earshot hears); graph says its signal flow in words.
 - From a recording: analyze hears its tempo, key, chords, sections and groove; song_like makes a new song on them; remake makes it again in a genre, recognizably (or flips its hook into a new song); sample_song samples it into the song (its phrases, a passage, chops or stabs), and sample_pieces, redraw_pieces and keep_pieces let the person choose the pieces first; extract_groove takes its drums' feel; search_recordings finds recordings anyone may use.
 - The person's voice and playing: request_take, then wait_for_take; assess_voice, tune, trim_take, transcribe_take, transcribe_drums; request_pitch_check, then wait_for_pitch_check.
@@ -2201,6 +2267,50 @@ mod tests {
         let at = crate::spawn(app, std::net::SocketAddr::from(([127, 0, 0, 1], 0)), Default::default()).unwrap();
         assert_eq!(probe(&format!("http://{at}"), &None), Probe::Claudius(env!("CARGO_PKG_VERSION").into()));
         assert!(!older_than_this(env!("CARGO_PKG_VERSION")) && older_than_this("0.2.0") && older_than_this(""));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn arrange_makes_the_reading_picked_as_one_change_and_lists_the_others() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let song = Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+            complexity: None,
+        };
+        assert!(app.command(song).ok);
+        let studio = Studio::new(Backend::Local { app: app.clone(), base: "http://127.0.0.1:0".into() });
+        let reading = |said: &str, bpm: f64, score: f32| claudius_intent::Proposal {
+            said: said.into(),
+            detail: String::new(),
+            commands: vec![Command::SetTempo { bpm }, Command::SetSwing { swing: 0.55 }],
+            reading: Default::default(),
+            score,
+        };
+        let answer = claudius_intent::Answer {
+            proposed: vec![reading("tempo 126", 126.0, 0.9), reading("tempo 132", 132.0, 0.6)],
+            ..Default::default()
+        };
+        let brief = "a bit faster and with more swing";
+        let said = studio.arranged(brief, answer.clone(), None, false).await.unwrap();
+        assert!(said.starts_with("read as: tempo 126 (90% sure)"), "{said}");
+        assert!(said.contains("other readings (undo, then arrange with `pick`):\n2. tempo 132"), "{said}");
+        let st = app.state();
+        assert_eq!((st.song.as_ref().unwrap().bpm, st.undo_label.as_deref()), (126.0, Some(brief)), "one change");
+        // another reading picked, after undo
+        assert!(app.command(Command::Undo).ok);
+        let said = studio.arranged(brief, answer.clone(), Some(2), false).await.unwrap();
+        assert!(said.starts_with("read as: tempo 132") && said.contains("1. tempo 126"), "{said}");
+        assert_eq!(app.state().song.unwrap().bpm, 132.0);
+        // a reading that is not there, and a brief read as nothing
+        let none = studio.arranged(brief, answer, Some(3), false).await.unwrap_err();
+        assert!(none.contains("there are 2 readings"), "{none}");
+        let nothing = studio.arranged("hmm", Default::default(), None, false).await.unwrap_err();
+        assert!(nothing.contains("reads no change to the song"), "{nothing}");
     }
 
     #[tokio::test(flavor = "multi_thread")]

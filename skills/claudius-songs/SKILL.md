@@ -192,6 +192,7 @@ People say what they hear, not which setting to change. The usual requests, and 
 | they say | do |
 |---|---|
 | "make me a ..." in a sentence | `make_song` with their words |
+| a change in a sentence ("the drop longer and the hats quieter in it") | `arrange` with their words: it says what it read and makes it as one change; another reading is `pick`ed after `undo` |
 | "how is a ... song made?", "show me 90s trip hop" | `examples`, then `open_example`: an original song in that style, with notes on how it is made |
 | "make In the End", "a song like bad guy" | a song in that record's style: the genre, tempo, key and sound it is made of (`find_genre` names the scene), with melodies of its own, since a record's melody, hook and words are its writers'. `examples` lists the famous music claudius may play as written, all of it in the public domain (Für Elise, the Moonlight Sonata, the Habanera ...); `open_example` opens one |
 | "faster", "slower", "in a minor key" | `tempo()`, `key()` in a script, or `command` `set_tempo`, `set_key` |
