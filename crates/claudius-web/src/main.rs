@@ -11,6 +11,8 @@
 
 #[cfg(target_arch = "wasm32")]
 mod crew;
+#[cfg(any(target_arch = "wasm32", test))]
+mod due;
 #[cfg(target_arch = "wasm32")]
 mod worker;
 
