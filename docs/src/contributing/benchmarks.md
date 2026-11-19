@@ -96,5 +96,14 @@ results become the next baseline.
   flawed ones. The total of a song as it is is shown, not judged: a critic rating every song 100 would raise it. Each shard of the dataset is a random one percent of it: choose settings on shards 0 and 1, and report
   the result on shard 2 (`--shards 2..2`), which the tuning never saw. It holds no chart hits: what it says of the
   songs people hear most is still to be measured.
+- **The generator against real music**: `cargo run --release -p claudius --example eval_genres -- embed DIR --shards
+  0..49` hears the songs of MTG-Jamendo that stand for claudius's genres (by their tags), CLAP's embedding of each, and
+  `run REAL` composes claudius's songs of each genre and hears them the same way, writing a line for `bench compare`
+  for each genre: the kernel audio distance to the genre's real songs (KAD, what a change to the generator is made to
+  lower), how typical its songs are and how often each is heard as its own genre (guards), and how much they differ
+  from one another (shown). Tune on the even shards (`--half tune`, seeds 1 to 20) and confirm on the odd ones
+  (`--half confirm`, seeds 101 to 120). Fifteen genres have enough songs in shards 0 to 49 to be measured, 15 or more
+  in each half; amapiano, phonk and synthwave have no honest tag, and electro house too few songs. The real songs'
+  embeddings are not kept here: the songs' licences are the artists' own.
 - **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and
   `eval_cuts` (JamendoLyrics), which print their measures.
