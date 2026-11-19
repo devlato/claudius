@@ -735,7 +735,8 @@ pub struct VaryArgs {
 pub struct TrimArgs {
     /// the take, by its track's name (get_song lists the tracks)
     pub track: String,
-    /// where the take now begins, in seconds into its recording as it plays now (default 0)
+    /// where the take now begins, in seconds into its recording in the recording's own time, which a take stretched to
+    /// the song's tempo plays faster or slower than (default 0)
     #[serde(default)]
     pub start: f64,
     /// where it now ends, in seconds into the same recording (default its end)
@@ -1836,7 +1837,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Trim a take (a recording added with add_take, or recorded, or a whole song added as a track): keep its recording from `start` to `end` seconds in, as it plays now, so that it starts later in itself or stops sooner. It still plays from the start of its section, and the sections past its new end no longer play it. claudius keeps the cut with the song and the recording it came from, so undo brings the take back as it was. Trim again to cut more; effects go on it as on any track (command set_fx with target track:<name>, or run_script with fx())."
+        description = "Trim a take (a recording added with add_take, or recorded, or a whole song added as a track): keep its recording from `start` to `end` seconds in, counted in the recording's own time (a take stretched to the song's tempo plays faster or slower than that), so that it starts later in itself or stops sooner. It still plays from the start of its section, and the sections past its new end no longer play it. claudius keeps the cut with the song and the recording it came from, so undo brings the take back as it was. Trim again to cut more; effects go on it as on any track (command set_fx with target track:<name>, or run_script with fx())."
     )]
     async fn trim_take(&self, Parameters(a): Parameters<TrimArgs>) -> Result<String, String> {
         self.edit(Command::TrimTake { track: a.track, start: a.start, end: a.end }, true).await
