@@ -27,7 +27,6 @@ const TOOLING: &[&str] = &[
     "playwright.config.mjs",
     "test-results",
     "tests",
-    "tools",
     "worker",
     "wrangler.toml",
 ];
