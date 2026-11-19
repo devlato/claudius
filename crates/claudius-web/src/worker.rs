@@ -165,7 +165,11 @@ fn receive(engine: &Shared, m: &MessageEvent) {
     let Some(text) = js_sys::Reflect::get(&data, &"json".into()).ok().and_then(|j| j.as_string()) else { return };
     let v: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
     if let Some(secs) = v["playhead"].as_f64() {
-        engine.borrow_mut().host.set_playhead(secs);
+        engine.borrow_mut().host.set_playhead(secs, v["playing"].as_bool().unwrap_or(false));
+        return;
+    }
+    if let Some(w) = v.get("window") {
+        window(engine, w["from"].as_f64().unwrap_or(0.0), w["secs"].as_f64().unwrap_or(1.0));
         return;
     }
     if v.get("reference").is_some() {
@@ -253,6 +257,21 @@ fn receive(engine: &Shared, m: &MessageEvent) {
     schedule(engine);
 }
 
+/// A window of the song as it is now for the studio's live mix (`Host::live_window`), as a server sends one: the
+/// version of the song it is of, its first sample and the rate, and its samples, interleaved; or why there is none.
+fn window(engine: &Shared, from: f64, secs: f64) {
+    let made = engine.borrow_mut().host.live_window(from, secs);
+    let e = engine.borrow();
+    match made {
+        Ok((version, start, x)) => {
+            let json =
+                serde_json::json!({ "window": { "version": version, "start": start, "rate": claudius::config::SR } });
+            post(&e.scope, &json, Some(js_sys::Float32Array::from(x.interleaved().as_slice())));
+        }
+        Err(why) => post(&e.scope, &serde_json::json!({ "window": { "refused": why } }), None),
+    }
+}
+
 /// a sound of the song for a phone playing along: the sounds asked for, one after another in one array, with their
 /// names and lengths in frames, or why there are none
 fn sound(e: &Engine, ask: &serde_json::Value) {
@@ -292,17 +311,24 @@ fn encode(scope: &DedicatedWorkerGlobalScope, ask: &serde_json::Value, samples: 
     }
 }
 
-/// a render soon, when the song is newer than its render and none is on its way, or the next candidate of a mutation
-/// or an evolution
+/// A render soon, when the song is newer than its render and none is on its way, or the next candidate of a mutation
+/// or an evolution. After a change only to the mix it waits until the changes have stopped a moment (`Host::waits`),
+/// while the studio hears them by windows (`window`), which a render under way would hold up.
 fn schedule(engine: &Shared) {
     let mut e = engine.borrow_mut();
     if e.scheduled || !(e.host.stale() || e.host.breeding()) {
         return;
     }
+    let ms = e.host.waits().map_or(30, |w| w.as_millis() as i32 + 1);
+    in_a_while(engine, &mut e, ms);
+}
+
+/// `render` in `ms` milliseconds
+fn in_a_while(engine: &Shared, e: &mut Engine, ms: i32) {
     e.scheduled = true;
     let later = engine.clone();
     let render = Closure::once_into_js(move || render(&later));
-    let _ = e.scope.set_timeout_with_callback_and_timeout_and_arguments_0(render.unchecked_ref(), 30);
+    let _ = e.scope.set_timeout_with_callback_and_timeout_and_arguments_0(render.unchecked_ref(), ms);
 }
 
 fn render(engine: &Shared) {
@@ -322,6 +348,11 @@ fn render(engine: &Shared) {
         post(&e.scope, &done, None);
         drop(e);
         schedule(engine);
+        return;
+    }
+    // a change only to the mix that came since it was scheduled puts it off again
+    if let Some(wait) = e.host.waits() {
+        in_a_while(engine, &mut e, wait.as_millis() as i32 + 1);
         return;
     }
     // the song's first bars first, to play while the rest renders: the commands that come meanwhile are made before it

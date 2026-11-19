@@ -333,7 +333,7 @@ the studio asks for from them, as the song is now, unless an edit changed a trac
 desktop studio plays each window in the render's place from just after its playhead, faded in and out over 5 ms
 against what plays beneath it, one window after another up to four seconds ahead, until the next render comes.
 
-The demo's engine uses it to preview an edit where the person is listening: the studio says where its playhead is with each command, and an edit to a song heard whole is first the last render with the twelve seconds from the playhead on rendered again and crossfaded in. That arrives in about 0.8 s in the browser, and the whole song follows. A song whose length an edit changed (its tempo, its form) gets its first bars first instead, as a new song does.
+The demo's engine makes windows too (`Host::live_window`): the studio says where its playhead is and whether it plays with each command, and while it plays, a change to the mix is heard by windows and the whole render waits until the studio stops asking for them, since a page's worker is one thread and that render takes about 10 s for a song of four minutes. Otherwise it uses `render_window` to preview an edit where the person is listening: an edit to a song heard whole is first the last render with the twelve seconds from the playhead on rendered again and crossfaded in. That arrives in about 0.6 s in the browser, and the whole song follows. A song whose length an edit changed (its tempo, its form) gets its first bars first instead, as a new song does.
 
 `cargo bench -p claudius` measures generating, arranging and rendering 8 bars, and records results in
 `target/criterion`.

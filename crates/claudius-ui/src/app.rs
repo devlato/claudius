@@ -315,15 +315,14 @@ impl Studio {
     }
 
     /// The live mix (`live`): a window of the song as it is now, asked for while it plays and is newer than its render,
-    /// on the desktop and in a page (whose player plays on Web Audio); the demo's engine makes none.
+    /// on the desktop and in a page (whose player plays on Web Audio), from a server or the demo's engine.
     fn ask_windows(&mut self) {
         let Some(render) = self.state.render.as_ref().filter(|r| r.url != claudius_api::PREVIEW_URL) else { return };
         let playing = self.player.is_playing() && !self.player.is_loading();
         if let Some((from, secs)) =
             self.live.want(self.state.song_version, render.version, self.player.position(), playing)
-            && !self.backend.window(from, secs)
         {
-            self.live.none();
+            self.backend.window(from, secs);
         }
     }
 
@@ -481,7 +480,7 @@ impl Studio {
             self.inflight_since = now;
             log::debug!("send {cmd:?}");
             // an edit is heard where the person listens first
-            self.backend.playhead(self.player.position());
+            self.backend.playhead(self.player.position(), self.player.is_playing());
             self.backend.send(&cmd);
         }
     }

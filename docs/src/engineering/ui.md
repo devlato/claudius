@@ -410,11 +410,13 @@ the composer, the API's edits (`claudius_session::edit`, the server's own), undo
 change, judged with the meters and the theory (the ears do not run in a browser). A render takes about an eighth of
 the time the song plays on the one thread a page has (a 4:48 house song in 36 s), so a new song first plays its first
 16 bars, a few seconds after it is made, while the rest renders: its render's `url` is `PREVIEW_URL` meanwhile, which
-the studio treats as older than the song. An edit to a song heard whole is heard where the person listens instead:
-the studio sends where its playhead is with each command (`Link::playhead`), and the engine hands over the last render
-with the twelve seconds from there rendered again with the edit (`Host::window`, `render::render_window`), within a
-second, at the loudness of the render before, while the whole song renders again; a song an edit made longer or shorter
-gets its first bars. The player swaps either in where it was playing.
+the studio treats as older than the song. The studio sends where its playhead is, and whether it plays, with each
+command (`Link::playhead`). While it plays, a change to the mix is heard by windows, as from a server (`Link::window`,
+`Host::live_window`), and the render waits until the studio has stopped asking for them for 2.5 s (`Host::waits`),
+since it would hold them up for seconds. Otherwise an edit to a song heard whole is heard where the person listens: the
+engine hands over the last render with the twelve seconds from there rendered again with the edit (`Host::window`,
+`render::render_window`), within a second, at the loudness of the render before, while the whole song renders again;
+a song an edit made longer or shorter gets its first bars. The player swaps either in where it was playing.
 
 The page and the worker trade messages of JSON and audio (`mock/engine.rs`): a command at a time goes out, and its
 reply and the state after it come back; a render comes with its master, handed over rather than copied. A message
