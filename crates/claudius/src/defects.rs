@@ -22,18 +22,39 @@ pub fn clipped_share(x: &Stereo) -> Option<f64> {
 /// the frames the dropouts are found in, in seconds
 const FRAME_S: f64 = 0.010;
 
+/// How a cut to silence is told from a rest (`dropouts_with`): `digital`, a gap only of digital silence (every sample
+/// under the 16-bit floor, where a recording's rests keep their room and their tails); `edge`, the frames on either
+/// side of it the music must be within 10 dB of its level in (an abrupt cut, where a rest fades).
+#[derive(Clone, Copy, Debug)]
+pub struct Cut {
+    pub digital: bool,
+    pub edge: usize,
+}
+
+/// the dropouts the critic counts (`dropouts_per_minute`): 80 ms or more, music within 50 ms on either side
+pub const CUT: Cut = Cut { digital: false, edge: 5 };
+
+/// a sample's size under which a frame is digital silence: two steps of 16 bits
+const FLOOR: f32 = 2.0 / 32_768.0;
+
 /// How many times a minute the sound is cut to silence and back: a stretch of 80 ms or more, 40 dB or more under the
 /// recording's own level (the median of its frames that sound), with the music within 10 dB of that level in the 50 ms
 /// on either side of it. A song stops now and then, and a phrase rests; a recording cut over and over has gaps in it.
 /// The first and last second are not counted (a song starts and ends), and a recording under three seconds is too
 /// short to tell (none).
 pub fn dropouts_per_minute(x: &Stereo) -> Option<f64> {
+    dropouts_with(x, CUT)
+}
+
+/// `dropouts_per_minute` with the cut told from a rest as `cut` says.
+pub fn dropouts_with(x: &Stereo, cut: Cut) -> Option<f64> {
     let frame = (FRAME_S * SRF) as usize;
     let mono = x.mono();
     let db: Vec<f64> = mono
         .chunks(frame)
         .map(|c| 10.0 * (c.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / c.len() as f64 + 1e-20).log10())
         .collect();
+    let peak: Vec<f32> = mono.chunks(frame).map(|c| c.iter().fold(0.0f32, |m, v| m.max(v.abs()))).collect();
     let edge = (1.0 / FRAME_S) as usize;
     if db.len() < 3 * edge {
         return None;
@@ -45,20 +66,21 @@ pub fn dropouts_per_minute(x: &Stereo) -> Option<f64> {
     sounding.sort_by(f64::total_cmp);
     let level = sounding[sounding.len() / 2];
     let (quiet, full) = (level - 40.0, level - 10.0);
-    let (shortest, side) = ((0.080 / FRAME_S) as usize, (0.050 / FRAME_S) as usize);
+    let silent = |i: usize| db[i] < quiet && (!cut.digital || peak[i] <= FLOOR);
+    let shortest = (0.080 / FRAME_S) as usize;
     let (mut count, mut i) = (0usize, edge);
     while i < db.len() - edge {
-        if db[i] >= quiet {
+        if !silent(i) {
             i += 1;
             continue;
         }
         let start = i;
-        while i < db.len() && db[i] < quiet {
+        while i < db.len() && silent(i) {
             i += 1;
         }
         if i - start >= shortest && i < db.len() - edge {
-            let before = db[start.saturating_sub(side)..start].iter().any(|d| *d >= full);
-            let after = db[i..(i + side).min(db.len())].iter().any(|d| *d >= full);
+            let before = db[start.saturating_sub(cut.edge)..start].iter().any(|d| *d >= full);
+            let after = db[i..(i + cut.edge).min(db.len())].iter().any(|d| *d >= full);
             count += usize::from(before && after);
         }
     }

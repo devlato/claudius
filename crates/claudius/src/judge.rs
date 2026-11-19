@@ -257,6 +257,16 @@ fn defect_checks(
             issues,
         );
     }
+    // the experiment's other ways of telling a cut from a rest, measured beside it (not weighed)
+    for (name, cut) in [
+        ("dropouts_digital", crate::defects::Cut { digital: true, edge: 5 }),
+        ("dropouts_abrupt", crate::defects::Cut { digital: false, edge: 2 }),
+        ("dropouts_both", crate::defects::Cut { digital: true, edge: 2 }),
+    ] {
+        if let Some(rate) = crate::defects::dropouts_with(x, cut) {
+            m.insert(name.into(), (rate * 10.0).round() / 10.0);
+        }
+    }
     if let Some(rate) = crate::defects::dropouts_per_minute(x) {
         m.insert("dropouts_per_minute".into(), (rate * 10.0).round() / 10.0);
         found(
