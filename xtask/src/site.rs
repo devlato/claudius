@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Context, Result, anyhow, ensure};
 use xshell::{Shell, cmd};
 
 use crate::{copy_tree, fresh_dir, root};
@@ -92,8 +92,60 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
         );
     }
 
-    eprintln!("site: {} (claudius {version} at {site_url})", out.display());
+    // the pages a search engine should know of, for the robots.txt that names it
+    let pages = pages(out)?;
+    sh.write_file(out.join("sitemap.xml"), sitemap(site_url, &pages))?;
+
+    eprintln!("site: {} (claudius {version} at {site_url}, {} pages in its sitemap)", out.display(), pages.len());
     Ok(())
+}
+
+/// The site's pages for its sitemap, each as the path its address ends in (`/`, `/radio/`, `/docs/guide/cli.html`),
+/// sorted: every HTML page but those that are not pages to be found by searching (a page not found, the book printed
+/// whole or its table of contents, the studio app, and the page a phone plays along on).
+fn pages(out: &Path) -> Result<Vec<String>> {
+    fn walk(dir: &Path, out: &Path, found: &mut Vec<String>) -> Result<()> {
+        for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+            let path = entry?.path();
+            if path.is_dir() {
+                walk(&path, out, found)?;
+            } else if path.extension().is_some_and(|e| e == "html") {
+                let rel = path.strip_prefix(out)?.to_string_lossy().replace('\\', "/");
+                found.push(rel);
+            }
+        }
+        Ok(())
+    }
+    let mut found = Vec::new();
+    walk(out, out, &mut found)?;
+    let left_out = |rel: &str| {
+        let name = rel.rsplit('/').next().unwrap_or(rel);
+        matches!(name, "404.html" | "print.html" | "toc.html")
+            || rel.starts_with("studio/")
+            || rel.starts_with("phone/")
+    };
+    let mut pages: Vec<String> = found
+        .into_iter()
+        .filter(|rel| !left_out(rel))
+        .map(|rel| match rel.strip_suffix("index.html") {
+            Some(dir) => format!("/{dir}"),
+            None => format!("/{rel}"),
+        })
+        .collect();
+    pages.sort();
+    Ok(pages)
+}
+
+/// The sitemap of `pages` (as `pages` gives them) at `site_url`, as sitemaps.org has it
+fn sitemap(site_url: &str, pages: &[String]) -> String {
+    let escape = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    xml.push_str("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+    for page in pages {
+        xml.push_str(&format!("  <url><loc>{}{}</loc></url>\n", escape(site_url), escape(page)));
+    }
+    xml.push_str("</urlset>\n");
+    xml
 }
 
 /// The instruments the web studio's demo plays (`pack:instrument`, and `=` the names it also answers to), from packs
@@ -227,4 +279,42 @@ fn placeholder(version: &str) -> String {
          <ul>\n<li><a href=\"docs/\">Documentation</a></li>\n<li><a href=\"studio/\">Studio</a></li>\n\
          <li><a href=\"{REPO_URL}\">Source</a></li>\n</ul>\n"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The sitemap names the landing page, the radio and the book's pages, each at the site's address, and leaves out
+    /// what is not a page to be found by searching.
+    #[test]
+    fn the_sitemap_names_the_pages_to_be_found_and_no_others() {
+        let out = std::env::temp_dir().join(format!("claudius-sitemap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&out);
+        for page in [
+            "index.html",
+            "404.html",
+            "radio/index.html",
+            "docs/index.html",
+            "docs/guide/cli.html",
+            "docs/print.html",
+            "docs/toc.html",
+            "docs/404.html",
+            "studio/index.html",
+            "phone/index.html",
+        ] {
+            let path = out.join(page);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, "<!doctype html>").unwrap();
+        }
+        std::fs::write(out.join("docs/guide/notes.txt"), "not a page").unwrap();
+        let pages = pages(&out).unwrap();
+        assert_eq!(pages, ["/", "/docs/", "/docs/guide/cli.html", "/radio/"]);
+        let xml = sitemap("https://claudius.devlato.com", &pages);
+        assert!(xml.starts_with("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns="), "{xml}");
+        assert!(xml.contains("<url><loc>https://claudius.devlato.com/</loc></url>"), "{xml}");
+        assert!(xml.contains("<url><loc>https://claudius.devlato.com/docs/guide/cli.html</loc></url>"), "{xml}");
+        assert_eq!(xml.matches("<url>").count(), 4, "{xml}");
+        let _ = std::fs::remove_dir_all(&out);
+    }
 }

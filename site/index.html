@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>claudius: a beatmaker that listens to its own songs</title>
-<meta name="description" content="claudius picks real sounds, writes parts with music theory, arranges, mixes and masters a song, then listens to it with a critic and revises it. A studio, a script language, MCP tools and a CLI. Open source, written in Rust.">
+<title>Claudius: a free, open-source beatmaker and music studio</title>
+<meta name="description" content="Make songs from real sounds, remake a favourite in another genre, and change anything in plain words. Free and open source, on your computer or in your browser.">
 <link rel="canonical" href="{{site_url}}/">
 <meta name="theme-color" content="#101217">
 <meta name="color-scheme" content="dark">
@@ -18,18 +18,39 @@
 <script src="/assets/site.js?v={{version}}" defer></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="claudius">
-<meta property="og:title" content="claudius: a beatmaker that listens to its own songs">
-<meta property="og:description" content="Real sounds, music theory, a mix and master, and a critic with ears that names what to fix. A studio, a script language, MCP tools and a CLI.">
+<meta property="og:title" content="Claudius: a free, open-source beatmaker and music studio">
+<meta property="og:description" content="Make songs from real synths and sampled instruments, remake a song you love in another genre, and change anything in plain words or with Claude, ChatGPT or Cursor.">
 <meta property="og:url" content="{{site_url}}/">
 <meta property="og:image" content="{{site_url}}/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="claudius: a beatmaker that listens to its own songs">
-<meta name="twitter:description" content="Real sounds, music theory, a mix and master, and a critic with ears that names what to fix.">
+<meta name="twitter:title" content="Claudius: a free, open-source beatmaker and music studio">
+<meta name="twitter:description" content="Make songs from real synths and sampled instruments, remake a song you love in another genre, and change anything in plain words or with Claude, ChatGPT or Cursor.">
 <meta name="twitter:image" content="{{site_url}}/og.png">
 <meta name="twitter:image:alt" content="The Claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Claudius",
+  "alternateName": "claudius",
+  "description": "Make songs from real sounds, remake a favourite in another genre, and change anything in plain words. Free and open source, on your computer or in your browser.",
+  "applicationCategory": "MultimediaApplication",
+  "applicationSubCategory": "Music production",
+  "operatingSystem": "macOS, Windows, Linux, web browser",
+  "softwareVersion": "{{version}}",
+  "license": "https://opensource.org/license/mit",
+  "isAccessibleForFree": true,
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "url": "{{site_url}}/",
+  "downloadUrl": "{{repo_url}}/releases/latest",
+  "image": "{{site_url}}/og.png",
+  "screenshot": "{{site_url}}/assets/img/studio-ripples-1600.webp",
+  "sameAs": ["{{repo_url}}"]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -40,6 +61,8 @@
     <nav class="nav" aria-label="Sections">
       <ul>
         <li><a href="#listen">Listen</a></li>
+        <li><a href="#remix">From a song</a></li>
+        <li><a href="#ask">Plain words</a></li>
         <li><a href="#how">How it works</a></li>
         <li><a href="#script">Script</a></li>
         <li><a href="#studio">Studio</a></li>
@@ -62,8 +85,8 @@
   <div class="wrap hero-grid">
     <div class="hero-copy">
       <p class="tagline"><span class="chip">v{{version}}</span> Open source, MIT licence. macOS and Linux, with Windows in preview.</p>
-      <h1 id="hero-title">A beatmaker that listens to its own&nbsp;songs.</h1>
-      <p class="lede">claudius picks sounds, writes the parts with music theory, arranges them into a song, mixes and masters it, then listens to the result with a critic and revises it. Every sound is real audio, synthesized in code or recorded from sampled instruments. There is no neural audio generation and no General MIDI.</p>
+      <h1 id="hero-title">Make songs from real&nbsp;sounds.</h1>
+      <p class="lede">claudius writes the drums, bass, chords and melodies with music theory, arranges and mixes them into a song, and listens to every change. Start from a genre or from a song you love, change anything in plain words or with an assistant, and keep every layer yours to edit. Every sound is real audio, synthesized in code or recorded from real instruments: no neural network makes the sound, and there is no General MIDI.</p>
 
       <div class="get" data-get>
         <a class="btn btn-primary btn-get" data-get-for="mac" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-aarch64-apple-darwin.dmg">Download for Mac</a>
@@ -475,10 +498,63 @@ Low Light — dnb at 174 BPM in C minor, 112 bars (2:34)
   </div>
 </section>
 
+<section class="section section-alt" id="remix" aria-labelledby="remix-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>02</span>From a song</p>
+      <h2 id="remix-title">Start from a song you love</h2>
+      <p>Give claudius a recording, a song of yours or one you love, and it hears its tempo, key, chords and sections and the phrases sung, to the beat. The app takes it apart into its voice, drums, bass and the rest on your own computer. Then it makes something of it, the way a producer would.</p>
+    </header>
+    <ul class="chain">
+      <li class="module">
+        <h3><span class="module-num">1</span>Remake it</h3>
+        <p>In another genre, and still itself: all of it plays through, its voice and chords as they are, in its own sections, with the genre’s drums and bass under them.</p>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">2</span>Flip it</h3>
+        <p>A new song on its hook and passages of it, cut where no word is cut, with its drums and a flip of it, at a tempo the genre plays.</p>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">3</span>Rebuild it</h3>
+        <p>The song made again with every note yours to change: its drums, bass and parts as the notes they play, on claudius’s own sounds, its voice on a track of its own.</p>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">4</span>Sample it</h3>
+        <p>Its best sung phrases, a drum break, a bass line or a loop, offered for you to keep or draw again, then played in your song in time, crediting the recording.</p>
+      </li>
+    </ul>
+    <p class="studio-cta"><a class="btn" href="/docs/cookbook/remake.html">How a remake is made</a></p>
+  </div>
+</section>
+
+<section class="section" id="ask" aria-labelledby="ask-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>03</span>Plain words</p>
+      <h2 id="ask-title">Change anything by saying it</h2>
+      <p>Press <kbd>Cmd</kbd>&nbsp;<kbd>K</kbd> in the studio and type what you want, as you would say it, or ask about the song. claudius reads it on your computer and shows the change it understood before anything happens. A word typed with a slip is read as the word meant, and every change can be undone.</p>
+    </header>
+    <ul class="chain">
+      <li class="module">
+        <h3><span class="module-num">“</span>the hats a bit quieter</h3>
+        <p>A change to the mix, said the way you would say it to a producer.</p>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">“</span>swap the piano for a rhodes</h3>
+        <p>Another sound for a track, from the instruments claudius has.</p>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">“</span>what key is it in?</h3>
+        <p>A question about the song, answered from the song as it is.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
 <section class="section section-alt" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>02</span>How it works</p>
+      <p class="channel"><span>04</span>How it works</p>
       <h2 id="how-title">Compose, render, listen, revise</h2>
       <p>A song goes round this loop until the critic runs out of complaints or you stop it. Under each stage is what claudius printed while it made Paper Lanterns.</p>
     </header>
@@ -537,7 +613,7 @@ verdict: 94/100 (arc 0.91, genre 0.95, mix 1.00, production 0.76, theory 1.00)</
 <section class="section" id="script" aria-labelledby="script-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>03</span>Script</p>
+      <p class="channel"><span>05</span>Script</p>
       <h2 id="script-title">The song is a script</h2>
       <p>A claudius script is <a href="https://rhai.rs">Rhai</a> with mini-notation patterns borrowed from <a href="https://strudel.cc">Strudel</a>. One cycle of a pattern is one bar. This is all of Paper Lanterns:</p>
     </header>
@@ -617,9 +693,9 @@ claudius reference</code></pre>
 <section class="section section-alt" id="studio" aria-labelledby="studio-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>04</span>Studio</p>
+      <p class="channel"><span>06</span>Studio</p>
       <h2 id="studio-title">A studio, native and in the browser</h2>
-      <p><code>claudius studio</code> opens the native window. <code>claudius serve</code> serves the same app, compiled to WebAssembly, at <code>http://127.0.0.1:7878</code>. Both are clients of one session, so the window, a browser tab and an assistant can work on the same song at once. Every change renders and is judged in the background, a few seconds for a full song.</p>
+      <p>Three views of one song: the arrangement, the signal flow, where every track runs through its effects and buses into the master and is changed where it is, and the song as a script. A knob is heard as it moves, and every change renders and is judged in the background, a few seconds for a full song. <code>claudius studio</code> opens the native window; <code>claudius serve</code> serves the same app, compiled to WebAssembly, at <code>http://127.0.0.1:7878</code>. Both are clients of one session, so the window, a browser tab and an assistant can work on the same song at once.</p>
     </header>
 
     <figure class="shot shot-main">
@@ -652,7 +728,7 @@ claudius reference</code></pre>
 <section class="section" id="assistants" aria-labelledby="assistants-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>05</span>Assistants</p>
+      <p class="channel"><span>07</span>Assistants</p>
       <h2 id="assistants-title">Make songs with Claude, Cursor or ChatGPT</h2>
       <p>claudius is an MCP server. An assistant connected to it sees the song you have open, edits it with scripts, mutations, evolution or raw edits, renders and judges it, and you hear every change in the studio as it happens.</p>
     </header>
@@ -719,7 +795,7 @@ cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
 <section class="section section-alt" id="sounds" aria-labelledby="sounds-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>06</span>Sounds</p>
+      <p class="channel"><span>08</span>Sounds</p>
       <h2 id="sounds-title">Real sounds, with their licences</h2>
       <p>Notes exist only as the score that plays the sounds, like a piano roll. The sounds themselves are synthesized in code or recorded.</p>
     </header>
@@ -775,7 +851,7 @@ cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
 <section class="section" id="install" aria-labelledby="install-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>07</span>Install</p>
+      <p class="channel"><span>09</span>Install</p>
       <h2 id="install-title">Install</h2>
       <p>Download the app for your computer and open it: the studio fetches its listening models the first time, and offers the sample library. The terminal works too.</p>
     </header>
