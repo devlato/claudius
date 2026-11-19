@@ -363,26 +363,28 @@ pub fn remembered_version(path: &str) -> Option<u64> {
     versions().lock().unwrap_or_else(|e| e.into_inner()).get(path).copied()
 }
 
-/// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded), or hand out what
-/// `remember` keeps for its path
+/// how long a sound may be to be kept decoded on disk: a sample decodes again in less time than reading many of them
+/// takes, a song in a fraction of a second, which its ten times larger decoded file does not save
+const KEPT_DECODED: f64 = 30.0;
+
+/// decode any audio file to 48 kHz stereo (a sound of at most `KEPT_DECODED` seconds kept as raw f32 in the cache
+/// `decoded`, `config::cache`), or hand out what `remember` keeps for its path
 pub fn load(path: &Path) -> Result<Stereo> {
     if let Some(x) = remembered().lock().unwrap_or_else(|e| e.into_inner()).get(&*path.to_string_lossy()) {
         return Ok((**x).clone());
     }
     readable(path)?;
-    let key = cache_key(path)?;
-    let cached = config::cache_dir("decoded").join(format!("{key}.f32"));
-    if let Ok(bytes) = std::fs::read(&cached) {
+    let key = format!("{}.f32", cache_key(path)?);
+    if config::FILES
+        && let Some(bytes) = config::cache::get("decoded", &key)
+    {
         let x: Vec<f32> = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
         return Ok(Stereo::from_interleaved(&x));
     }
     let x = decode_file(path)?;
-    if config::FILES {
-        let tmp = cached.with_extension(format!("{}.tmp", config::process_id()));
+    if config::FILES && (x.len() / 2) as f64 <= KEPT_DECODED * config::SRF {
         let bytes: Vec<u8> = x.iter().flat_map(|v| v.to_le_bytes()).collect();
-        if std::fs::write(&tmp, bytes).is_ok() {
-            let _ = std::fs::rename(&tmp, &cached);
-        }
+        config::cache::put("decoded", &key, &bytes, config::cache::DECODED);
     }
     Ok(Stereo::from_interleaved(&x))
 }

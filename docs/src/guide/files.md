@@ -68,8 +68,8 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 
 | folder | what | grows by |
 |---|---|---|
-| `decoded/` | every audio file claudius has read, decoded to raw 48 kHz stereo `.f32`, keyed by path, size and modification time | about 23 MB per minute of audio |
-| `stretched/` | Apple Loops and samples warped to a tempo and key | one file per loop, tempo and key |
+| `decoded/` | the sounds of 30 seconds or less claudius has read (samples, loops, one-shots), decoded to raw 48 kHz stereo `.f32`, keyed by path, size and modification time | up to 2 GB |
+| `stretched/` | Apple Loops and samples warped to a tempo and key | up to 1 GB |
 | `samples/` | drum one-shots cut from Apple Loops | a few hundred KB each |
 | `user/library.json` | the user library: chops and found sounds from `claudius chop` | |
 | `models/` | the command palette's models: `potion-base-8M.clde`, which finds what your words mean, `needle3.cact`, which reads requests the palette cannot make out otherwise, and `whistle.cact`, which hears what you say to it | 8 MB, 35 MB and 17 MB, once each |
@@ -78,9 +78,10 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 A session keeps its last ten renders and deletes older ones as it goes. It holds a lock on `.in-use` in its folder
 while it runs, which the system lets go of when the process ends, however it ends. When a session starts, it deletes
 the folders of sessions that have ended: a free lock, and nothing written for a minute. Folders without a lock file,
-from claudius before 0.3, go once nothing has been written to them for 12 hours. `decoded/` and `stretched/` are never
-trimmed: on a machine that renders and analyses a lot, they reach gigabytes, and deleting them costs only the time to
-decode again.
+from claudius before 0.3, go once nothing has been written to them for 12 hours. `decoded/` and `stretched/` keep
+what was used lately: past their size, the files used least lately go until each holds three quarters of it. A
+longer recording is decoded each time it is read, which takes a fraction of a second, rather than kept: its decoded
+file would be about ten times the size of its MP3.
 
 The pack installer's scratch space holds downloaded archives and their unpacked files only while a pack installs,
 and is removed afterwards.
