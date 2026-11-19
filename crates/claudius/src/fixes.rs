@@ -135,8 +135,22 @@ pub fn apply(bp: &mut Blueprint, fixes: &[QuickFix]) -> Result<String, String> {
             Edit::Tempo { track, bpm } => {
                 let gone = || format!("the song has no loop '{track}' now");
                 let l = bp.loops.iter_mut().find(|l| l.name == *track).ok_or_else(gone)?;
-                if let Sound::Loop { bpm: said, .. } = &mut l.sound {
+                let take = l.from.is_some();
+                if let Sound::Loop { bpm: said, beats, .. } = &mut l.sound {
+                    let k = *bpm / *said;
                     *said = *bpm;
+                    // a take's length in beats is its recording's seconds at the tempo it is said to keep, and so is
+                    // each section's place in it: both go with the tempo, so that the take is as long as it is and
+                    // every section plays the moment of the recording it played. A library loop's beats are the music
+                    // it holds, which its tempo does not change.
+                    if take && k.is_finite() {
+                        *beats *= k;
+                        for s in &mut bp.form {
+                            if let Some(at) = s.takes.get_mut(track) {
+                                *at *= k;
+                            }
+                        }
+                    }
                 }
             }
             Edit::Level { track, db } => {
@@ -221,6 +235,18 @@ mod tests {
         assert!(of(&["time:sample"], &measures(&[("time_sample_own_bpm", 145.0)]), &bp).is_empty());
         bp.loops[0].retime = true;
         assert!(of(&["time:sample"], &m, &bp).is_empty(), "a retimed loop is stretched from no tempo");
+        // a take: its length in beats is its seconds at the tempo it is said to keep, and so are the sections' places
+        // in it, which go with the tempo, so that the take is as long as it was and each section plays what it played
+        let mut bp = song();
+        let first = bp.form[0].name.clone();
+        bp.loops[0].from = Some(first);
+        bp.form[0].takes.insert("sample".into(), 32.0);
+        let fixes = of(&["time:sample"], &m, &bp);
+        apply(&mut bp, &fixes).unwrap();
+        let Sound::Loop { bpm, beats, .. } = &bp.loops[0].sound else { unreachable!() };
+        let k = 140.0 / 145.0;
+        assert!((bpm - 140.0).abs() < 1e-9 && (beats - 16.0 * k).abs() < 1e-9, "{bpm} {beats}");
+        assert!((bp.form[0].takes["sample"] - 32.0 * k).abs() < 1e-9);
     }
 
     #[test]
