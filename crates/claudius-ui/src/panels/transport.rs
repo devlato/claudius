@@ -674,7 +674,7 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 cx.out.push(Command::ChangeGenre { genre: fused, seed: f.seed.trim().parse().ok() });
                 f.open = false;
             }
-            cancel = ui.button("Cancel").clicked();
+            cancel |= ui.button("Cancel").clicked();
         });
     });
     if modal.should_close() || cancel {
