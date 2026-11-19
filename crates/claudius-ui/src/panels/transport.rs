@@ -20,7 +20,8 @@ fn logo(ui: &mut Ui, named: bool) {
     }
 }
 
-fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
+/// the LCD, `width` wide; `named` when the bar has no room for the song's title, which its tooltip then says first
+fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32, named: bool) {
     let (rect, response) = ui.allocate_exact_size(vec2(width, 42.0), Sense::click());
     let p = ui.painter();
     p.rect(rect, 6.0, LCD, Stroke::new(1.0, theme::alpha(LCD_TEXT, 0.18)), StrokeKind::Inside);
@@ -64,14 +65,18 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
     } else {
         "EMPTY"
     };
-    p.text(
-        pos2(rect.right() - 10.0, rect.top() + 12.0),
-        Align2::RIGHT_CENTER,
-        status,
-        theme::mono(9.5),
-        theme::lcd_ink(0.6),
-    );
-    if cx.view.looping {
+    // a narrow LCD leaves out its words for what the player does and whether it loops, which its buttons show
+    let roomy = width >= 200.0;
+    if roomy {
+        p.text(
+            pos2(rect.right() - 10.0, rect.top() + 12.0),
+            Align2::RIGHT_CENTER,
+            status,
+            theme::mono(9.5),
+            theme::lcd_ink(0.6),
+        );
+    }
+    if roomy && cx.view.looping {
         p.text(
             pos2(rect.right() - 10.0, rect.bottom() - 11.0),
             Align2::RIGHT_CENTER,
@@ -80,12 +85,20 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
             theme::legible(ACCENT),
         );
     }
-    response.on_hover_text("position / length of the latest render, bar.beat and section at the playhead");
+    let what = "position / length of the latest render, bar.beat and section at the playhead";
+    match cx.state.song.as_ref().filter(|_| named) {
+        Some(song) => response.on_hover_text(format!("{}\n\n{what}", about(song))),
+        None => response.on_hover_text(what),
+    };
 }
 
 /// how many levels of detail the top bar has (`widgets::fitting`): as the window narrows it drops the score's label,
-/// then the song's bars and length, then the logo's name, then shortens the title and the LCD and drops the genre
-const TOP_LEVELS: usize = 5;
+/// then the song's bars and length, then the logo's name, then shortens the title and the LCD and drops the genre; in a
+/// browser window narrower than the app's narrowest, it narrows the title, the LCD (which drops its words for what the
+/// player does) and the mode, then leaves the title to the LCD's tooltip and the tempo's unit to its label, then the
+/// score to the verdict and the look to the ? menu, so that nothing is drawn over the song's settings down to about
+/// 800 points
+const TOP_LEVELS: usize = 8;
 
 /// row 1: logo, transport, LCD, song parameters, score
 pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
@@ -191,12 +204,15 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
             }
         }
         ui.add_space(4.0);
-        lcd(ui, cx, if level < 4 { 268.0 } else { 214.0 });
+        lcd(ui, cx, [268.0, 268.0, 268.0, 268.0, 214.0, 170.0, 170.0][level.min(6)], level >= 6);
         ui.add_space(8.0);
         song_params(ui, cx, level);
         let left = ui.cursor().min.x - start;
         let right = ui
             .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if level >= 7 {
+                    return;
+                }
                 look_menu(ui, cx);
                 ui.add_space(6.0);
                 let total = cx.state.verdict.as_ref().map(|v| v.total);
@@ -240,45 +256,52 @@ fn look_menu(ui: &mut Ui, cx: &mut Cx) {
     .on_hover_text("the studio's look: dark, light, or as the system is");
 }
 
+/// the song in a line: its title, genre, tempo, bars and length
+fn about(song: &claudius_api::SongView) -> String {
+    format!(
+        "{}: {} at {:.0} BPM, {} bars, {}",
+        song.title,
+        super::genre_words(&song.genre),
+        song.bpm,
+        song.bars,
+        crate::mock::fmt_time(song.seconds)
+    )
+}
+
 fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
     let Some(song) = cx.state.song.as_mut() else {
         ui.label(RichText::new("no song yet").color(TEXT_FAINT));
         return;
     };
-    ui.vertical(|ui| {
-        ui.spacing_mut().item_spacing.y = 1.0;
-        ui.add_space(3.0);
-        // a long title ends in an ellipsis, all of it in its tooltip
-        ui.scope(|ui| {
-            ui.set_max_width(if level < 4 { 240.0 } else { 120.0 });
-            let title = RichText::new(&song.title).size(15.5).strong().color(TEXT);
-            ui.add(egui::Label::new(title).truncate()).on_hover_text(format!(
-                "{}: {} at {:.0} BPM, {} bars, {}",
-                song.title,
-                super::genre_words(&song.genre),
-                song.bpm,
-                song.bars,
-                crate::mock::fmt_time(song.seconds)
-            ));
-        });
-        ui.horizontal(|ui| {
-            if level < 4 {
-                let tip = "play the song in another genre: its form, chords, melody and recordings stay";
-                let genre = widgets::pill(ui, &super::genre_words(&song.genre), theme::INFO)
-                    .interact(Sense::click())
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
-                    .on_hover_text(tip);
-                if genre.clicked() {
-                    cx.view.change_genre.open_on(&song.genre);
+    // a long title ends in an ellipsis, all of it in its tooltip; with no room for it, the LCD's tooltip says it
+    if level < 6 {
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = 1.0;
+            ui.add_space(3.0);
+            ui.scope(|ui| {
+                ui.set_max_width([240.0, 240.0, 240.0, 240.0, 120.0, 90.0][level.min(5)]);
+                let title = RichText::new(&song.title).size(15.5).strong().color(TEXT);
+                ui.add(egui::Label::new(title).truncate()).on_hover_text(about(song));
+            });
+            ui.horizontal(|ui| {
+                if level < 4 {
+                    let tip = "play the song in another genre: its form, chords, melody and recordings stay";
+                    let genre = widgets::pill(ui, &super::genre_words(&song.genre), theme::INFO)
+                        .interact(Sense::click())
+                        .on_hover_cursor(egui::CursorIcon::PointingHand)
+                        .on_hover_text(tip);
+                    if genre.clicked() {
+                        cx.view.change_genre.open_on(&song.genre);
+                    }
                 }
-            }
-            if level < 2 {
-                ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
-                    .on_hover_text(format!("seed {}: the same genre and seed make the same song", song.seed));
-            }
+                if level < 2 {
+                    ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
+                        .on_hover_text(format!("seed {}: the same genre and seed make the same song", song.seed));
+                }
+            });
         });
-    });
-    ui.add_space(10.0);
+        ui.add_space(10.0);
+    }
     ui.separator();
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
@@ -295,8 +318,9 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
                     .range(40.0..=240.0)
                     .clamp_existing_to_range(false)
                     .speed(0.2)
-                    .fixed_decimals(1)
-                    .suffix(" BPM")
+                    // in the narrowest bar, without its unit, which its label and tooltip say
+                    .fixed_decimals(if level < 6 { 1 } else { 0 })
+                    .suffix(if level < 6 { " BPM" } else { "" })
                     .update_while_editing(false),
             )
             .on_hover_text("beats a minute (drag or type)");
@@ -328,7 +352,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
             );
             let mut mode = key.mode;
             egui::ComboBox::from_id_salt("key_mode")
-                .width(92.0)
+                .width([92.0, 92.0, 92.0, 92.0, 92.0, 70.0, 64.0][level.min(6)])
                 .selected_text(key.mode_name().replace('_', " "))
                 .show_ui(ui, |ui| {
                     for (i, (name, _)) in music::MODES.iter().enumerate() {

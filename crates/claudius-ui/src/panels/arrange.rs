@@ -684,537 +684,559 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     // rows tall enough to read, room for + Track under the last; more rows than fit scroll
     let row_h = ((rows_rect.height() - 28.0) / n as f32).clamp(22.0, 30.0);
     let mut rows_ui = ui.new_child(UiBuilder::new().max_rect(rows_rect));
-    egui::ScrollArea::vertical().id_salt("arrange_rows").auto_shrink([false, false]).show(&mut rows_ui, |ui| {
-        let (rect, resp) = ui.allocate_exact_size(vec2(rows_rect.width(), row_h * n as f32), Sense::click_and_drag());
-        let p = ui.painter();
-        let sel = song.sections.get(cx.view.section);
-        if let Some(s) = sel {
-            let r = Rect::from_min_max(
-                pos2(tl.x(s.start_bar as f64), rect.top()),
-                pos2(tl.x((s.start_bar + s.bars) as f64), rect.bottom()),
-            );
-            p.rect_filled(r, 0.0, theme::alpha(theme::STRONG, 0.035));
-        }
-        let hover = resp.hover_pos();
-        let cell_at = |pos: egui::Pos2| -> Option<(usize, usize)> {
-            if pos.x < tl.x0 || pos.x > tl.x1 {
-                return None;
-            }
-            let row = ((pos.y - rect.top()) / row_h) as usize;
-            let bar = tl.bar(pos.x);
-            let sec =
-                song.sections.iter().position(|s| bar >= s.start_bar as f64 && bar < (s.start_bar + s.bars) as f64)?;
-            (row < song.layers.len()).then_some((row, sec))
-        };
-        // the button on a row's label that swaps its sound for the next, where the kind is written
-        let swap_at = |row: usize| {
-            let y = rect.top() + (row as f32 + 0.5) * row_h;
-            Rect::from_center_size(pos2(rect.left() + GUTTER - 20.0, y), vec2(22.0, (row_h - 4.0).clamp(12.0, 18.0)))
-        };
-        for (row, layer) in song.layers.iter().enumerate() {
-            let y0 = rect.top() + row as f32 * row_h;
-            let row_rect = Rect::from_min_size(pos2(rect.left(), y0), vec2(rect.width(), row_h));
-            if row % 2 == 1 {
-                p.rect_filled(
-                    Rect::from_min_max(pos2(tl.x0, y0), pos2(tl.x1, y0 + row_h)),
-                    0.0,
-                    theme::alpha(theme::STRONG, 0.012),
+    // never taller than the room above the master's band: egui's scroll areas take 64 points at least, which a short
+    // window has not, and the rows ran on over the band
+    egui::ScrollArea::vertical()
+        .id_salt("arrange_rows")
+        .auto_shrink([false, false])
+        .min_scrolled_height(0.0)
+        .max_height(rows_rect.height().max(0.0))
+        .show(&mut rows_ui, |ui| {
+            let (rect, resp) =
+                ui.allocate_exact_size(vec2(rows_rect.width(), row_h * n as f32), Sense::click_and_drag());
+            let p = ui.painter();
+            let sel = song.sections.get(cx.view.section);
+            if let Some(s) = sel {
+                let r = Rect::from_min_max(
+                    pos2(tl.x(s.start_bar as f64), rect.top()),
+                    pos2(tl.x((s.start_bar + s.bars) as f64), rect.bottom()),
                 );
+                p.rect_filled(r, 0.0, theme::alpha(theme::STRONG, 0.035));
             }
-            if cx.view.track.as_deref() == Some(layer.as_str()) {
-                p.rect_filled(
-                    Rect::from_min_size(pos2(rect.left(), y0), vec2(GUTTER, row_h)),
-                    2.0,
-                    theme::alpha(theme::ACCENT, 0.14),
-                );
-            }
-            p.line_segment(
-                [pos2(rect.left(), row_rect.bottom()), pos2(rect.right(), row_rect.bottom())],
-                Stroke::new(1.0, LINE_SOFT),
-            );
-            let color = layer_color(song, layer);
-            let track = song.tracks.iter().find(|t| &t.name == layer);
-            let soloed = track.is_some_and(|t| t.solo);
-            let silenced = solo && !soloed;
-            let muted = track.is_some_and(|t| t.muted) || silenced;
-            p.rect_filled(
-                Rect::from_min_size(pos2(rect.left() + 8.0, y0 + 4.0), vec2(3.0, row_h - 8.0)),
-                1.0,
-                if muted { TEXT_FAINT.into() } else { color },
-            );
-            let is_drum = song.drums.iter().any(|d| &d.lane == layer);
-            let kind = track.map(|t| t.kind.as_str()).unwrap_or(if is_drum { "drum" } else { "part" });
-            // what the track is, or that it is soloed or muted
-            let (icon, icon_color) = if soloed {
-                (Icon::Solo, theme::SOLO)
-            } else if muted && !silenced {
-                (Icon::Muted, theme::BAD)
-            } else {
-                (Icon::of_track(kind, track.map_or("", |t| t.role.as_str())), if muted { TEXT_FAINT } else { TEXT_DIM })
-            };
-            let icon_rect = Rect::from_center_size(pos2(rect.left() + 23.0, y0 + row_h / 2.0), vec2(14.0, 14.0));
-            widgets::paint_icon(p, icon_rect, icon, icon_color);
-            let name_room = GUTTER - 36.0 - 26.0;
-            let ink = if muted { TEXT_FAINT } else { TEXT }.into();
-            let name = p.layout(layer.clone(), theme::prop(13.0), ink, f32::INFINITY);
-            let name_at = pos2(rect.left() + 36.0, y0 + (row_h - name.size().y) / 2.0);
-            p.with_clip_rect(Rect::from_min_size(name_at, vec2(name_room, row_h))).galley(name_at, name, ink);
-            let state = if soloed {
-                "soloed: while any track is, only soloed tracks play"
-            } else if silenced {
-                "silent while another track is soloed"
-            } else if muted {
-                "muted"
-            } else {
-                ""
-            };
-            // what the critic says of the track: a dot at its row's end, as the worst of it, and in full on hover
-            let track_for = |n: &str| {
-                let named = song.tracks.iter().find(|t| t.name == n);
-                named.or_else(|| song.tracks.iter().find(|t| t.role == n)).map(|t| t.name.clone())
-            };
-            let notes = verdict.map_or_else(Vec::new, |v| claudius_api::issues_of(v, layer, track_for));
-            if let Some(worst) = notes.iter().map(|i| i.0).reduce(f64::max) {
-                let at = pos2(rect.left() + GUTTER - 5.0, y0 + row_h / 2.0);
-                p.circle_filled(at, 3.0, theme::score_color(1.0 - worst));
-            }
-            let on_label = hover.is_some_and(|h| h.x < tl.x0 && h.y >= y0 && h.y < y0 + row_h);
-            let on_swap =
-                track.is_some_and(|t| t.next_swap.is_some()) && hover.is_some_and(|h| swap_at(row).contains(h));
-            if on_label && !on_swap && (!state.is_empty() || !notes.is_empty()) {
-                let fixes = verdict.map_or(&[][..], |v| v.fixes.as_slice());
-                resp.clone().on_hover_ui(|ui| critic_notes(ui, layer, state, &notes, fixes, stale));
-            }
-            if on_label && track.is_some_and(|t| t.next_swap.is_some()) {
-                let r = swap_at(row);
-                let over = hover.is_some_and(|h| r.contains(h));
-                if over {
-                    p.rect_filled(r, 5.0, theme::CONTROL_HI);
+            let hover = resp.hover_pos();
+            let cell_at = |pos: egui::Pos2| -> Option<(usize, usize)> {
+                if pos.x < tl.x0 || pos.x > tl.x1 {
+                    return None;
                 }
-                let icon = Rect::from_center_size(r.center(), vec2(13.0, 13.0));
-                widgets::paint_icon(p, icon, Icon::Swap, if over { TEXT } else { TEXT_DIM });
-            }
-            // a clip for each run of sections the track plays in: one name, its sections' energy as its shade, and
-            // a drum lane's hits a bar as the height of what fills it
-            let base = if muted { TEXT_FAINT.into() } else { color };
-            let plays = |s: &claudius_api::SectionView| s.layers.iter().any(|l| l == layer);
-            let mut k = 0;
-            while k < song.sections.len() {
-                if !plays(&song.sections[k]) {
-                    k += 1;
-                    continue;
-                }
-                let first = k;
-                while k < song.sections.len() && plays(&song.sections[k]) {
-                    k += 1;
-                }
-                let run = &song.sections[first..k];
-                let end = run.last().map_or(0, |s| s.start_bar + s.bars);
-                let clip = Rect::from_min_max(
-                    pos2(tl.x(run[0].start_bar as f64) + 1.0, y0 + 3.0),
-                    pos2(tl.x(end as f64) - 1.0, y0 + row_h - 3.0),
-                );
-                let mut hits = Vec::new();
-                for (j, s) in run.iter().enumerate() {
-                    let part = Rect::from_min_max(
-                        pos2(tl.x(s.start_bar as f64).max(clip.left()), clip.top()),
-                        pos2(tl.x((s.start_bar + s.bars) as f64).min(clip.right()), clip.bottom()),
+                let row = ((pos.y - rect.top()) / row_h) as usize;
+                let bar = tl.bar(pos.x);
+                let sec = song
+                    .sections
+                    .iter()
+                    .position(|s| bar >= s.start_bar as f64 && bar < (s.start_bar + s.bars) as f64)?;
+                (row < song.layers.len()).then_some((row, sec))
+            };
+            // the button on a row's label that swaps its sound for the next, where the kind is written
+            let swap_at = |row: usize| {
+                let y = rect.top() + (row as f32 + 0.5) * row_h;
+                Rect::from_center_size(
+                    pos2(rect.left() + GUTTER - 20.0, y),
+                    vec2(22.0, (row_h - 4.0).clamp(12.0, 18.0)),
+                )
+            };
+            for (row, layer) in song.layers.iter().enumerate() {
+                let y0 = rect.top() + row as f32 * row_h;
+                let row_rect = Rect::from_min_size(pos2(rect.left(), y0), vec2(rect.width(), row_h));
+                if row % 2 == 1 {
+                    p.rect_filled(
+                        Rect::from_min_max(pos2(tl.x0, y0), pos2(tl.x1, y0 + row_h)),
+                        0.0,
+                        theme::alpha(theme::STRONG, 0.012),
                     );
-                    let (start, stop) = (if j == 0 { 4 } else { 0 }, if j + 1 == run.len() { 4 } else { 0 });
-                    let corners = egui::CornerRadius { nw: start, sw: start, ne: stop, se: stop };
-                    p.rect_filled(part, corners, theme::alpha(base, 0.2 + 0.3 * s.energy));
-                    if j > 0 {
-                        p.line_segment(
-                            [pos2(part.left(), part.top() + 3.0), pos2(part.left(), part.bottom() - 3.0)],
-                            Stroke::new(1.0, theme::alpha(theme::CANVAS, 0.6)),
-                        );
-                    }
-                    if is_drum {
-                        for b in 0..s.bars {
-                            let Some(d) = density(song, layer, &s.variant, b) else { continue };
-                            let x = tl.x((s.start_bar + b) as f64);
-                            hits.push((x.max(part.left()), (x + px_bar).min(part.right()), d));
-                        }
-                    }
                 }
-                if !hits.is_empty() {
-                    let well = clip.shrink2(vec2(0.0, 2.0));
-                    let mut mesh = egui::Mesh::default();
-                    for (x0, x1, d) in hits {
-                        let top = well.bottom() - d * well.height();
-                        mesh.add_colored_rect(
-                            Rect::from_min_max(pos2(x0, top), pos2(x1, well.bottom())),
-                            theme::alpha(base, 0.32),
-                        );
-                    }
-                    p.add(Shape::mesh(mesh));
+                if cx.view.track.as_deref() == Some(layer.as_str()) {
+                    p.rect_filled(
+                        Rect::from_min_size(pos2(rect.left(), y0), vec2(GUTTER, row_h)),
+                        2.0,
+                        theme::alpha(theme::ACCENT, 0.14),
+                    );
                 }
                 p.line_segment(
-                    [clip.left_top() + vec2(3.0, 0.5), clip.right_top() + vec2(-3.0, 0.5)],
-                    Stroke::new(1.0, theme::alpha(base, 0.9)),
+                    [pos2(rect.left(), row_rect.bottom()), pos2(rect.right(), row_rect.bottom())],
+                    Stroke::new(1.0, LINE_SOFT),
                 );
-                if !is_drum && clip.width() > 46.0 {
-                    p.with_clip_rect(clip.shrink(1.0)).text(
-                        clip.left_center() + vec2(6.0, 0.5),
-                        Align2::LEFT_CENTER,
-                        layer,
-                        theme::prop(11.0),
-                        theme::lit(base, 0.65),
-                    );
-                }
-            }
-        }
-        for s in &song.sections {
-            let x = tl.x(s.start_bar as f64);
-            p.line_segment([pos2(x, rect.top()), pos2(x, rect.bottom())], Stroke::new(1.0, LINE_SOFT));
-        }
-        // the cell selected: the selected track's row in the selected section
-        if let Some(row) = cx.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t))
-            && let Some(s) = song.sections.get(cx.view.section)
-        {
-            let y0 = rect.top() + row as f32 * row_h;
-            let cell = Rect::from_min_max(
-                pos2(tl.x(s.start_bar as f64) + 1.0, y0 + 1.0),
-                pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, y0 + row_h - 1.0),
-            );
-            p.rect_stroke(cell, 3.0, Stroke::new(1.5, theme::ACCENT), StrokeKind::Inside);
-        }
-        // a click selects a cell, its track and its section, and a double-click switches the track on or off there; with
-        // the paint tool, a press switches it and dragging along the row sets the others the same
-        let pressed = ui.input(|i| i.pointer.primary_pressed());
-        let down = ui.input(|i| i.pointer.primary_down());
-        let paint = cx.view.paint;
-        if pressed
-            && resp.hovered()
-            && let Some((row, sec)) = hover.and_then(cell_at)
-        {
-            let layer = &song.layers[row];
-            (cx.view.section, cx.view.track) = (sec, Some(layer.clone()));
-            if paint {
-                let on = !song.sections[sec].layers.iter().any(|l| l == layer);
-                out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
-                cx.view.layer_paint = Some((on, row, vec![sec]));
-            }
-        } else if resp.double_clicked()
-            && !paint
-            && let Some((row, sec)) = hover.and_then(cell_at)
-        {
-            out.push(Command::ToggleLayer { section: sec, layer: song.layers[row].clone() });
-        } else if down && paint {
-            if let Some((on, row, touched)) = &mut cx.view.layer_paint
-                && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
-                && let Some((_, sec)) = cell_at(pos2(pos.x, rect.top() + *row as f32 * row_h + 1.0))
-                && !touched.contains(&sec)
-            {
-                touched.push(sec);
-                let layer = &song.layers[*row];
-                let is_on = song.sections[sec].layers.iter().any(|l| l == layer);
-                if is_on != *on {
-                    out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
-                }
-            }
-        } else {
-            cx.view.layer_paint = None;
-        }
-        if let Some(pos) = hover {
-            if pos.x < tl.x0 {
-                let row = ((pos.y - rect.top()) / row_h) as usize;
-                if let Some(layer) = song.layers.get(row) {
-                    let r =
-                        Rect::from_min_size(pos2(rect.left(), rect.top() + row as f32 * row_h), vec2(GUTTER, row_h));
-                    p.rect_filled(r, 2.0, theme::alpha(theme::STRONG, 0.04));
-                    let next = song.tracks.iter().find(|t| &t.name == layer).and_then(super::next_label);
-                    let on_swap = next.is_some() && swap_at(row).contains(pos);
-                    if let Some(next) = next.filter(|_| on_swap) {
-                        resp.clone().on_hover_text(format!("another sound for {layer}: {next}"));
-                    }
-                    if resp.clicked() && on_swap {
-                        out.push(super::swap(layer, None));
-                    } else if resp.clicked() {
-                        cx.view.track = Some(layer.clone());
-                        cx.view.tab = if song.drums.iter().any(|d| &d.lane == layer) {
-                            Tab::Sequencer
-                        } else if song.parts.iter().any(|x| &x.name == layer) {
-                            Tab::Parts
-                        } else {
-                            Tab::Mixer
-                        };
-                    }
-                }
-            } else if let Some((row, sec)) = cell_at(pos) {
-                let s = &song.sections[sec];
-                let cell = Rect::from_min_max(
-                    pos2(tl.x(s.start_bar as f64) + 1.0, rect.top() + row as f32 * row_h + 2.0),
-                    pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, rect.top() + (row + 1) as f32 * row_h - 2.0),
+                let color = layer_color(song, layer);
+                let track = song.tracks.iter().find(|t| &t.name == layer);
+                let soloed = track.is_some_and(|t| t.solo);
+                let silenced = solo && !soloed;
+                let muted = track.is_some_and(|t| t.muted) || silenced;
+                p.rect_filled(
+                    Rect::from_min_size(pos2(rect.left() + 8.0, y0 + 4.0), vec2(3.0, row_h - 8.0)),
+                    1.0,
+                    if muted { TEXT_FAINT.into() } else { color },
                 );
-                p.rect_stroke(cell, 3.0, Stroke::new(1.0, theme::alpha(theme::STRONG, 0.5)), StrokeKind::Inside);
-                let layer = &song.layers[row];
-                let on = s.layers.iter().any(|l| l == layer);
-                let (now, other) = if on { ("plays", "off") } else { ("is silent", "on") };
-                resp.clone().on_hover_text(if cx.view.paint {
-                    format!("{layer} {now} in {}: click to switch it {other}, drag along the row to paint", s.name)
+                let is_drum = song.drums.iter().any(|d| &d.lane == layer);
+                let kind = track.map(|t| t.kind.as_str()).unwrap_or(if is_drum { "drum" } else { "part" });
+                // what the track is, or that it is soloed or muted
+                let (icon, icon_color) = if soloed {
+                    (Icon::Solo, theme::SOLO)
+                } else if muted && !silenced {
+                    (Icon::Muted, theme::BAD)
                 } else {
-                    format!(
-                        "{layer} {now} in {}: click to select it, double-click (or Enter) to switch it {other}",
-                        s.name
+                    (
+                        Icon::of_track(kind, track.map_or("", |t| t.role.as_str())),
+                        if muted { TEXT_FAINT } else { TEXT_DIM },
                     )
-                });
-            }
-        }
-        // the mute / solo menu on a row label
-        if resp.secondary_clicked() {
-            row_menu = resp.interact_pointer_pos().map(|p| ((p.y - rect.top()) / row_h).max(0.0) as usize);
-        }
-        resp.context_menu(|ui| {
-            let Some(layer) = row_menu.and_then(|row| song.layers.get(row)) else { return };
-            let track = song.tracks.iter().find(|t| &t.name == layer);
-            let about = track.map_or(String::new(), |t| {
-                let what = match t.kind.as_str() {
-                    "drum" => "a drum lane",
-                    "take" => "a recording",
-                    "loop" => "a loop",
-                    "pattern" => "a pattern",
-                    _ => "a part",
                 };
-                match t.playing.as_deref().unwrap_or(&t.sound) {
-                    "" => what.to_string(),
-                    sound => format!("{what}, {sound}"),
+                let icon_rect = Rect::from_center_size(pos2(rect.left() + 23.0, y0 + row_h / 2.0), vec2(14.0, 14.0));
+                widgets::paint_icon(p, icon_rect, icon, icon_color);
+                let name_room = GUTTER - 36.0 - 26.0;
+                let ink = if muted { TEXT_FAINT } else { TEXT }.into();
+                let name = p.layout(layer.clone(), theme::prop(13.0), ink, f32::INFINITY);
+                let name_at = pos2(rect.left() + 36.0, y0 + (row_h - name.size().y) / 2.0);
+                p.with_clip_rect(Rect::from_min_size(name_at, vec2(name_room, row_h))).galley(name_at, name, ink);
+                let state = if soloed {
+                    "soloed: while any track is, only soloed tracks play"
+                } else if silenced {
+                    "silent while another track is soloed"
+                } else if muted {
+                    "muted"
+                } else {
+                    ""
+                };
+                // what the critic says of the track: a dot at its row's end, as the worst of it, and in full on hover
+                let track_for = |n: &str| {
+                    let named = song.tracks.iter().find(|t| t.name == n);
+                    named.or_else(|| song.tracks.iter().find(|t| t.role == n)).map(|t| t.name.clone())
+                };
+                let notes = verdict.map_or_else(Vec::new, |v| claudius_api::issues_of(v, layer, track_for));
+                if let Some(worst) = notes.iter().map(|i| i.0).reduce(f64::max) {
+                    let at = pos2(rect.left() + GUTTER - 5.0, y0 + row_h / 2.0);
+                    p.circle_filled(at, 3.0, theme::score_color(1.0 - worst));
                 }
-            });
-            widgets::menu_title(ui, layer, &about);
-            if let Some(t) = track {
-                widgets::menu_group(ui, "Hear");
-                let tip = if t.muted { "hear it again" } else { "silence it everywhere, keeping it in the song" };
-                if ui.button(if t.muted { "Unmute" } else { "Mute" }).on_hover_text(tip).clicked() {
-                    out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(layer));
-                    ui.close();
+                let on_label = hover.is_some_and(|h| h.x < tl.x0 && h.y >= y0 && h.y < y0 + row_h);
+                let on_swap =
+                    track.is_some_and(|t| t.next_swap.is_some()) && hover.is_some_and(|h| swap_at(row).contains(h));
+                if on_label && !on_swap && (!state.is_empty() || !notes.is_empty()) {
+                    let fixes = verdict.map_or(&[][..], |v| v.fixes.as_slice());
+                    resp.clone().on_hover_ui(|ui| critic_notes(ui, layer, state, &notes, fixes, stale));
                 }
-                if ui
-                    .button(if t.solo { "Unsolo" } else { "Solo" })
-                    .on_hover_text("while any track is soloed, only soloed tracks play")
-                    .clicked()
-                {
-                    out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(layer));
-                    ui.close();
-                }
-                if !t.swaps.is_empty() {
-                    widgets::menu_group(ui, "Sound");
-                    if let Some(next) = super::next_label(t)
-                        && ui
-                            .button(format!("Another sound: {next}"))
-                            .on_hover_text("the next that fits it and no other part plays; undo swaps back")
-                            .clicked()
-                    {
-                        out.push(super::swap(layer, None));
-                        ui.close();
+                if on_label && track.is_some_and(|t| t.next_swap.is_some()) {
+                    let r = swap_at(row);
+                    let over = hover.is_some_and(|h| r.contains(h));
+                    if over {
+                        p.rect_filled(r, 5.0, theme::CONTROL_HI);
                     }
-                    ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)))
-                        .response
-                        .on_hover_text("choose the sound it plays from those that fit it; its notes stay");
+                    let icon = Rect::from_center_size(r.center(), vec2(13.0, 13.0));
+                    widgets::paint_icon(p, icon, Icon::Swap, if over { TEXT } else { TEXT_DIM });
                 }
-                if matches!(t.kind.as_str(), "part" | "drum") {
-                    widgets::menu_group(ui, "Write");
-                    let vary = |take: bool| Command::VaryTrack { track: layer.clone(), take };
-                    if ui
-                        .button("Another take")
-                        .on_hover_text(
-                            "written again: a part with a new seed, a lane as the genre it was written as plays it",
-                        )
-                        .clicked()
-                    {
-                        out.push(vary(true));
-                        ui.close();
+                // a clip for each run of sections the track plays in: one name, its sections' energy as its shade, and
+                // a drum lane's hits a bar as the height of what fills it
+                let base = if muted { TEXT_FAINT.into() } else { color };
+                let plays = |s: &claudius_api::SectionView| s.layers.iter().any(|l| l == layer);
+                let mut k = 0;
+                while k < song.sections.len() {
+                    if !plays(&song.sections[k]) {
+                        k += 1;
+                        continue;
                     }
-                    if ui
-                        .button("Vary it")
-                        .on_hover_text("the same take, other details: a part keeps its rhythm, a lane its strong hits")
-                        .clicked()
-                    {
-                        out.push(vary(false));
-                        ui.close();
+                    let first = k;
+                    while k < song.sections.len() && plays(&song.sections[k]) {
+                        k += 1;
                     }
-                }
-                if t.kind == "part" {
-                    ui.menu_button("Add chords under it", |ui| {
-                        ui.label(small("chords that fit its notes and the song's, worked out again as it changes"));
-                        for (label, style, hint) in [
-                            ("A chord on each note", "block", "block chords under the melody, on its own sound"),
-                            ("A pad under it", "sustain", "chords held under it, as a pad"),
-                            ("Stabs", "stabs", "short chords on the beat and between"),
-                            ("Offbeat", "offbeat", "a chord on each offbeat"),
-                        ] {
-                            if ui.button(label).on_hover_text(hint).clicked() {
-                                out.push(Command::Harmonize {
-                                    part: layer.clone(),
-                                    style: Some(style.into()),
-                                    sound: None,
-                                    name: None,
-                                });
-                                ui.close();
+                    let run = &song.sections[first..k];
+                    let end = run.last().map_or(0, |s| s.start_bar + s.bars);
+                    let clip = Rect::from_min_max(
+                        pos2(tl.x(run[0].start_bar as f64) + 1.0, y0 + 3.0),
+                        pos2(tl.x(end as f64) - 1.0, y0 + row_h - 3.0),
+                    );
+                    let mut hits = Vec::new();
+                    for (j, s) in run.iter().enumerate() {
+                        let part = Rect::from_min_max(
+                            pos2(tl.x(s.start_bar as f64).max(clip.left()), clip.top()),
+                            pos2(tl.x((s.start_bar + s.bars) as f64).min(clip.right()), clip.bottom()),
+                        );
+                        let (start, stop) = (if j == 0 { 4 } else { 0 }, if j + 1 == run.len() { 4 } else { 0 });
+                        let corners = egui::CornerRadius { nw: start, sw: start, ne: stop, se: stop };
+                        p.rect_filled(part, corners, theme::alpha(base, 0.2 + 0.3 * s.energy));
+                        if j > 0 {
+                            p.line_segment(
+                                [pos2(part.left(), part.top() + 3.0), pos2(part.left(), part.bottom() - 3.0)],
+                                Stroke::new(1.0, theme::alpha(theme::CANVAS, 0.6)),
+                            );
+                        }
+                        if is_drum {
+                            for b in 0..s.bars {
+                                let Some(d) = density(song, layer, &s.variant, b) else { continue };
+                                let x = tl.x((s.start_bar + b) as f64);
+                                hits.push((x.max(part.left()), (x + px_bar).min(part.right()), d));
                             }
                         }
+                    }
+                    if !hits.is_empty() {
+                        let well = clip.shrink2(vec2(0.0, 2.0));
+                        let mut mesh = egui::Mesh::default();
+                        for (x0, x1, d) in hits {
+                            let top = well.bottom() - d * well.height();
+                            mesh.add_colored_rect(
+                                Rect::from_min_max(pos2(x0, top), pos2(x1, well.bottom())),
+                                theme::alpha(base, 0.32),
+                            );
+                        }
+                        p.add(Shape::mesh(mesh));
+                    }
+                    p.line_segment(
+                        [clip.left_top() + vec2(3.0, 0.5), clip.right_top() + vec2(-3.0, 0.5)],
+                        Stroke::new(1.0, theme::alpha(base, 0.9)),
+                    );
+                    if !is_drum && clip.width() > 46.0 {
+                        p.with_clip_rect(clip.shrink(1.0)).text(
+                            clip.left_center() + vec2(6.0, 0.5),
+                            Align2::LEFT_CENTER,
+                            layer,
+                            theme::prop(11.0),
+                            theme::lit(base, 0.65),
+                        );
+                    }
+                }
+            }
+            for s in &song.sections {
+                let x = tl.x(s.start_bar as f64);
+                p.line_segment([pos2(x, rect.top()), pos2(x, rect.bottom())], Stroke::new(1.0, LINE_SOFT));
+            }
+            // the cell selected: the selected track's row in the selected section
+            if let Some(row) = cx.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t))
+                && let Some(s) = song.sections.get(cx.view.section)
+            {
+                let y0 = rect.top() + row as f32 * row_h;
+                let cell = Rect::from_min_max(
+                    pos2(tl.x(s.start_bar as f64) + 1.0, y0 + 1.0),
+                    pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, y0 + row_h - 1.0),
+                );
+                p.rect_stroke(cell, 3.0, Stroke::new(1.5, theme::ACCENT), StrokeKind::Inside);
+            }
+            // a click selects a cell, its track and its section, and a double-click switches the track on or off there; with
+            // the paint tool, a press switches it and dragging along the row sets the others the same
+            let pressed = ui.input(|i| i.pointer.primary_pressed());
+            let down = ui.input(|i| i.pointer.primary_down());
+            let paint = cx.view.paint;
+            if pressed
+                && resp.hovered()
+                && let Some((row, sec)) = hover.and_then(cell_at)
+            {
+                let layer = &song.layers[row];
+                (cx.view.section, cx.view.track) = (sec, Some(layer.clone()));
+                if paint {
+                    let on = !song.sections[sec].layers.iter().any(|l| l == layer);
+                    out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
+                    cx.view.layer_paint = Some((on, row, vec![sec]));
+                }
+            } else if resp.double_clicked()
+                && !paint
+                && let Some((row, sec)) = hover.and_then(cell_at)
+            {
+                out.push(Command::ToggleLayer { section: sec, layer: song.layers[row].clone() });
+            } else if down && paint {
+                if let Some((on, row, touched)) = &mut cx.view.layer_paint
+                    && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
+                    && let Some((_, sec)) = cell_at(pos2(pos.x, rect.top() + *row as f32 * row_h + 1.0))
+                    && !touched.contains(&sec)
+                {
+                    touched.push(sec);
+                    let layer = &song.layers[*row];
+                    let is_on = song.sections[sec].layers.iter().any(|l| l == layer);
+                    if is_on != *on {
+                        out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
+                    }
+                }
+            } else {
+                cx.view.layer_paint = None;
+            }
+            if let Some(pos) = hover {
+                if pos.x < tl.x0 {
+                    let row = ((pos.y - rect.top()) / row_h) as usize;
+                    if let Some(layer) = song.layers.get(row) {
+                        let r = Rect::from_min_size(
+                            pos2(rect.left(), rect.top() + row as f32 * row_h),
+                            vec2(GUTTER, row_h),
+                        );
+                        p.rect_filled(r, 2.0, theme::alpha(theme::STRONG, 0.04));
+                        let next = song.tracks.iter().find(|t| &t.name == layer).and_then(super::next_label);
+                        let on_swap = next.is_some() && swap_at(row).contains(pos);
+                        if let Some(next) = next.filter(|_| on_swap) {
+                            resp.clone().on_hover_text(format!("another sound for {layer}: {next}"));
+                        }
+                        if resp.clicked() && on_swap {
+                            out.push(super::swap(layer, None));
+                        } else if resp.clicked() {
+                            cx.view.track = Some(layer.clone());
+                            cx.view.tab = if song.drums.iter().any(|d| &d.lane == layer) {
+                                Tab::Sequencer
+                            } else if song.parts.iter().any(|x| &x.name == layer) {
+                                Tab::Parts
+                            } else {
+                                Tab::Mixer
+                            };
+                        }
+                    }
+                } else if let Some((row, sec)) = cell_at(pos) {
+                    let s = &song.sections[sec];
+                    let cell = Rect::from_min_max(
+                        pos2(tl.x(s.start_bar as f64) + 1.0, rect.top() + row as f32 * row_h + 2.0),
+                        pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, rect.top() + (row + 1) as f32 * row_h - 2.0),
+                    );
+                    p.rect_stroke(cell, 3.0, Stroke::new(1.0, theme::alpha(theme::STRONG, 0.5)), StrokeKind::Inside);
+                    let layer = &song.layers[row];
+                    let on = s.layers.iter().any(|l| l == layer);
+                    let (now, other) = if on { ("plays", "off") } else { ("is silent", "on") };
+                    resp.clone().on_hover_text(if cx.view.paint {
+                        format!("{layer} {now} in {}: click to switch it {other}, drag along the row to paint", s.name)
+                    } else {
+                        format!(
+                            "{layer} {now} in {}: click to select it, double-click (or Enter) to switch it {other}",
+                            s.name
+                        )
                     });
                 }
-                if t.kind == "take" {
-                    widgets::menu_group(ui, "Recording");
+            }
+            // the mute / solo menu on a row label
+            if resp.secondary_clicked() {
+                row_menu = resp.interact_pointer_pos().map(|p| ((p.y - rect.top()) / row_h).max(0.0) as usize);
+            }
+            resp.context_menu(|ui| {
+                let Some(layer) = row_menu.and_then(|row| song.layers.get(row)) else { return };
+                let track = song.tracks.iter().find(|t| &t.name == layer);
+                let about = track.map_or(String::new(), |t| {
+                    let what = match t.kind.as_str() {
+                        "drum" => "a drum lane",
+                        "take" => "a recording",
+                        "loop" => "a loop",
+                        "pattern" => "a pattern",
+                        _ => "a part",
+                    };
+                    match t.playing.as_deref().unwrap_or(&t.sound) {
+                        "" => what.to_string(),
+                        sound => format!("{what}, {sound}"),
+                    }
+                });
+                widgets::menu_title(ui, layer, &about);
+                if let Some(t) = track {
+                    widgets::menu_group(ui, "Hear");
+                    let tip = if t.muted { "hear it again" } else { "silence it everywhere, keeping it in the song" };
+                    if ui.button(if t.muted { "Unmute" } else { "Mute" }).on_hover_text(tip).clicked() {
+                        out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(layer));
+                        ui.close();
+                    }
                     if ui
-                        .button("How is it sung?")
-                        .on_hover_text("the notes it means, how near each came, and how its singer sings")
+                        .button(if t.solo { "Unsolo" } else { "Solo" })
+                        .on_hover_text("while any track is soloed, only soloed tracks play")
                         .clicked()
                     {
-                        out.push(Command::AssessVoice { take: Some(layer.clone()), path: None, key: None });
+                        out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(layer));
                         ui.close();
                     }
-                    if let Some(seconds) = t.seconds
-                        && ui
-                            .button("Trim...")
-                            .on_hover_text("keep part of its recording: start it later in itself, or stop it sooner")
-                            .clicked()
-                    {
-                        trim = Some(super::import::Trim::of(layer, seconds));
-                        ui.close();
-                    }
-                    ui.menu_button("Tune it", |ui| {
-                        ui.label(small("each note moved onto the note it means, as the song's chords read it"));
-                        let tuned = t.fx.iter().any(|e| e.get("fx").and_then(|f| f.as_str()) == Some("tune"));
-                        let tune = |speed: f32, humanize: f32, vibrato: f32| Command::Tune {
-                            track: layer.clone(),
-                            strength: Some(1.0),
-                            speed_ms: Some(speed),
-                            humanize: Some(humanize),
-                            vibrato: Some(vibrato),
-                            scale: None,
-                            off: false,
-                        };
-                        for (label, hint, cmd) in [
-                            ("Naturally", "the scoop into each note and the vibrato stay", tune(40.0, 10.0, 1.0)),
-                            (
-                                "Tightly",
-                                "on the note within 15 ms, a little of the singer's own left",
-                                tune(15.0, 3.0, 1.0),
-                            ),
-                            (
-                                "Hard",
-                                "snapped onto each note at once, held dead still: the robotic sound",
-                                tune(0.0, 0.0, 0.0),
-                            ),
-                        ] {
-                            if ui.button(label).on_hover_text(hint).clicked() {
-                                out.push(cmd);
-                                ui.close();
-                            }
-                        }
-                        if tuned && ui.button("Not at all").clicked() {
-                            let mut off = tune(0.0, 0.0, 0.0);
-                            if let Command::Tune { off: o, .. } = &mut off {
-                                *o = true;
-                            }
-                            out.push(off);
+                    if !t.swaps.is_empty() {
+                        widgets::menu_group(ui, "Sound");
+                        if let Some(next) = super::next_label(t)
+                            && ui
+                                .button(format!("Another sound: {next}"))
+                                .on_hover_text("the next that fits it and no other part plays; undo swaps back")
+                                .clicked()
+                        {
+                            out.push(super::swap(layer, None));
                             ui.close();
                         }
-                    });
-                    ui.menu_button("Turn it into drums", |ui| {
-                        ui.label(small(
-                            "its kicks, snares and hats, played or beatboxed, become the song's drum lanes, and the \
-                             take goes quiet",
-                        ));
-                        for (label, bars) in [("1 bar", 1), ("2 bars", 2), ("4 bars", 4)] {
-                            if ui
-                                .button(label)
-                                .on_hover_text("the pattern's length, folded from every time round")
-                                .clicked()
-                            {
-                                out.push(Command::TranscribeDrums {
-                                    take: Some(layer.clone()),
-                                    path: None,
-                                    bars: Some(bars),
-                                    variant: None,
-                                    bpm: None,
-                                    keep_take: false,
-                                });
-                                ui.close();
-                            }
+                        ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)))
+                            .response
+                            .on_hover_text("choose the sound it plays from those that fit it; its notes stay");
+                    }
+                    if matches!(t.kind.as_str(), "part" | "drum") {
+                        widgets::menu_group(ui, "Write");
+                        let vary = |take: bool| Command::VaryTrack { track: layer.clone(), take };
+                        if ui
+                            .button("Another take")
+                            .on_hover_text(
+                                "written again: a part with a new seed, a lane as the genre it was written as plays it",
+                            )
+                            .clicked()
+                        {
+                            out.push(vary(true));
+                            ui.close();
                         }
-                    });
-                    ui.menu_button("Turn the melody into notes", |ui| {
-                        ui.label(small(
-                            "a new part plays what was sung, in the key and on the grid, and the take goes quiet",
-                        ));
-                        ui.label(small("as").weak());
-                        ui.horizontal_wrapped(|ui| {
-                            for s in claudius_api::NOTE_STYLES {
-                                ui.selectable_value(&mut style, s.to_string(), *s)
-                                    .on_hover_text(claudius_api::words::note_style_in_words(s));
-                            }
-                        });
-                        for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
-                            if names.is_empty() {
-                                continue;
-                            }
-                            ui.label(small(heading).weak());
-                            for s in names {
-                                let about = super::named(super::sound_about(s, sounds).as_deref(), s);
-                                if ui.button(claudius_api::words::name_in_words(s)).on_hover_text(about).clicked() {
-                                    out.push(Command::TranscribeTake {
-                                        take: layer.clone(),
-                                        sounds: vec![s.clone()],
+                        if ui
+                            .button("Vary it")
+                            .on_hover_text(
+                                "the same take, other details: a part keeps its rhythm, a lane its strong hits",
+                            )
+                            .clicked()
+                        {
+                            out.push(vary(false));
+                            ui.close();
+                        }
+                    }
+                    if t.kind == "part" {
+                        ui.menu_button("Add chords under it", |ui| {
+                            ui.label(small("chords that fit its notes and the song's, worked out again as it changes"));
+                            for (label, style, hint) in [
+                                ("A chord on each note", "block", "block chords under the melody, on its own sound"),
+                                ("A pad under it", "sustain", "chords held under it, as a pad"),
+                                ("Stabs", "stabs", "short chords on the beat and between"),
+                                ("Offbeat", "offbeat", "a chord on each offbeat"),
+                            ] {
+                                if ui.button(label).on_hover_text(hint).clicked() {
+                                    out.push(Command::Harmonize {
+                                        part: layer.clone(),
+                                        style: Some(style.into()),
+                                        sound: None,
                                         name: None,
-                                        role: None,
-                                        chromatic: false,
-                                        keep_take: false,
-                                        style: Some(style.clone()),
                                     });
                                     ui.close();
                                 }
                             }
+                        });
+                    }
+                    if t.kind == "take" {
+                        widgets::menu_group(ui, "Recording");
+                        if ui
+                            .button("How is it sung?")
+                            .on_hover_text("the notes it means, how near each came, and how its singer sings")
+                            .clicked()
+                        {
+                            out.push(Command::AssessVoice { take: Some(layer.clone()), path: None, key: None });
+                            ui.close();
                         }
+                        if let Some(seconds) = t.seconds
+                            && ui
+                                .button("Trim...")
+                                .on_hover_text(
+                                    "keep part of its recording: start it later in itself, or stop it sooner",
+                                )
+                                .clicked()
+                        {
+                            trim = Some(super::import::Trim::of(layer, seconds));
+                            ui.close();
+                        }
+                        ui.menu_button("Tune it", |ui| {
+                            ui.label(small("each note moved onto the note it means, as the song's chords read it"));
+                            let tuned = t.fx.iter().any(|e| e.get("fx").and_then(|f| f.as_str()) == Some("tune"));
+                            let tune = |speed: f32, humanize: f32, vibrato: f32| Command::Tune {
+                                track: layer.clone(),
+                                strength: Some(1.0),
+                                speed_ms: Some(speed),
+                                humanize: Some(humanize),
+                                vibrato: Some(vibrato),
+                                scale: None,
+                                off: false,
+                            };
+                            for (label, hint, cmd) in [
+                                ("Naturally", "the scoop into each note and the vibrato stay", tune(40.0, 10.0, 1.0)),
+                                (
+                                    "Tightly",
+                                    "on the note within 15 ms, a little of the singer's own left",
+                                    tune(15.0, 3.0, 1.0),
+                                ),
+                                (
+                                    "Hard",
+                                    "snapped onto each note at once, held dead still: the robotic sound",
+                                    tune(0.0, 0.0, 0.0),
+                                ),
+                            ] {
+                                if ui.button(label).on_hover_text(hint).clicked() {
+                                    out.push(cmd);
+                                    ui.close();
+                                }
+                            }
+                            if tuned && ui.button("Not at all").clicked() {
+                                let mut off = tune(0.0, 0.0, 0.0);
+                                if let Command::Tune { off: o, .. } = &mut off {
+                                    *o = true;
+                                }
+                                out.push(off);
+                                ui.close();
+                            }
+                        });
+                        ui.menu_button("Turn it into drums", |ui| {
+                            ui.label(small(
+                            "its kicks, snares and hats, played or beatboxed, become the song's drum lanes, and the \
+                             take goes quiet",
+                        ));
+                            for (label, bars) in [("1 bar", 1), ("2 bars", 2), ("4 bars", 4)] {
+                                if ui
+                                    .button(label)
+                                    .on_hover_text("the pattern's length, folded from every time round")
+                                    .clicked()
+                                {
+                                    out.push(Command::TranscribeDrums {
+                                        take: Some(layer.clone()),
+                                        path: None,
+                                        bars: Some(bars),
+                                        variant: None,
+                                        bpm: None,
+                                        keep_take: false,
+                                    });
+                                    ui.close();
+                                }
+                            }
+                        });
+                        ui.menu_button("Turn the melody into notes", |ui| {
+                            ui.label(small(
+                                "a new part plays what was sung, in the key and on the grid, and the take goes quiet",
+                            ));
+                            ui.label(small("as").weak());
+                            ui.horizontal_wrapped(|ui| {
+                                for s in claudius_api::NOTE_STYLES {
+                                    ui.selectable_value(&mut style, s.to_string(), *s)
+                                        .on_hover_text(claudius_api::words::note_style_in_words(s));
+                                }
+                            });
+                            for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
+                                if names.is_empty() {
+                                    continue;
+                                }
+                                ui.label(small(heading).weak());
+                                for s in names {
+                                    let about = super::named(super::sound_about(s, sounds).as_deref(), s);
+                                    if ui.button(claudius_api::words::name_in_words(s)).on_hover_text(about).clicked() {
+                                        out.push(Command::TranscribeTake {
+                                            take: layer.clone(),
+                                            sounds: vec![s.clone()],
+                                            name: None,
+                                            role: None,
+                                            chromatic: false,
+                                            keep_take: false,
+                                            style: Some(style.clone()),
+                                        });
+                                        ui.close();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+                widgets::menu_group(ui, "Sections");
+                if ui.button("On in every section").on_hover_text("it plays all through the song").clicked() {
+                    for (i, s) in song.sections.iter().enumerate() {
+                        if !s.layers.contains(layer) {
+                            out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
+                        }
+                    }
+                    ui.close();
+                }
+                let tip = "silent all through the song, but kept, to switch on again where you like";
+                if ui.button("Off in every section").on_hover_text(tip).clicked() {
+                    for (i, s) in song.sections.iter().enumerate() {
+                        if s.layers.contains(layer) {
+                            out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
+                        }
+                    }
+                    ui.close();
+                }
+                ui.separator();
+                if ui
+                    .button(RichText::new("Remove the track").color(theme::BAD))
+                    .on_hover_text("out of the song and every section; Undo brings it back")
+                    .clicked()
+                {
+                    out.push(Command::RemoveTrack { name: layer.clone() });
+                    ui.close();
+                }
+            });
+            // a track more, under the last
+            ui.horizontal(|ui| {
+                ui.add_space(6.0);
+                let add = ui.button(RichText::new("+ Track").size(11.5).color(TEXT_DIM)).on_hover_text(
+                    "add a track: one written in a style, a part or a drum lane of your own, or a recording",
+                );
+                // a form: choosing its role or sound keeps it open
+                egui::Popup::from_toggle_button_response(&add)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                    .show(|ui| match add_track_menu(ui, &mut add_form, &mut search, song, genres, sounds) {
+                        Some(Added::Send(c)) => out.push(c),
+                        Some(a) => opened = Some(a),
+                        None => {}
                     });
-                }
-            }
-            widgets::menu_group(ui, "Sections");
-            if ui.button("On in every section").on_hover_text("it plays all through the song").clicked() {
-                for (i, s) in song.sections.iter().enumerate() {
-                    if !s.layers.contains(layer) {
-                        out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
-                    }
-                }
-                ui.close();
-            }
-            let tip = "silent all through the song, but kept, to switch on again where you like";
-            if ui.button("Off in every section").on_hover_text(tip).clicked() {
-                for (i, s) in song.sections.iter().enumerate() {
-                    if s.layers.contains(layer) {
-                        out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
-                    }
-                }
-                ui.close();
-            }
-            ui.separator();
-            if ui
-                .button(RichText::new("Remove the track").color(theme::BAD))
-                .on_hover_text("out of the song and every section; Undo brings it back")
-                .clicked()
-            {
-                out.push(Command::RemoveTrack { name: layer.clone() });
-                ui.close();
-            }
+            });
         });
-        // a track more, under the last
-        ui.horizontal(|ui| {
-            ui.add_space(6.0);
-            let add = ui.button(RichText::new("+ Track").size(11.5).color(TEXT_DIM)).on_hover_text(
-                "add a track: one written in a style, a part or a drum lane of your own, or a recording",
-            );
-            // a form: choosing its role or sound keeps it open
-            egui::Popup::from_toggle_button_response(&add)
-                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                .show(|ui| match add_track_menu(ui, &mut add_form, &mut search, song, genres, sounds) {
-                    Some(Added::Send(c)) => out.push(c),
-                    Some(a) => opened = Some(a),
-                    None => {}
-                });
-        });
-    });
 
     // waveform
     let wave = Rect::from_min_max(pos2(tl.x0, full.bottom() - wave_h - 14.0), pos2(tl.x1, full.bottom() - 10.0));
