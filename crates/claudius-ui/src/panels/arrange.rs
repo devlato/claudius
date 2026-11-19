@@ -622,7 +622,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
             widgets::menu_group(ui, "Arrange");
             if widgets::menu_item(ui, "Duplicate", "").on_hover_text("a copy of it right after it").clicked() {
-                out.extend(crate::cmds::duplicate(s, i));
+                out.push(crate::cmds::duplicate(s, i));
                 ui.close();
             }
             let at = ui.data(|d| d.get_temp::<u32>(split_id)).unwrap_or(s.bars / 2).clamp(1, s.bars.max(2) - 1);

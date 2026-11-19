@@ -23,9 +23,9 @@ pub struct SectionEdit {
 
 /// What the studio's Duplicate sends for section `i`, `s`: a section of its kind and length right after it, then all it
 /// is set to (its progression and its build-up too) and the stretch of each take it plays, so that a chorus played twice
-/// plays its own recording twice
-pub fn duplicate(s: &claudius_api::SectionView, i: usize) -> Vec<Command> {
-    let mut out = vec![
+/// plays its own recording twice; as one change, which one undo takes back whole
+pub fn duplicate(s: &claudius_api::SectionView, i: usize) -> Command {
+    let mut commands = vec![
         Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars },
         SectionEdit {
             energy: Some(s.energy),
@@ -44,12 +44,12 @@ pub fn duplicate(s: &claudius_api::SectionView, i: usize) -> Vec<Command> {
         }
         .at(i + 1),
     ];
-    out.extend(
+    commands.extend(
         s.takes.iter().map(|(take, at)| {
             SectionEdit { source: Some(*at), take: Some(take.clone()), ..Default::default() }.at(i + 1)
         }),
     );
-    out
+    Command::Together { said: format!("Duplicate {}", s.name), commands }
 }
 
 impl SectionEdit {
@@ -152,9 +152,12 @@ mod tests {
         };
         let vox = TrackView { name: "vox".into(), kind: "take".into(), ..Default::default() };
         let mut song = SongView { sections: vec![s.clone()], tracks: vec![vox], ..Default::default() };
-        for c in super::duplicate(&s, 0) {
-            crate::edits::apply(&mut song, &c).unwrap().unwrap();
-        }
+        let together = super::duplicate(&s, 0);
+        assert!(
+            matches!(&together, claudius_api::Command::Together { said, .. } if said == "Duplicate chorus"),
+            "one change"
+        );
+        crate::edits::apply(&mut song, &together).unwrap().unwrap();
         let copy = song.sections[1].clone();
         assert_eq!(copy.name, "hook");
         assert_eq!(SectionView { name: s.name.clone(), start_bar: 0, ..copy }, s);
