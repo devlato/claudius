@@ -79,6 +79,8 @@ impl Studio {
         let prefs = crate::settings::Prefs::load(cc.storage);
         theme::apply(&cc.egui_ctx, prefs.look);
         cc.egui_ctx.options_mut(|o| o.screen_reader = prefs.speak);
+        // the window the dialogs' threads wake when a file is read or saved
+        crate::pick::wake(&cc.egui_ctx);
         let mut view = View {
             tab: prefs.tab,
             volume: prefs.volume,
@@ -373,6 +375,14 @@ impl Studio {
     /// the release as its cover.
     fn take_picks(&mut self, now: f64) {
         use crate::pick::{Want, chosen};
+        // what the app's save dialogs saved, from their own threads
+        #[cfg(not(target_arch = "wasm32"))]
+        for done in crate::keep::saved() {
+            match done {
+                Ok(file) => self.toast(format!("saved {file}"), true, now),
+                Err(e) => self.toast(e, false, now),
+            }
+        }
         if let Some(got) = chosen(Want::Song) {
             match got {
                 Ok(file) if file.name.to_lowercase().ends_with(".zip") => {

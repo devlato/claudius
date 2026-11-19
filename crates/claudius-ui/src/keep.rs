@@ -17,17 +17,37 @@ pub fn deliver(d: Delivery) -> Result<Option<String>, String> {
     }
 }
 
-/// Hands the file over: the name it was kept under, or None when the person closed the dialog.
+/// what the app's save dialogs saved (or why not), from their own threads, until the studio takes it (`saved`)
+#[cfg(not(target_arch = "wasm32"))]
+static SAVED: std::sync::Mutex<Vec<Result<String, String>>> = std::sync::Mutex::new(Vec::new());
+
+/// Hands the file over. In the app the system's dialog asks where to save it, as `pick::choose`'s does: a sheet on the
+/// studio's window beside the event loop, waited for on a thread of its own (run modal inside the frame, resizing it
+/// crashed the studio). What it saved arrives through `saved`; this answers None at once.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn deliver(d: Delivery) -> Result<Option<String>, String> {
     match d {
         Delivery::Bytes { name, bytes, .. } => {
-            let Some(path) = rfd::FileDialog::new().set_file_name(&name).save_file() else { return Ok(None) };
-            std::fs::write(&path, bytes).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
-            Ok(Some(path.display().to_string()))
+            let dialog = rfd::AsyncFileDialog::new().set_file_name(&name).save_file();
+            std::thread::spawn(move || {
+                let Some(file) = pollster::block_on(dialog) else { return };
+                let path = file.path().to_path_buf();
+                let done = std::fs::write(&path, bytes)
+                    .map(|()| path.display().to_string())
+                    .map_err(|e| format!("cannot write {}: {e}", path.display()));
+                SAVED.lock().unwrap_or_else(|e| e.into_inner()).push(done);
+                crate::pick::repaint();
+            });
+            Ok(None)
         }
         Delivery::Url { url, .. } => Err(format!("the app downloads nothing from {url}: the song's folder holds it")),
     }
+}
+
+/// what the app's save dialogs saved since the studio last asked, each the file saved or why it was not
+#[cfg(not(target_arch = "wasm32"))]
+pub fn saved() -> Vec<Result<String, String>> {
+    std::mem::take(&mut *SAVED.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 #[cfg(target_arch = "wasm32")]
