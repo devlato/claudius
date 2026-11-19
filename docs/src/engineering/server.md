@@ -67,15 +67,16 @@ never fail to restore exactly what was there.
 
 ### The history
 
-`claudius_session::history`, which the browser's demo shares, keeps every change made to the song as an operation in
-a log that only grows ([0012](../design/0012-history.md)): its id (the session's own random id and its Lamport time),
-the operation it was made on, when, what kind it is (an edit with the command that made it, an undo or a redo of an
-edit, or going back to before one, `go_back`), what undo calls it, what it changed in words (`describe`: "added the
-whistle track (lead), playing the synth whistle"), and what it changed in the song: each path of the blueprint's JSON
+`claudius_session::history`, which the browser's demo shares, keeps every change made to the song as an operation in a
+log that only grows ([0012](../design/0012-history.md)): its id (the session's own random id and its Lamport time), the
+operation it was made on, when, what kind it is (an edit with the command that made it, an undo or a redo of an edit, or
+going back to before one, `go_back`), what undo calls it, what it changed in words (`describe`: "added the whistle track
+(lead), playing the synth whistle"; a section given another name, "renamed the drop section to chorus", though its old
+name goes out of the list and the new one comes in), and what it changed in the song: each path of the blueprint's JSON
 whose value changed, with the value before and after (`diff`). A path names the elements of a list of named things
 (`/parts/@bass/mix/level_db`) and keeps the list's order as a value of its own (`/parts/#`), so a change to one track
-says which track it was, whatever happens to the others. The changes of every operation, applied in order to no song
-at all, make the song as it is (`apply`), and taken back in reverse they make it as it was.
+says which track it was, whatever happens to the others. The changes of every operation, applied in order to no song at
+all, make the song as it is (`apply`), and taken back in reverse they make it as it was.
 
 Another song in the song's place (a new song, one opened, a recording remade: `commit_song`) is one change of the
 whole song, at the empty path, and so is its undo or redo. A song's own log begins at the edit that put the song as it
