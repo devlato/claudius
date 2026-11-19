@@ -44,6 +44,12 @@ pub struct RadioPlayer {
     error: Option<String>,
 }
 
+impl Default for RadioPlayer {
+    fn default() -> Self {
+        RadioPlayer::new()
+    }
+}
+
 impl RadioPlayer {
     pub fn new() -> RadioPlayer {
         let shared = Arc::new(Shared {
@@ -73,6 +79,19 @@ impl RadioPlayer {
             Err(e) => (None, Some(format!("no audio output: {e}"))),
         };
         RadioPlayer { shared, _device: device, error }
+    }
+
+    /// a player with no device, whose stream stands still: for the tests, which place pieces and play nothing
+    #[cfg(test)]
+    pub fn silent() -> RadioPlayer {
+        let shared = Arc::new(Shared {
+            program: Mutex::new(Arc::new(Vec::new())),
+            generation: AtomicU64::new(0),
+            playing: AtomicBool::new(false),
+            volume: AtomicU32::new(0.8f32.to_bits()),
+            clock: AtomicU64::new(0f64.to_bits()),
+        });
+        RadioPlayer { shared, _device: None, error: None }
     }
 
     /// why the radio cannot play

@@ -139,10 +139,14 @@ pub struct Radio {
 
 impl Radio {
     pub fn new(ctx: Option<egui::Context>) -> Radio {
+        Radio::with(ctx, RadioPlayer::new())
+    }
+
+    fn with(ctx: Option<egui::Context>, player: RadioPlayer) -> Radio {
         Radio {
             engine: Engine::start(ctx),
             station: None,
-            player: RadioPlayer::new(),
+            player,
             on_air: None,
             next: None,
             asked: None,
@@ -427,4 +431,56 @@ fn save(audio: &Stereo, title: &str) -> Result<PathBuf, String> {
 /// a genre's name as people say it
 pub fn said(genre: &str) -> String {
     if genre == "dnb" { "drum and bass".into() } else { genre.replace('_', " ") }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::*;
+
+    /// ticks `r` until `done` says it is there
+    fn until(r: &mut Radio, done: impl Fn(&Radio) -> bool) {
+        let t0 = Instant::now();
+        while !done(r) {
+            r.tick();
+            assert!(t0.elapsed() < Duration::from_secs(600), "the station never got there: {}", r.said);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn the_station_writes_its_first_song_places_the_next_after_a_change_and_skips_to_it_on_the_beat() {
+        let mut r = Radio::with(None, RadioPlayer::silent());
+        r.keep_to(vec!["house".into()]);
+        r.toggle();
+        until(&mut r, |r| r.on_air().is_some());
+        let (first, _, secs) = r.on_air().map(|(i, at, s)| (i.clone(), at, s)).unwrap();
+        assert_eq!(first.genre, "house");
+        assert!(secs > 60.0, "a whole song, {secs} s");
+        let program = r.player.program();
+        assert_eq!((program.len(), program[0].at, program[0].from), (1, 0, 0), "from where the stream is");
+        // the next one, made while the first plays, after a change placed on one of the first's bar lines
+        until(&mut r, |r| r.next.is_some());
+        let n = r.next.as_ref().unwrap();
+        assert_eq!(n.made.info.genre, "house", "kept to the genre chosen");
+        let program = r.player.program();
+        assert_eq!(program.len(), 3, "the first up to the change, the change, the next from where it goes on");
+        assert_eq!(program[0].end(), program[1].at);
+        assert_eq!(program[1].end(), program[2].at);
+        assert_eq!(program[2].from, n.made.song.audio.len() - program[2].len);
+        let bar = 240.0 / first.bpm * SRF;
+        // a blend and a record stop begin on the bar line, an echo out a beat before it
+        let echoed = !n.blended && n.made.spec.how != radio::How::Brake;
+        let at = n.change_at as f64 + if echoed { bar / 4.0 } else { 0.0 };
+        assert!((at / bar - (at / bar).round()).abs() < 1e-3, "on a bar line: {} bars", at / bar);
+        assert!(r.coming().is_some_and(|c| c.contains("from now")), "{:?}", r.coming());
+        // a skip: the next song in on the playing one's next beat, from its start
+        r.skip();
+        let n = r.next.as_ref().unwrap();
+        assert!(n.made.info.genre == "house" && n.said.starts_with("skipped to"), "{}", n.said);
+        let program = r.player.program();
+        assert_eq!((program.len(), program[0].at), (2, 0), "the cut from the stream's start, then the next song");
+        assert!(r.studio().is_some_and(|c| matches!(c, Command::NewSong { ref genre, .. } if genre == "house")));
+    }
 }

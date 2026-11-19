@@ -5,10 +5,10 @@
 use eframe::egui::{self, RichText, Ui, vec2};
 
 use super::Cx;
-use crate::theme::{TEXT, TEXT_DIM};
-use crate::widgets;
+use crate::theme::TEXT;
 
 /// the site's radio, where a browser plays it
+#[cfg(target_arch = "wasm32")]
 const SITE: &str = "https://claudius.devlato.com/radio/";
 
 #[derive(Default)]
@@ -83,6 +83,8 @@ fn body(ui: &mut Ui, _cx: &mut Cx) {
 #[cfg(not(target_arch = "wasm32"))]
 fn body(ui: &mut Ui, cx: &mut Cx) {
     use crate::radio::{Radio, said};
+    use crate::theme::TEXT_DIM;
+    use crate::widgets;
     let ctx = ui.ctx().clone();
     let r = cx.view.radio.radio.get_or_insert_with(|| Radio::new(Some(ctx)));
     if let Some(e) = r.error() {
@@ -172,6 +174,7 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
 #[cfg(not(target_arch = "wasm32"))]
 fn genres(ui: &mut Ui, r: &mut crate::radio::Radio) {
     use crate::radio::said;
+    use crate::theme::TEXT_DIM;
     let kept = r.kept();
     let title = match kept.len() {
         0 => "Genres: every one".to_string(),

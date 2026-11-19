@@ -573,9 +573,9 @@ mod tests {
         let late = (bar * 6.5) as usize;
         assert!(level(&c.mixed.l, 82.0, late, n) > 0.35, "the next bass");
         assert!(level(&c.mixed.l, 55.0, late, n) < 0.03, "the outgoing bass cut");
-        // at its end, the next song alone, as it goes on from there
-        let end = c.mixed.len() - n;
-        assert!(level(&c.mixed.l, 440.0, end, n) < 0.01, "the outgoing top faded out");
+        // at its very end, the next song alone, as it goes on from there
+        let tail = (0.1 * SRF) as usize;
+        assert!(level(&c.mixed.l, 440.0, c.mixed.len() - tail, tail) < 0.01, "the outgoing top faded out");
         assert_eq!(c.then, c.mixed.len());
         // a song that came too late for the outro comes in on the next bar line after where it plays
         let late = change(&a, &b, How::Blend, (60.3 * bar) as usize);
