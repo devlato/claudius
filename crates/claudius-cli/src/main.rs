@@ -763,7 +763,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.display()
             );
         }
-        Cmd::Studio { app } => {
+        Cmd::Studio { app, file } => {
             use claudius_server::mcp::{Probe, older_than_this};
             let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));
             let mut own = None;
@@ -814,6 +814,13 @@ fn run(cli: Cli) -> Result<()> {
             #[cfg(feature = "studio")]
             {
                 update::start();
+                // the songs the system asks the app to open: on a Mac by an event, as the app opens and while it runs;
+                // elsewhere as the program's argument
+                #[cfg(target_os = "macos")]
+                claudius_macos::on_open_files(|files| files.iter().for_each(|f| claudius_ui::open_file(f)));
+                if let Some(file) = &file {
+                    claudius_ui::open_file(file);
+                }
                 let served = claudius_server::Options { web: app.web(), ..Default::default() };
                 let native = std::sync::Arc::new(connect::FromTheStudio {
                     older: std::sync::Mutex::new(older),
@@ -831,6 +838,9 @@ fn run(cli: Cli) -> Result<()> {
                 eprintln!(
                     "this claudius was built without the studio window; open {url} in a browser (ctrl-c to stop)"
                 );
+                if let Some(file) = &file {
+                    eprintln!("and {} there with Open", file.display());
+                }
                 let (_session, _older) = (own, older);
                 loop {
                     std::thread::park();
@@ -954,6 +964,20 @@ fn run(cli: Cli) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_studio_opens_the_song_it_is_given_as_a_double_clicked_project_gives_it() {
+        use clap::Parser as _;
+        let file = |args: &[&str]| match crate::args::Cli::parse_from(args).cmd {
+            crate::args::Cmd::Studio { file, .. } => file,
+            _ => panic!("{args:?} is not the studio"),
+        };
+        // as Windows and Linux start it for a project double-clicked
+        let opened = file(&["claudius", "studio", "C:\\Users\\someone\\Music\\Glass Garden.claudius"]);
+        assert_eq!(opened, Some("C:\\Users\\someone\\Music\\Glass Garden.claudius".into()));
+        assert_eq!(file(&["claudius", "studio", "--port", "7979", "song.rhai"]), Some("song.rhai".into()));
+        assert_eq!(file(&["claudius", "studio"]), None);
+    }
+
     #[test]
     fn a_studio_and_an_assistants_claudius_stepping_round_an_older_one_together_find_each_other() {
         use clap::Parser as _;

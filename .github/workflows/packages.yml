@@ -85,6 +85,19 @@ jobs:
             sleep 2
           done
           curl -fsS -H "Host: localhost" http://127.0.0.1:7878/api/hello > /dev/null
+          # a project double-clicked in the Finder: the app is the one to open it, and the system sends it to the app as
+          # it runs, which opens it (a song saved by the last release, kept for the compatibility tests)
+          (cd crates/claudius/tests/compat/v0.12.1/folder && zip -qr "$RUNNER_TEMP/Glass Garden.claudius" .)
+          /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app"
+          opener=$(osascript -l JavaScript -e "ObjC.import('AppKit');
+            \$.NSWorkspace.sharedWorkspace.URLForApplicationToOpenURL(\$.NSURL.fileURLWithPath('$RUNNER_TEMP/Glass Garden.claudius')).path.js")
+          test "$opener" = "$app" || { echo "a .claudius opens with '$opener', not $app" >&2; exit 1; }
+          open -g -a "$app" "$RUNNER_TEMP/Glass Garden.claudius"
+          for _ in $(seq 60); do
+            if curl -fsS -H "Host: localhost" http://127.0.0.1:7878/api/state | grep -q '"title":"Glass Garden"'; then break; fi
+            sleep 2
+          done
+          curl -fsS -H "Host: localhost" http://127.0.0.1:7878/api/state | grep -q '"title":"Glass Garden"'
           pgrep -f "Claudius.app/Contents/MacOS/Claudius"
           pkill -f "Claudius.app/Contents/MacOS/Claudius"
       - name: The Intel disk image holds the Intel app
@@ -165,9 +178,17 @@ jobs:
           # Start menu runs finds claudius.exe and starts `claudius studio`
           $p = Start-Process $target -ArgumentList '--help' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "claudius-studio.exe --help exited with $($p.ExitCode)" }
+          # a project (.claudius) double-clicked opens in the studio: the user's classes name the program and the file
+          $classes = 'HKCU:\Software\Classes'
+          $progid = (Get-ItemProperty "$classes\.claudius" -ErrorAction Stop).'(default)'
+          if ($progid -ne 'Claudius.Project') { throw ".claudius belongs to '$progid'" }
+          $open = (Get-ItemProperty "$classes\Claudius.Project\shell\open\command" -ErrorAction Stop).'(default)'
+          $want = "`"$(Join-Path $bin 'claudius-studio.exe')`" `"%1`""
+          if ($open -ne $want) { throw "a project opens with '$open', not '$want'" }
           $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/x', "`"$msi`"", '/qn'
           if ($p.ExitCode -ne 0) { throw "msiexec /x exited with $($p.ExitCode)" }
           if (Test-Path (Join-Path $bin 'claudius.exe')) { throw 'uninstalling left claudius.exe behind' }
+          if (Test-Path "$classes\.claudius") { throw 'uninstalling left the .claudius type behind' }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-installer
@@ -202,12 +223,16 @@ jobs:
           docker run --rm -v "$PWD:/packages:ro" debian:trixie sh -ec '
             apt-get update -qq && apt-get install -y -qq /packages/claudius-*.deb > /dev/null
             claudius --version
-            test -f /usr/share/claudius/web/index.html && test -f /usr/share/applications/claudius-studio.desktop'
+            test -f /usr/share/claudius/web/index.html && test -f /usr/share/applications/claudius-studio.desktop
+            # a project (.claudius) is a type the desktop knows, and the studio opens it
+            grep -qx "MimeType=application/x-claudius-project;" /usr/share/applications/claudius-studio.desktop
+            apt-get install -y -qq shared-mime-info > /dev/null
+            grep -qx "application/x-claudius-project:\*\.claudius" /usr/share/mime/globs'
           # the .rpm on Fedora
           docker run --rm -v "$PWD:/packages:ro" fedora:42 sh -ec '
             dnf install -y -q /packages/claudius-*.rpm > /dev/null
             claudius --version
-            test -f /usr/share/claudius/web/index.html'
+            test -f /usr/share/claudius/web/index.html && test -f /usr/share/mime/packages/claudius.xml'
           # the AppImage here, extracted instead of mounted
           for appimage in claudius-*.AppImage; do
             chmod +x "$appimage"

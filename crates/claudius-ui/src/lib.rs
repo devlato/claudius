@@ -80,6 +80,16 @@ pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn
     )
 }
 
+/// Opens the song at `path` in the studio as if it had been chosen with Open: a project (`.claudius`, or a `.zip` as
+/// earlier demos saved them), a blueprint (`.json`) or a script (`.rhai`). For a song the system asks the app to open
+/// (a project double-clicked in the Finder or Explorer, or `claudius studio FILE`): read on a thread of its own, it
+/// opens in the window's next frame, or in its first when the window is still to open.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn open_file(path: &std::path::Path) {
+    let path = path.to_path_buf();
+    std::thread::spawn(move || pick::take_path(pick::Want::Song, &path));
+}
+
 /// The window's icon, from `cargo xtask icons`. eframe puts egui's logo there otherwise, in the Dock too: on a Mac it
 /// replaces the app's icon while the studio runs, so the Mac gets the icon on Apple's grid, with its margin.
 #[cfg(not(target_arch = "wasm32"))]

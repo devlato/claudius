@@ -328,7 +328,9 @@ it plays, cut from the free libraries' recordings, with the recording it came fr
 and its licence) in a `.json`, and their credits in `credits.txt`. A sample is kept as 24-bit FLAC, and a drum hit as
 the 32-bit WAV the demo cut it as, so nothing of them is lost.
 
-[Install claudius](install.md), then **Open** the file in the studio, or have an assistant `open` it: claudius unpacks
+[Install claudius](install.md), then double-click the file, **Open** it in the studio, or have an assistant `open` it:
+the installed app is the one to open a `.claudius` file, in the Finder, in Explorer, and on a Linux desktop the .deb or
+the .rpm installed it on. claudius unpacks
 it into a song folder of its own under `~/Music/claudius`, named after the file, and opens the song there, playing
 the samples the file brought. From then on it is a song like any other: it saves into that folder, and credits the
 recordings it plays in the folder's `credits.txt`

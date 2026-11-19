@@ -36,6 +36,7 @@ command lines around it.
 | `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs`, `claudius-session`, `claudius-intent` |
 | `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API, with a demo that runs the engine itself | `claudius-api`, `claudius-intent`; in the app, `claudius-session` for the demo |
 | `claudius-web` | the demo's engine in a browser's Web Worker (`claudius-engine`, which trunk builds beside the web studio) | `claudius-session` |
+| `claudius-macos` | what a Mac asks of the app that winit does not pass on: the files to open (a project double-clicked in the Finder), taken as the Apple Event "open documents" by a handler that answers it in place of AppKit's. The one crate with `unsafe` code, the calls into the Objective-C runtime; empty on other systems | objc2 |
 | `claudius-cli` | the `claudius` binary: one subcommand per task, `setup`, `doctor`, `connect` | all of the above |
 
 Two dependency rules hold the shape together. The engine knows nothing about HTTP, sessions or windows: it takes a
