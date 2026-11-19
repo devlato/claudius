@@ -223,7 +223,8 @@ that the web studio builds with trunk; that the workspace builds on the minimum 
 (`rust-version` in `Cargo.toml`); `cargo deny` (licences, advisories, sources); spelling with typos; that the book
 builds and its examples run; that the benchmarks build; the workflows and install scripts pass actionlint, shellcheck
 and PSScriptAnalyzer; and the website builds, its internal links resolve (lychee, with the book at `/docs/`), and it
-passes its smoke test. The only required check is `ci ok`, which fails when any of them failed or was cancelled.
+passes its smoke test. The only required check is `ci ok`, which passes only when each of them passed or was left
+out by a condition of its own: one that failed, was cancelled, or never ran because no runner took it fails it.
 [Development setup](../contributing/setup.md) covers installing the tools.
 
 ## Tests and the machine they run on
