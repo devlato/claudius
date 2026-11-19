@@ -316,13 +316,7 @@ impl Radio {
         let change_at = a.start + c.at as u64;
         let mixed = c.mixed.len();
         let start = change_at + mixed as u64 - c.then as u64;
-        let mut program: Vec<Placed> = self
-            .player
-            .program()
-            .iter()
-            .filter(|p| p.at < change_at)
-            .map(|p| Placed { len: p.len.min((change_at - p.at) as usize), ..p.clone() })
-            .collect();
+        let mut program = kept(&self.player.program(), clock, change_at);
         program.push(Placed { at: change_at, audio: Arc::new(c.mixed), from: 0, len: mixed });
         let rest = made.song.audio.len().saturating_sub(c.then);
         program.push(Placed { at: change_at + mixed as u64, audio: made.song.audio.clone(), from: c.then, len: rest });
@@ -433,6 +427,17 @@ pub fn said(genre: &str) -> String {
     if genre == "dnb" { "drum and bass".into() } else { genre.replace('_', " ") }
 }
 
+/// The stream's pieces that a change at `change_at` keeps, the stream being at `clock`: those still to sound or
+/// sounding, each cut off where the change begins. A piece played out is let go of, and the song it holds with it: a
+/// station left on for hours, as it is with its window closed, would otherwise keep every song it has played.
+fn kept(program: &[Placed], clock: u64, change_at: u64) -> Vec<Placed> {
+    program
+        .iter()
+        .filter(|p| p.at < change_at && p.end() > clock)
+        .map(|p| Placed { len: p.len.min((change_at - p.at) as usize), ..p.clone() })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, Instant};
@@ -447,6 +452,19 @@ mod tests {
             assert!(t0.elapsed() < Duration::from_secs(600), "the station never got there: {}", r.said);
             std::thread::sleep(Duration::from_millis(20));
         }
+    }
+
+    #[test]
+    fn a_change_keeps_the_pieces_still_to_sound_and_lets_go_of_those_played_out() {
+        let song = Arc::new(Stereo::zeros(48_000));
+        let piece = |at: u64, len: usize| Placed { at, audio: song.clone(), from: 0, len };
+        // a song that played out, the change into the one on air, which plays on, and the one after it, placed later
+        let program = [piece(0, 1_000), piece(1_000, 500), piece(1_500, 40_000), piece(41_500, 6_000)];
+        let kept = kept(&program, 2_000, 30_000);
+        let spans: Vec<(u64, usize)> = kept.iter().map(|p| (p.at, p.len)).collect();
+        assert_eq!(spans, [(1_500, 28_500)], "the one on air, cut at the change; those played out let go of");
+        // a piece sounding at the very moment is kept, and one ending there is not
+        assert_eq!(super::kept(&[piece(0, 2_000), piece(2_000, 100)], 2_000, 5_000).len(), 1);
     }
 
     #[test]
