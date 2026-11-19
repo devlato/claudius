@@ -108,7 +108,8 @@ Notes:
 - `run_script`, `new_song`, `listen`, `undo` and `redo` wait for the render and return the verdict. A call whose
   work takes longer than 45 s (remaking or sampling a long recording, rendering a long song, `mutate`, `evolve`,
   `save`) answers that it is still going instead, as an assistant's link gives up on a call after a minute or so:
-  `status` says how it goes, and gives its answer once it is done.
+  `status` says how it goes, and gives its answer once it is done (each one's, when the work of more than one call
+  goes on).
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}` (set as the song's own
