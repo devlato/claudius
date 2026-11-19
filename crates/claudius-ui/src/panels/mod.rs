@@ -1156,6 +1156,79 @@ mod tests {
         assert_eq!(search.asks, [("genres".to_string(), "jamaican vibes".to_string())], "the other on its own clock");
     }
 
+    /// one frame of a dialog on a screen of 1280 by 900, with `events`: its output
+    #[cfg(not(target_arch = "wasm32"))]
+    fn dialog_frame(
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+        show: fn(&egui::Context, &mut Cx),
+        (state, view, player): (&mut State, &mut View, &mut Player),
+    ) -> egui::FullOutput {
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 900.0));
+        let input = egui::RawInput { screen_rect: Some(screen), events, ..Default::default() };
+        let mut out = Vec::new();
+        let mut full = ctx.run_ui(input, |ui| {
+            let ctx = ui.ctx().clone();
+            let (state, view, player) = (&mut *state, &mut *view, &mut *player);
+            let mut cx = Cx { state, view, player, out: &mut out, sounds: None, server: None, now: 0.0 };
+            show(&ctx, &mut cx);
+        });
+        // the fonts' textures, which nothing draws here
+        full.textures_delta.clear();
+        full
+    }
+
+    /// Each dialog with a title band (`widgets::head`) closes from its close button: found as a screen reader finds
+    /// it, by its name, and clicked.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn every_dialog_closes_from_the_close_button_of_its_title_band() {
+        use egui::Role;
+        // how a window is shown, and the flag that holds it open
+        type Shown = fn(&egui::Context, &mut Cx);
+        type Open = fn(&mut View) -> &mut bool;
+        let dialogs: [(&str, Open, Shown); 4] = [
+            ("Change the genre", |v| &mut v.change_genre.open, transport::change_genre_dialog),
+            ("New song", |v| &mut v.new_song.open, transport::new_song_dialog),
+            ("Publish", |v| &mut v.publish.open, publish::dialog),
+            (
+                "Connect an assistant",
+                |v| &mut v.assistants.open,
+                |ctx, cx| assistants::dialog(ctx, &mut cx.view.assistants, None),
+            ),
+        ];
+        for (name, open, show) in dialogs {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let (mut state, mut view, mut player) = (State::default(), View::default(), Player::new(&ctx));
+            *open(&mut view) = true;
+            let mut frame = |events| dialog_frame(&ctx, events, show, (&mut state, &mut view, &mut player));
+            // a window is laid out over its first frames before it is shown where it stays
+            let mut shown = frame(Vec::new());
+            for _ in 0..3 {
+                shown = frame(Vec::new());
+            }
+            let tree = shown.platform_output.accesskit_update.expect("the screen reader's tree");
+            let close = tree
+                .nodes
+                .iter()
+                .filter(|(_, n)| n.role() == Role::Button && n.label() == Some("Close"))
+                .filter_map(|(_, n)| n.bounds())
+                .min_by(|a, b| a.y0.total_cmp(&b.y0))
+                .unwrap_or_else(|| panic!("{name}: no close button"));
+            let at = egui::pos2(((close.x0 + close.x1) / 2.0) as f32, ((close.y0 + close.y1) / 2.0) as f32);
+            let button = |pressed| egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            frame(vec![egui::Event::PointerMoved(at), button(true)]);
+            frame(vec![button(false)]);
+            assert!(!*open(&mut view), "{name}: still open after its close button was clicked");
+        }
+    }
+
     #[test]
     fn escape_closes_the_window_opened_last_first() {
         let mut v = View::default();
