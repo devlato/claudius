@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19
+
 `analyze` hears a song's own sections: each found to the bar and at any length (a verse of 17 bars stays 17), named
 for what it is (intro, verse, pre-chorus, chorus, bridge, instrumental, outro; intro, build, drop, break and outro in a
 track no one sings in), with the letter of the music it plays, where it builds into the next, and the phrases sung, to
@@ -26,6 +28,58 @@ singing: a small tagger, CED-Tiny (6.7 MB, which `claudius setup` downloads), he
 there. On 78 songs with timed lyrics, a voice is heard in 9.6% of the time far from any sung line, against 14.7%, and
 in as much of the singing as before (88.4% of it, against 88.6%). It adds 1.5 to 3.5 seconds to a song's analysis on
 an M1 Max, once: what it heard is kept with the recording.
+
+### Added
+
+- studio: The search fields find genres and sounds by meaning too, as the palette does ([#292](https://github.com/devlato/claudius/pull/292))
+- analysis: A song's own sections: where each starts, which repeat, what each is, where a build resolves, and the phrases sung ([#293](https://github.com/devlato/claudius/pull/293))
+- remake: A flip's build plays the recording's own build up to where its chorus starts, so its drop lands where the recording's does ([#295](https://github.com/devlato/claudius/pull/295))
+- ui: A light look with real contrast: the music on white, clean colours, a grid that shows and a pale LCD ([#297](https://github.com/devlato/claudius/pull/297))
+- studio: On a Mac the top bar is the window's title bar, with the window's buttons in it ([#298](https://github.com/devlato/claudius/pull/298))
+- ui: A small design system: one primary button, a window's foot, a segmented control and an option card ([#299](https://github.com/devlato/claudius/pull/299))
+- sections: Set_section's source sets where a section starts in the takes, to the beat ([#301](https://github.com/devlato/claudius/pull/301))
+- takes: Take:&lt;name&gt; names a recording the open song keeps wherever a command takes a recording's path ([#303](https://github.com/devlato/claudius/pull/303))
+- sections: Split_section cuts a section in two that play on as it played ([#304](https://github.com/devlato/claudius/pull/304))
+- studio: The live mix, first by windows: a fader moved while the song plays is heard in a moment ([#305](https://github.com/devlato/claudius/pull/305))
+- ui: Every dialog opens as a window does: a title band with its close button, and the design system's foot ([#314](https://github.com/devlato/claudius/pull/314))
+- ui: A choice of one of a few is a segmented control: a section's length and drum pattern, and the drums' variant ([#315](https://github.com/devlato/claudius/pull/315))
+- takes: Stems:&lt;part&gt; names a part of the recording claudius heard last wherever a command takes a recording ([#318](https://github.com/devlato/claudius/pull/318))
+- studio: The web studio hears the live mix: its player on Web Audio blends each window into the song as it plays ([#320](https://github.com/devlato/claudius/pull/320))
+- ui: Play from a phone ends in a window's foot: Done leaves the page served, beside Stop serving the page ([#324](https://github.com/devlato/claudius/pull/324))
+- studio: The demo hears the live mix: its engine makes windows of a change to the mix while the song plays, and renders it once the song stops ([#339](https://github.com/devlato/claudius/pull/339))
+- site: The radio keeps to the genres chosen, skips on the beat, hands the song on air over as an MP3 and opens it in the studio ([#342](https://github.com/devlato/claudius/pull/342))
+- ui: The radio in the app: a station with an engine of its own, each change rendered as audio, skip, save and open in the studio ([#343](https://github.com/devlato/claudius/pull/343))
+
+### Fixed
+
+- takes: Each section keeps its own stretch of a take, so a section added, removed or moved leaves the others playing what they played ([#296](https://github.com/devlato/claudius/pull/296))
+- save: A song is saved without each track's stem unless asked for, and a save the disk has no room for is refused ([#300](https://github.com/devlato/claudius/pull/300))
+- analysis: A recording's sections are the same the first time it is heard and every time after ([#306](https://github.com/devlato/claudius/pull/306))
+- analysis: A riff or a synth line left in the separated vocals is no longer heard as singing ([#307](https://github.com/devlato/claudius/pull/307))
+- quick_fix: A take put to the song's tempo keeps its length, and each section the moment of it that it played ([#311](https://github.com/devlato/claudius/pull/311))
+- studio: Duplicate is one change, which one undo takes back whole ([#313](https://github.com/devlato/claudius/pull/313))
+- audio: The decoded and stretched caches stop filling the disk: short sounds only, under a cap, the least used going first ([#316](https://github.com/devlato/claudius/pull/316))
+- studio: A section split in the studio starts its second half's takes where the section had reached them, in bars ([#317](https://github.com/devlato/claudius/pull/317))
+- studio: The live mix comes back after a switch of connection and after a window that failed to come ([#319](https://github.com/devlato/claudius/pull/319))
+- analysis: The voice tagger is loaded once the ears allow its download, not kept absent for the session ([#321](https://github.com/devlato/claudius/pull/321))
+- xtask: Bench compare fails a comparison of nothing, takes a score's direction from its ranks, and reads its paths from the repository's root ([#325](https://github.com/devlato/claudius/pull/325))
+- critic: Bench compare compares each metric on the items that measure it, and a stopped critic run resumes with each item once ([#327](https://github.com/devlato/claudius/pull/327))
+- ui: The Change the genre window closes from its title band's close button ([#328](https://github.com/devlato/claudius/pull/328))
+- studio: The app's open and save dialogs open as sheets beside its frame, so resizing one no longer crashes it ([#329](https://github.com/devlato/claudius/pull/329))
+- ui: A section whose drum pattern no lane writes still shows it as chosen ([#330](https://github.com/devlato/claudius/pull/330))
+- audio: Each cache is trimmed on its first use in a process, and a long recording decoded before is dropped when read ([#332](https://github.com/devlato/claudius/pull/332))
+- ui: A mixer strip stands whole in the dock, its fader the height left over, and the master strip stays at the right ([#333](https://github.com/devlato/claudius/pull/333))
+- ui: The Notes tab has the page's margins, and its part, progression and grid are segmented controls ([#334](https://github.com/devlato/claudius/pull/334))
+- ui: The Signal flow tab's bar keeps the page's margin in the dock, as every tab does ([#335](https://github.com/devlato/claudius/pull/335))
+- ui: In small windows the arrangement's tracks stay above the master's band, and the top bar fits a browser window down to 780 points ([#337](https://github.com/devlato/claudius/pull/337))
+- studio: The page keeps a play or pause pressed while a render is on its way, and plays a change's live-mix windows through without a dip ([#338](https://github.com/devlato/claudius/pull/338))
+- history: A section given another name is said to be renamed, not taken out with another added ([#340](https://github.com/devlato/claudius/pull/340))
+- mcp: A call whose work outlasts 45 s says it is still going, and status gives its answer once it is done ([#341](https://github.com/devlato/claudius/pull/341))
+
+### Documentation
+
+- contributing: Every change to the critic, the analysis or a model is an experiment on real music against the last accepted change, and xtask bench compare judges it ([#308](https://github.com/devlato/claudius/pull/308))
+- site: The landing page's pictures of the studio show it as it looks now ([#336](https://github.com/devlato/claudius/pull/336))
 
 ## [0.12.1] - 2026-11-17
 
@@ -1265,7 +1319,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.12.1...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/devlato/claudius/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/devlato/claudius/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/devlato/claudius/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/devlato/claudius/compare/v0.10.0...v0.11.0
