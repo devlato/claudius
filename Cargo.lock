@@ -1318,6 +1318,7 @@ dependencies = [
  "tempfile",
  "ureq",
  "web-time",
+ "zip",
 ]
 
 [[package]]
