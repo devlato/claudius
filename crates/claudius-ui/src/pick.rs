@@ -1,8 +1,8 @@
 //! Choosing a file on this computer and reading it into memory: the system's own dialog in the app, the browser's in a
 //! page. `choose` opens it; what was chosen arrives through `chosen`, read, once the dialog is done with it.
 
-use std::cell::RefCell;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use eframe::egui;
 
@@ -90,25 +90,29 @@ impl Picked {
 /// the largest file read: claudius takes no more in one go
 pub const MOST: usize = 300 << 20;
 
-thread_local! {
-    /// what was chosen, read, for each `Want`, until it is taken
-    static CHOSEN: RefCell<Vec<(Want, Result<Picked, String>)>> = const { RefCell::new(Vec::new()) };
-    /// the window to wake when a file has been read: a browser reads one after the frame that asked for it
-    static WAKE: RefCell<Option<egui::Context>> = const { RefCell::new(None) };
+/// what was chosen, read, for each `Want`, until it is taken: in the app, from the dialog's own thread
+static CHOSEN: Mutex<Vec<(Want, Result<Picked, String>)>> = Mutex::new(Vec::new());
+/// the window to wake when a file has been read or written: a browser reads one after the frame that asked for it,
+/// and the app's dialogs answer from threads of their own
+static WAKE: Mutex<Option<egui::Context>> = Mutex::new(None);
+
+/// wakes `ctx` when what is chosen next has been read, or a file saved
+pub fn wake(ctx: &egui::Context) {
+    *WAKE.lock().unwrap_or_else(|e| e.into_inner()) = Some(ctx.clone());
 }
 
-/// wakes `ctx` when what is chosen next has been read
-fn wake(ctx: &egui::Context) {
-    WAKE.with(|w| *w.borrow_mut() = Some(ctx.clone()));
+/// a frame for the window, to show what a dialog's thread brought
+pub(crate) fn repaint() {
+    if let Some(ctx) = &*WAKE.lock().unwrap_or_else(|e| e.into_inner()) {
+        ctx.request_repaint();
+    }
 }
 
 /// takes what was chosen for `want`, once it has been read
 pub fn chosen(want: Want) -> Option<Result<Picked, String>> {
-    CHOSEN.with(|c| {
-        let mut c = c.borrow_mut();
-        let i = c.iter().position(|(w, _)| *w == want)?;
-        Some(c.remove(i).1)
-    })
+    let mut c = CHOSEN.lock().unwrap_or_else(|e| e.into_inner());
+    let i = c.iter().position(|(w, _)| *w == want)?;
+    Some(c.remove(i).1)
 }
 
 /// what was read of a file named `name`: refused when it is larger than claudius takes
@@ -141,24 +145,27 @@ fn arrived_from(want: Want, name: String, bytes: Result<Vec<u8>, String>, folder
         n if n > MOST => Err(format!("{name} is {} MB, more than claudius takes ({} MB)", n >> 20, MOST >> 20)),
         _ => Ok(Picked { name, bytes: b, folder }),
     });
-    CHOSEN.with(|c| c.borrow_mut().push((want, got)));
-    WAKE.with(|w| {
-        if let Some(ctx) = &*w.borrow() {
-            ctx.request_repaint();
-        }
-    });
+    CHOSEN.lock().unwrap_or_else(|e| e.into_inner()).push((want, got));
+    repaint();
 }
 
-/// opens the system's dialog for a file for `want`; what is chosen is read and arrives through `chosen` (nothing, when
-/// the person closes the dialog)
+/// Opens the system's dialog for a file for `want`; what is chosen is read and arrives through `chosen` (nothing, when
+/// the person closes the dialog). The dialog does not hold up the studio's frame: on a Mac it opens as a sheet on the
+/// studio's window, which the system runs beside the event loop, and a thread of its own waits for it. Run modal
+/// inside the frame, as it was, its own loop turned the frame's events, and resizing the dialog went back into the
+/// studio in the middle of that frame, which crashed it.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn choose(ctx: &egui::Context, want: Want) {
     wake(ctx);
     let (what, extensions) = want.kinds();
-    let Some(path) = rfd::FileDialog::new().add_filter(what, extensions).pick_file() else { return };
-    let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
-    let bytes = std::fs::read(&path).map_err(|e| format!("cannot read {name}: {e}"));
-    arrived_from(want, name, bytes, path.parent().map(PathBuf::from));
+    let dialog = rfd::AsyncFileDialog::new().add_filter(what, extensions).pick_file();
+    std::thread::spawn(move || {
+        let Some(file) = pollster::block_on(dialog) else { return };
+        let path = file.path().to_path_buf();
+        let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+        let bytes = std::fs::read(&path).map_err(|e| format!("cannot read {name}: {e}"));
+        arrived_from(want, name, bytes, path.parent().map(PathBuf::from));
+    });
 }
 
 /// reads the file at `path` as if it had been chosen for `want` (for a scripted run)
@@ -218,8 +225,27 @@ pub fn choose(ctx: &egui::Context, want: Want) {
 mod tests {
     use super::*;
 
+    /// what is chosen is one list for the process: the tests that fill it take turns, each from an empty list
+    fn alone() -> std::sync::MutexGuard<'static, ()> {
+        static TURN: Mutex<()> = Mutex::new(());
+        let turn = TURN.lock().unwrap_or_else(|e| e.into_inner());
+        CHOSEN.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        turn
+    }
+
+    #[test]
+    fn a_file_chosen_in_a_dialog_s_thread_arrives_on_the_studio_s() {
+        let _turn = alone();
+        // as the app's dialog hands over what it read, from a thread of its own
+        std::thread::spawn(|| arrived(Want::Recording, "take.wav".into(), Ok(vec![4, 5, 6]))).join().unwrap();
+        let got = chosen(Want::Recording).expect("arrived").unwrap();
+        assert_eq!((got.name.as_str(), got.bytes.as_slice()), ("take.wav", &[4u8, 5, 6][..]));
+        assert_eq!(chosen(Want::Recording), None, "taken once");
+    }
+
     #[test]
     fn what_is_chosen_waits_for_what_it_was_chosen_for() {
+        let _turn = alone();
         arrived(Want::Cover, "cover.png".into(), Ok(vec![1, 2, 3]));
         arrived(Want::Song, "blueprint.json".into(), Ok(b"{}".to_vec()));
         arrived(Want::Audio, "gone.wav".into(), Err("cannot read gone.wav: no such file".into()));
@@ -234,6 +260,7 @@ mod tests {
 
     #[test]
     fn a_file_read_wakes_the_window_that_asked_for_it() {
+        let _turn = alone();
         let ctx = egui::Context::default();
         wake(&ctx);
         // frames, whose textures nothing draws, until egui asks for no more
@@ -251,6 +278,7 @@ mod tests {
 
     #[test]
     fn a_file_larger_than_claudius_takes_is_refused_by_its_size() {
+        let _turn = alone();
         arrived(Want::Audio, "huge.wav".into(), Ok(vec![0; MOST + 1]));
         let e = chosen(Want::Audio).unwrap().unwrap_err();
         assert!(e.starts_with("huge.wav is 300 MB, more than claudius takes (300 MB)"), "{e}");

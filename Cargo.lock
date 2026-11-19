@@ -1395,6 +1395,7 @@ dependencies = [
  "log",
  "midir",
  "notify-rust",
+ "pollster 0.4.0",
  "qrcodegen",
  "raw-window-handle",
  "rfd",
