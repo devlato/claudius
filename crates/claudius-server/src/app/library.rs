@@ -1,7 +1,9 @@
 //! Recordings from the free online libraries (`claudius_packs::online`), for a person or an assistant to hear and use:
 //! a search lists them (`/api/library/search`, `search_recordings`), and `library:<id>`, where a command takes a
 //! recording's path, is one a search found, downloaded once into the samples folder with what it credits. There too,
-//! `take:<name>` is a recording the open song keeps (a take, a rework's `vocals` or `original`, a phrase sampled).
+//! `take:<name>` is a recording the open song keeps (a take, a rework's `vocals` or `original`, a phrase sampled), and
+//! `stems:<part>` a part of the recording claudius heard last (`stems:vocals`, `drums`, `bass`, `other`, or the
+//! `recording` itself), as its analysis took it apart.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,6 +18,8 @@ use super::App;
 pub const SCHEME: &str = "library:";
 /// what a command names a recording the open song keeps by, before its name (`take:vocals`)
 pub const TAKE: &str = "take:";
+/// what a command names a part of the recording claudius heard last by, before the part's name (`stems:vocals`)
+pub const STEMS: &str = "stems:";
 
 /// a recording a search found, as the studio lists it: its audio fetched from this claudius
 pub fn hit(f: &Found) -> LibraryHit {
@@ -98,12 +102,34 @@ impl App {
         }
     }
 
-    /// `c`, with a recording it names as `library:<id>` downloaded, or as `take:<name>` found among the open song's,
-    /// and named by its file instead
+    /// the file of `part` of the recording claudius heard last, as its analysis took it apart: its vocals, drums, bass
+    /// or the rest, or the recording itself
+    fn stems_file(&self, part: &str) -> Result<String, String> {
+        let s = self.lock();
+        let Some(h) = s.heard.as_ref() else {
+            return Err("claudius has heard no recording yet: analyze one, and stems:vocals, stems:drums, stems:bass \
+                        and stems:other name its parts"
+                .into());
+        };
+        let part = part.strip_suffix(".wav").unwrap_or(part);
+        match h.files.iter().find(|(t, _)| t == part) {
+            Some((_, file)) => Ok(file.display().to_string()),
+            None => {
+                let parts: Vec<&str> = h.files.iter().map(|(t, _)| t.as_str()).collect();
+                Err(format!("{} heard last has no part '{part}': it has {}", h.name, parts.join(", ")))
+            }
+        }
+    }
+
+    /// `c`, with a recording it names as `library:<id>` downloaded, as `take:<name>` found among the open song's, or as
+    /// `stems:<part>` among the parts of the recording heard last, and named by its file instead
     pub(super) fn from_library(self: &Arc<Self>, c: Command) -> Result<Command, String> {
         let file = |path: String| -> Result<String, String> {
             if let Some(id) = path.strip_prefix(SCHEME) {
                 return self.library_file(id).map(|p| p.display().to_string());
+            }
+            if let Some(part) = path.strip_prefix(STEMS) {
+                return self.stems_file(part.trim());
             }
             match path.strip_prefix(TAKE) {
                 Some(name) => self.take_file(name.trim()),
