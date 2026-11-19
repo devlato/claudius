@@ -17,7 +17,8 @@ pub struct Live {
     next: f64,
     /// a window asked for that has not come
     waiting: bool,
-    /// the version of the song the server had no windows of (an edit of a track's own sound): none are asked for it
+    /// the version of the song the server or the demo's engine had no windows of (an edit of a track's own sound): none
+    /// are asked for it
     refused: Option<u64>,
     /// windows of this version that failed to come, one after another (a timeout, a server error): asked for again,
     /// up to `TRIES` of them
@@ -71,12 +72,6 @@ impl Live {
     /// The server has no windows of the song as it is (the next render plays it): none are asked for until it
     /// changes again.
     pub fn refused(&mut self) {
-        self.waiting = false;
-        self.refused = Some(self.version);
-    }
-
-    /// none was asked for after all (a backend that makes no windows)
-    pub fn none(&mut self) {
         self.waiting = false;
         self.refused = Some(self.version);
     }

@@ -53,8 +53,15 @@ The live mix comes first by windows of the song, and the runtime of 0019 replace
   its way counts: the render plays, or does not, from where the song was left, as on the desktop. It once played a whole file through an audio element,
   over which nothing could be played.
 
-The demo's engine makes no windows yet: its preview (the last render with the twelve seconds from the playhead
-rendered again and crossfaded in) becomes windows made in its worker as the server makes them, the next step.
+- **The demo's engine** (in a page's worker, or on a thread of the app's demo) makes windows as a server does
+  (`Host::live_window`), from the tracks its last render kept, and the studio asks it for them in the same way. A
+  page's worker is one thread, on which the whole render of a change to the mix takes about 10 s for a song of four
+  minutes on a recent laptop, while windows are kept four seconds ahead: a render started while the song plays would
+  leave it playing the render before for seconds. So while the studio plays a change to the mix by windows (it says
+  with each command whether it plays, and asks for a window at least every second), the render waits, and comes 2.5 s
+  after the studio stops asking (`Host::waits`). With the song stopped, an edit is previewed as before, where it will
+  play from: the last render with the twelve seconds from the playhead rendered again and crossfaded in, in about
+  0.6 s, then the whole render. An edit of a track's own sound gets that preview while the song plays too.
 
 ## Consequences
 
@@ -66,6 +73,8 @@ rendered again and crossfaded in) becomes windows made in its worker as the serv
 - What a window plays is what the next render plays, but for the master's loudness, which the render searches again
   over the whole song: a fader moved far shifts the level a little when the render comes.
 - An edit of what a track plays is heard when the render comes, as before.
+- In the demo, the verdict and the meters of a change to the mix come once the song stops, as its render waits while
+  the song plays.
 
 ## Rejected
 

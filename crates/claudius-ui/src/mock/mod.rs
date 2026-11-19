@@ -239,9 +239,16 @@ impl Mock {
         self.events.push(Event::Reply { what: what.into(), result: Ok(reply) });
     }
 
-    /// where the playhead is: the engine previews an edit to a song heard whole there
-    pub fn playhead(&mut self, secs: f64) {
-        self.engine.playhead(secs);
+    /// where the playhead is, and whether the song plays: the engine previews an edit there, in a song heard whole, or
+    /// plays an edit to the mix by windows while the song plays
+    pub fn playhead(&mut self, secs: f64, playing: bool) {
+        self.engine.playhead(secs, playing);
+    }
+
+    /// a window of the song as it is now, `secs` long from `from` seconds (the live mix), which the engine makes as a
+    /// server does; it comes as `Event::Window`, or `Event::WindowRefused` when the engine has none
+    pub fn window(&mut self, from: f64, secs: f64) {
+        self.engine.window(from, secs);
     }
 
     /// A recording the person chose or recorded, the file itself, for the engine to listen to as the app listens to
@@ -466,6 +473,10 @@ impl Mock {
                     });
                     self.events.push(Event::Delivered(delivery));
                 }
+                Heard::Window(window) => self.events.push(Event::Window(window.map(|(version, start, samples)| {
+                    (version, start, Arc::new(Pcm { rate: 48_000, channels: 2, samples }))
+                }))),
+                Heard::WindowRefused(why) => self.events.push(Event::WindowRefused(why)),
                 Heard::Sampled { id, result } => {
                     if let Some(s) = self.sampling.as_mut() {
                         let lines = s.gathering.answer(id, result);
@@ -672,6 +683,38 @@ mod tests {
         assert!((pcm.frames() as f64 / 48_000.0 - r.seconds).abs() < 0.01 && r.seconds > 60.0, "{} s", r.seconds);
         assert!(s.verdict.as_ref().is_some_and(|v| v.total > 0.0));
         assert!(song.tracks.iter().any(|t| t.loudness.is_some()), "the meters read the render");
+    }
+
+    #[test]
+    fn a_change_to_the_mix_while_the_song_plays_is_heard_by_the_engines_windows_before_its_render_comes() {
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        until(&mut mock, &mut now, rendered);
+        let track = mock.state.song.as_ref().unwrap().tracks[0].name.clone();
+        let fader = serde_json::json!({ "cmd": "set_mix", "track": track, "level_db": -9.0 });
+        // as the studio sends a command while the song plays
+        mock.playhead(9.0, true);
+        mock.send(serde_json::from_value(fader).unwrap());
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        let song = mock.state.song_version;
+        // as the studio asks for one while the song plays: the render waits while windows play the change
+        mock.window(10.0, 1.0);
+        let t0 = Instant::now();
+        let window = loop {
+            now += 0.05;
+            if let Some(w) =
+                mock.update(now).into_iter().find_map(|e| if let Event::Window(w) = e { Some(w) } else { None })
+            {
+                break w;
+            }
+            assert!(t0.elapsed() < Duration::from_secs(120), "no window came: {:#?}", mock.state.log);
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let (version, start, pcm) = window.expect("a window of the song as it is now");
+        assert_eq!((version, start, pcm.frames(), pcm.rate), (song, 10.0, 48_000, 48_000));
+        let older = mock.state.render.as_ref().is_some_and(|r| r.version < song);
+        assert!(older, "neither a preview nor a render of the change while windows play it");
+        // which comes by itself once the studio stops asking for windows
+        until(&mut mock, &mut now, rendered);
     }
 
     #[test]

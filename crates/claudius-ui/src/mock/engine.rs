@@ -45,6 +45,12 @@ pub enum Heard {
     },
     /// what was heard in a recording analyzed, as the studio shows it, which comes before the answer to `analyze`
     Listened(Box<claudius_api::Listened>),
+    /// a window of the song as it is now (`Link::window`): the version of the song it is of, where it starts in seconds
+    /// and its audio, interleaved stereo at 48 kHz; or why it did not come
+    Window(Result<(u64, f64, Vec<f32>), String>),
+    /// the engine has no window of the song as it is now: a track's own sound or the song's length changed, which the
+    /// next render plays
+    WindowRefused(String),
 }
 
 /// a render as a file: its bytes, the extension of its name and its media type
@@ -80,11 +86,28 @@ fn sampled(s: &serde_json::Value) -> Heard {
     Heard::Sampled { id, result }
 }
 
+/// what the engine's answer to `window` says: the window, or why there is none
+#[cfg(any(target_arch = "wasm32", test))]
+fn window(w: &serde_json::Value, audio: Option<Vec<f32>>) -> Heard {
+    if let Some(why) = w["refused"].as_str() {
+        return Heard::WindowRefused(why.to_string());
+    }
+    let rate = w["rate"].as_f64().filter(|r| *r > 0.0).unwrap_or(48_000.0);
+    match (w["version"].as_u64(), w["start"].as_f64(), audio) {
+        (Some(version), Some(start), Some(samples)) => Heard::Window(Ok((version, start / rate, samples))),
+        _ => Heard::Window(Err("the engine sent no window".into())),
+    }
+}
+
 /// what a message from the engine says: its JSON, and the audio or the file it hands over
 #[cfg(any(target_arch = "wasm32", test))]
 fn heard(json: &str, audio: Option<Vec<f32>>, bytes: Option<Vec<u8>>) -> Vec<Heard> {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else { return Vec::new() };
     let mut out = Vec::new();
+    if let Some(w) = v.get("window") {
+        out.push(window(w, audio));
+        return out;
+    }
     if let Some(e) = v.get("encoded") {
         out.push(encoded(e, bytes));
         return out;
@@ -223,9 +246,15 @@ mod web {
             self.post(&serde_json::json!({ "reference": true }), None);
         }
 
-        /// where the studio's playhead is, in seconds
-        pub fn playhead(&mut self, secs: f64) {
-            self.post(&serde_json::json!({ "playhead": secs }), None);
+        /// where the studio's playhead is, in seconds, and whether it plays
+        pub fn playhead(&mut self, secs: f64, playing: bool) {
+            self.post(&serde_json::json!({ "playhead": secs, "playing": playing }), None);
+        }
+
+        /// a window of the song as it is now, `secs` long from `from` seconds (the live mix), which comes as
+        /// `Heard::Window`, or `Heard::WindowRefused` when the engine has none
+        pub fn window(&mut self, from: f64, secs: f64) {
+            self.post(&serde_json::json!({ "window": { "from": from, "secs": secs } }), None);
         }
 
         /// a sound of the song for a phone, as `claudius_session::host::SoundAsk` asks for it, answered as `id`
@@ -286,7 +315,7 @@ pub use native::Link;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
-    use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+    use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
 
     use claudius_api::Command;
     use claudius_session::host::{Host, Recording};
@@ -297,12 +326,13 @@ mod native {
     enum Ask {
         Command(String, Command),
         Listen(claudius_api::Listen, Vec<u8>),
-        Playhead(f64),
+        Playhead(f64, bool),
         Recording(u64, serde_json::Value, Vec<u8>),
         Reference,
         Sound(u64, serde_json::Value),
         Encode(u64, String, String, Vec<f32>),
         Project(u64),
+        Window(f64, f64),
     }
 
     pub struct Link {
@@ -327,8 +357,15 @@ mod native {
                 say(Heard::Sounds(Host::sounds()));
                 loop {
                     // what is asked comes first; once nothing is, a song newer than its render is rendered, then the
-                    // next candidate of a mutation or an evolution is judged
-                    let ask = if host.stale() || host.breeding() {
+                    // next candidate of a mutation or an evolution is judged. After a change only to the mix the render
+                    // waits until the changes have stopped a moment (`Host::waits`), while windows play them
+                    let ask = if let Some(wait) = host.waits() {
+                        match asks.recv_timeout(wait) {
+                            Ok(a) => Some(a),
+                            Err(RecvTimeoutError::Timeout) => continue,
+                            Err(RecvTimeoutError::Disconnected) => return,
+                        }
+                    } else if host.stale() || host.breeding() {
                         match asks.try_recv() {
                             Ok(a) => Some(a),
                             Err(TryRecvError::Empty) => None,
@@ -365,7 +402,13 @@ mod native {
                             say(Heard::State(Box::new(host.state())));
                         }
                         Some(Ask::Reference) => say(Heard::Reference(Host::reference().to_string())),
-                        Some(Ask::Playhead(secs)) => host.set_playhead(secs),
+                        Some(Ask::Playhead(secs, playing)) => host.set_playhead(secs, playing),
+                        Some(Ask::Window(from, secs)) => say(match host.live_window(from, secs) {
+                            Ok((version, start, x)) => {
+                                Heard::Window(Ok((version, start as f64 / claudius::config::SRF, x.interleaved())))
+                            }
+                            Err(why) => Heard::WindowRefused(why),
+                        }),
                         Some(Ask::Sound(id, ask)) => {
                             let sounds = serde_json::from_value::<claudius_session::host::SoundAsk>(ask)
                                 .map_err(|e| e.to_string())
@@ -418,8 +461,13 @@ mod native {
             let _ = self.tx.send(Ask::Reference);
         }
 
-        pub fn playhead(&mut self, secs: f64) {
-            let _ = self.tx.send(Ask::Playhead(secs));
+        pub fn playhead(&mut self, secs: f64, playing: bool) {
+            let _ = self.tx.send(Ask::Playhead(secs, playing));
+        }
+
+        /// a window of the song as it is now (`web::Link::window`)
+        pub fn window(&mut self, from: f64, secs: f64) {
+            let _ = self.tx.send(Ask::Window(from, secs));
         }
 
         pub fn sound(&mut self, id: u64, ask: serde_json::Value) {
@@ -489,6 +537,17 @@ mod tests {
         );
         let refused = heard(&json!({ "encoded": { "id": 5, "error": "no such format" } }).to_string(), None, None);
         assert!(matches!(refused.as_slice(), [Heard::Encoded { id: 5, file: Err(why) }] if why == "no such format"));
+        // a window of the live mix: where it starts, in samples at its rate, said in seconds
+        let window = json!({ "window": { "version": 7, "start": 96_000, "rate": 48_000 } }).to_string();
+        let w = heard(&window, Some(vec![0.25; 4]), None);
+        assert!(
+            matches!(w.as_slice(), [Heard::Window(Ok((7, start, samples)))] if *start == 2.0 && samples.len() == 4),
+            "a window"
+        );
+        assert!(matches!(heard(&window, None, None).as_slice(), [Heard::Window(Err(_))]), "one without its audio");
+        let why = "bass changed its sound: the next render plays it";
+        let refused = heard(&json!({ "window": { "refused": why } }).to_string(), None, None);
+        assert!(matches!(refused.as_slice(), [Heard::WindowRefused(w)] if w == why), "none to be had");
         assert!(heard("not json", None, None).is_empty());
     }
 }

@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use claudius::audio::Stereo;
 use claudius::compose::{self, Options};
@@ -19,6 +20,7 @@ use claudius::voice::check;
 use claudius::{audio, genres, judge, pads, render, sampling, scratch, script, take};
 use claudius_api::*;
 use claudius_packs::online::Found;
+use web_time::Instant;
 
 use crate::history::{History, OpId};
 use crate::{edit, views};
@@ -29,6 +31,13 @@ const LOG: usize = 200;
 const PREVIEW_BARS: u32 = 16;
 /// the seconds from the playhead an edit to a song heard whole is previewed for
 const WINDOW: f64 = 12.0;
+/// the longest window of the live mix made at once (`live_window`), as a server makes them
+pub const MAX_WINDOW: f64 = 10.0;
+/// How long the studio counts as playing the song after it last said so (with a command, `set_playhead`) or asked for a
+/// window (`live_window`), which it does at least every second while it plays a change to the mix by windows. Meanwhile
+/// the render of that change waits (`waits`): it takes seconds in a browser's worker (about 10 s for a song of four
+/// minutes on a recent laptop), and the windows, four seconds ahead, would run out behind it.
+pub const LIVE_WAIT: Duration = Duration::from_millis(2500);
 
 /// A sound a phone playing along asks for: every drum lane's hit, notes of a sound for its keys, or a record of bars of
 /// a track to scratch.
@@ -95,6 +104,8 @@ pub struct Host {
     last: Option<(Arc<Stereo>, render::Settled)>,
     /// where the studio's playhead is, in seconds (`set_playhead`)
     playhead: f64,
+    /// when the studio last said it was playing the song, or asked for a window (`playing_at`)
+    played: Option<Instant>,
     /// a mutation or an evolution under way, a candidate at a time (`step`)
     breeding: Option<Breeding>,
     /// the last pitch check asked for, as it was asked and as the studio shows it, and how many were asked for
@@ -152,6 +163,7 @@ impl Host {
             kept: render::Kept::default(),
             last: None,
             playhead: 0.0,
+            played: None,
             breeding: None,
             pitch_check: None,
             asked: 0,
@@ -513,12 +525,17 @@ impl Host {
     }
 
     /// Something of a song newer than its render to play while the whole of it renders, handed over; None when there is
-    /// nothing to preview: no song, a render of it already, a preview of it already, or a song no longer than a
-    /// preview. A song heard whole before, and as long as it was, is that render with the bars at the playhead as they
-    /// are now (`window`); another, its first bars.
+    /// nothing to preview: no song, a render of it already, a preview of it already, a song no longer than a preview,
+    /// or a change only to its mix while the studio plays it, which windows play (`live_window`). A song heard whole
+    /// before, and as long as it was, is that render with the bars at the playhead as they are now (`window`); another,
+    /// its first bars.
     pub fn preview(&mut self) -> Option<Audio> {
         if !self.stale() || self.render.as_ref().is_some_and(|r| r.url == PREVIEW_URL && r.version == self.song_version)
         {
+            return None;
+        }
+        // a change only to the mix, while the studio plays: windows play it, made as it asks for them (`live_window`)
+        if self.playing_at(Instant::now()) && self.live() {
             return None;
         }
         let project = compose::arrange(self.bp.as_ref()?);
@@ -1314,9 +1331,64 @@ impl Host {
         Some(Ok(Audio { view, samples }))
     }
 
-    /// where the studio's playhead is, in seconds: an edit is heard there first
-    pub fn set_playhead(&mut self, secs: f64) {
+    /// Whether the song as it is now can be heard by windows (`live_window`): it has been rendered whole, and no track's
+    /// own sound has changed since (its notes, its sound, a section), only the mix (a fader, a pan, a send, an effect on
+    /// a bus, a return or the master).
+    pub fn live(&self) -> bool {
+        let (Some(bp), Some(_)) = (&self.bp, &self.last) else { return false };
+        let project = compose::arrange(bp);
+        self.kept.stale(&project, &render::Options::default()).is_ok_and(|s| s.is_empty())
+    }
+
+    /// The song as it is now, `secs` seconds of it from `from` (both in seconds), mixed from the tracks the last render
+    /// made at the loudness it settled (`render::render_window`), as a server makes one (`App::window`): what the
+    /// studio plays from its playhead while the next render is on its way, so that a fader or a send is heard as it
+    /// moves. With the version of the song it is of and where it starts, in samples. Refused, saying why, when a window
+    /// cannot be had that way: no song or no render yet, an edit that changed a track's own sound (its notes, its
+    /// sound, a section), or the song's length.
+    pub fn live_window(&mut self, from: f64, secs: f64) -> Result<(u64, usize, Stereo), String> {
+        self.played = Some(Instant::now());
+        let bp = self.bp.as_ref().ok_or("no song yet")?;
+        let Some((_, settled)) = &self.last else { return Err("no render yet".into()) };
+        let project = compose::arrange(bp);
+        let opts = render::Options::default();
+        let stale = self.kept.stale(&project, &opts).map_err(|e| format!("{e:#}"))?;
+        if !stale.is_empty() {
+            let names: Vec<&str> = stale.iter().map(|(name, _)| name.as_str()).collect();
+            return Err(format!("{} changed its sound: the next render plays it", names.join(", ")));
+        }
+        let from = (from.max(0.0) * claudius::config::SRF) as usize;
+        let n = (secs.clamp(0.0, MAX_WINDOW) * claudius::config::SRF) as usize;
+        match render::render_window(&project, &opts, &mut self.kept, settled, from, n) {
+            Ok(Some(w)) => Ok((self.song_version, w.start, w.master)),
+            Ok(None) => Err("the song's length changed: the next render plays it".into()),
+            Err(e) => Err(format!("{e:#}")),
+        }
+    }
+
+    /// How long the next render waits, when it does: the song changed only in its mix (`live`) and the studio is
+    /// playing it by windows, until it has stopped asking for them for `LIVE_WAIT`.
+    pub fn waits(&self) -> Option<Duration> {
+        self.waits_at(Instant::now())
+    }
+
+    fn waits_at(&self, now: Instant) -> Option<Duration> {
+        let since = now.saturating_duration_since(self.played?);
+        (since < LIVE_WAIT && self.stale() && self.live()).then(|| LIVE_WAIT - since)
+    }
+
+    /// whether the studio is playing the song at `now`: it said so, or asked for a window, less than `LIVE_WAIT` before
+    fn playing_at(&self, now: Instant) -> bool {
+        self.played.is_some_and(|t| now.saturating_duration_since(t) < LIVE_WAIT)
+    }
+
+    /// Where the studio's playhead is, in seconds, and whether it plays, as it says with each command: an edit to a
+    /// track's sound is heard at the playhead first (`preview`), and one to the mix while it plays by windows.
+    pub fn set_playhead(&mut self, secs: f64, playing: bool) {
         self.playhead = secs.max(0.0);
+        if playing {
+            self.played = Some(Instant::now());
+        }
     }
 
     /// What the song's next render would make anew, for other workers to make first (`render::track_sound`), so that
@@ -1630,15 +1702,22 @@ mod tests {
         assert!(h.stale(), "another song renders");
     }
 
+    /// the root mean square of what `v` yields
+    fn rms(v: &mut dyn Iterator<Item = f32>) -> f64 {
+        let (s, n) = v.fold((0.0f64, 0usize), |(s, n), x| (s + (x as f64).powi(2), n + 1));
+        (s / n.max(1) as f64).sqrt()
+    }
+
     #[test]
-    fn an_edit_to_a_song_heard_whole_is_heard_at_the_playhead_in_that_render_first() {
+    fn a_change_to_a_tracks_sound_in_a_song_heard_whole_is_heard_at_the_playhead_in_that_render_first() {
         let mut h = Host::new(1);
         command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
         h.preview();
         let Some(Ok(before)) = h.render() else { panic!("a whole render") };
         let sr = claudius::config::SR as usize;
-        h.set_playhead(30.0);
-        command(&mut h, json!({"cmd": "set_mix", "track": "bass", "level_db": 4.0}));
+        h.set_playhead(30.0, true);
+        assert!(command(&mut h, json!({"cmd": "swap_sound", "track": "bass"})).ok);
+        assert!(!h.live() && h.waits().is_none(), "the bass's own sound changed: no window of it can be had at once");
         let heard = h.preview().expect("the change, heard at once");
         assert_eq!(heard.view.url, PREVIEW_URL);
         assert_eq!(heard.samples.len(), before.samples.len(), "the whole song, with the change in it");
@@ -1647,17 +1726,62 @@ mod tests {
         assert_eq!(heard.samples[..at(29.0)], before.samples[..at(29.0)]);
         assert_eq!(heard.samples[at(43.0)..], before.samples[at(43.0)..]);
         let (a, b) = (at(31.0), at(41.0));
-        assert_ne!(heard.samples[a..b], before.samples[a..b], "the bass is louder there");
+        assert_ne!(heard.samples[a..b], before.samples[a..b], "the bass sounds otherwise there");
         assert!(h.stale(), "the whole song renders still");
         // which brings the master back to its loudness: the window differs from it by that, under a decibel or so
         let Some(Ok(after)) = h.render() else { panic!("the whole render") };
-        let rms = |v: &mut dyn Iterator<Item = f32>| {
-            let (s, n) = v.fold((0.0f64, 0usize), |(s, n), x| (s + (x as f64).powi(2), n + 1));
-            (s / n.max(1) as f64).sqrt()
-        };
         let off = rms(&mut after.samples[a..b].iter().zip(&heard.samples[a..b]).map(|(x, y)| x - y));
         let level = rms(&mut heard.samples[a..b].iter().copied());
         assert!(off < 0.15 * level, "{off} of {level}");
+    }
+
+    #[test]
+    fn a_change_only_to_the_mix_while_the_song_plays_is_heard_by_windows_and_rendered_once_it_stops() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        assert!(!h.live(), "never rendered whole");
+        assert_eq!(h.live_window(0.0, 1.0).unwrap_err(), "no render yet");
+        h.preview();
+        let Some(Ok(before)) = h.render() else { panic!("a whole render") };
+        assert!(h.live() && !h.stale() && h.waits().is_none(), "heard whole, and not changed since");
+        h.set_playhead(30.0, true);
+        let r = command(&mut h, json!({"cmd": "set_mix", "track": "bass", "level_db": 4.0}));
+        assert!(r.ok && h.stale() && h.live(), "{}", r.message);
+        assert!(h.preview().is_none(), "no preview of it: windows play it, as the studio asks for them");
+        // the whole render waits while the studio plays, and once it has stopped asking for windows it is due
+        let wait = h.waits().expect("the render waits");
+        assert!(wait <= LIVE_WAIT && wait > LIVE_WAIT / 2, "{wait:?}");
+        let played = h.played.expect("the studio said it plays");
+        assert!(h.waits_at(played + LIVE_WAIT).is_none(), "due");
+        // a window where the studio plays: the song as it is now there, of the version the change made
+        let sr = claudius::config::SR as usize;
+        let (version, start, w) = h.live_window(31.0, 2.0).unwrap();
+        assert_eq!((version, start, w.len()), (r.version, 31 * sr, 2 * sr));
+        assert!(h.played > Some(played), "it plays on, asking for windows");
+        let (a, b) = (31 * sr * 2, 33 * sr * 2);
+        let old = Stereo::from_interleaved(&before.samples[a..b]);
+        assert_ne!(w.l, old.l, "the bass is louder in it");
+        assert_eq!(h.live_window(0.0, 60.0).unwrap().2.len() as f64, MAX_WINDOW * sr as f64, "at most MAX_WINDOW");
+        // which is the whole render there, but for the master's loudness the render levels again: within a decibel
+        let Some(Ok(after)) = h.render() else { panic!("the whole render") };
+        let new = Stereo::from_interleaved(&after.samples[a..b]);
+        let off = rms(&mut new.interleaved().iter().zip(&w.interleaved()).map(|(x, y)| x - y));
+        let level = rms(&mut w.interleaved().into_iter());
+        assert!(off < 0.15 * level, "{off} of {level}");
+        assert!(!h.stale() && h.waits().is_none());
+        // with the song stopped a while, a change to the mix is previewed at the playhead, where it may play next, and
+        // rendered straight away
+        h.played = None;
+        h.set_playhead(30.0, false);
+        assert!(command(&mut h, json!({"cmd": "set_mix", "track": "bass", "level_db": 2.0})).ok);
+        assert!(h.live() && h.waits().is_none(), "nothing plays it by windows");
+        assert_eq!(h.preview().expect("the change, at the playhead").view.url, PREVIEW_URL);
+        assert!(h.render().is_some_and(|r| r.is_ok()));
+        // a change to a track's own sound has no window: the next render plays it, previewed meanwhile
+        assert!(command(&mut h, json!({"cmd": "swap_sound", "track": "bass"})).ok);
+        assert!(!h.live() && h.waits().is_none(), "the render does not wait for it");
+        let why = h.live_window(31.0, 1.0).unwrap_err();
+        assert!(why.contains("bass") && why.contains("changed its sound"), "{why}");
     }
 
     #[test]

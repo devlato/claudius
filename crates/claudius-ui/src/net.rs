@@ -678,10 +678,11 @@ impl Backend {
         }
     }
 
-    /// where the playhead is, in seconds: the demo's engine previews an edit there
-    pub fn playhead(&mut self, secs: f64) {
+    /// where the playhead is, in seconds, and whether the song plays: the demo's engine previews an edit there, or
+    /// plays an edit to the mix by windows while the song plays
+    pub fn playhead(&mut self, secs: f64, playing: bool) {
         if let Backend::Mock(m) = self {
-            m.playhead(secs);
+            m.playhead(secs, playing);
         }
     }
 
@@ -877,14 +878,11 @@ impl Backend {
     }
 
     /// Asks for a window of the song as it is now (the live mix), `secs` long from `from` seconds, which comes as
-    /// `Event::Window`; whether one was asked for (the demo's engine makes none yet).
-    pub fn window(&mut self, from: f64, secs: f64) -> bool {
+    /// `Event::Window` (or `Event::WindowRefused`), from the server or the demo's engine.
+    pub fn window(&mut self, from: f64, secs: f64) {
         match self {
-            Backend::Remote(r) => {
-                r.fetch_window(from, secs);
-                true
-            }
-            Backend::Mock(_) => false,
+            Backend::Remote(r) => r.fetch_window(from, secs),
+            Backend::Mock(m) => m.window(from, secs),
         }
     }
 
