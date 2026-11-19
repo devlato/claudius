@@ -337,8 +337,9 @@ pub fn knob(
     fmt: impl Fn(f32) -> String,
     said: impl Fn(f32) -> String,
 ) -> Response {
-    let d = 30.0;
-    let (rect, mut response) = ui.allocate_exact_size(vec2(d + 8.0, d + 14.0), Sense::click_and_drag());
+    // small enough for a mixer strip to hold three in a row
+    let d = 24.0;
+    let (rect, mut response) = ui.allocate_exact_size(vec2(d + 4.0, d + 13.0), Sense::click_and_drag());
     let (lo, hi) = (*range.start(), *range.end());
     let bipolar = lo < 0.0 && hi > 0.0;
     if response.dragged() {
@@ -375,7 +376,7 @@ pub fn knob(
     painter.circle_stroke(center, d / 2.0 - 5.0, Stroke::new(1.0, LINE));
     let tip = center + (d / 2.0 - 7.0) * vec2(a.sin(), -a.cos());
     painter.line_segment(
-        [center + (d / 2.0 - 14.0) * vec2(a.sin(), -a.cos()), tip],
+        [center + (d / 2.0 - 14.0).max(0.0) * vec2(a.sin(), -a.cos()), tip],
         Stroke::new(2.0, if hovered { theme::STRONG } else { TEXT }),
     );
     let text = if hovered { fmt(*value) } else { label.to_string() };
@@ -383,7 +384,7 @@ pub fn knob(
         pos2(rect.center().x, rect.bottom() - 6.0),
         Align2::CENTER_CENTER,
         text,
-        theme::prop(10.5),
+        theme::prop(9.0),
         if hovered { TEXT } else { TEXT_DIM }.into(),
     );
     accessible(ui, &response, 15, || WidgetInfo::slider(true, *value as f64, format!("{label}: {}", said(*value))));
@@ -436,7 +437,10 @@ pub fn fader(
     }
     accessible(ui, &response, 6, || WidgetInfo::slider(enabled, *db as f64, format!("level {:+.1} dB", *db)));
     let painter = ui.painter();
-    for mark in [12.0, 6.0, 0.0, -6.0, -12.0, -24.0, -48.0] {
+    // every mark's tick, and the numbers of those a fader this tall has room for, 0 dB first: each 11 points from
+    // the next, so that on a short fader no number runs into another
+    let mut named: Vec<f32> = Vec::new();
+    for mark in [0.0, 12.0, -24.0, -12.0, 6.0, -6.0, -48.0] {
         if mark < lo || mark > hi {
             continue;
         }
@@ -446,13 +450,16 @@ pub fn fader(
             [pos2(rect.left() + 14.0, y), pos2(track.left() - 3.0, y)],
             Stroke::new(1.0, if zero { TEXT_DIM } else { LINE }),
         );
-        painter.text(
-            pos2(rect.left() + 12.0, y),
-            Align2::RIGHT_CENTER,
-            format!("{}", mark.abs() as i32),
-            theme::prop(8.5),
-            if zero { TEXT_DIM } else { TEXT_FAINT }.into(),
-        );
+        if named.iter().all(|n| (n - y).abs() >= 11.0) {
+            named.push(y);
+            painter.text(
+                pos2(rect.left() + 12.0, y),
+                Align2::RIGHT_CENTER,
+                format!("{}", mark.abs() as i32),
+                theme::prop(8.5),
+                if zero { TEXT_DIM } else { TEXT_FAINT }.into(),
+            );
+        }
     }
     painter.rect_filled(track, 2.0, WELL);
     let y = y_of(*db);

@@ -11,9 +11,14 @@ use crate::cmds::MixEdit;
 use crate::theme::{self, LINE, LINE_SOFT, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
 use crate::widgets::{self, commit};
 
-const STRIP_W: f32 = 86.0;
-/// the height a strip needs for its name, knobs, a short fader and its buttons
-const STRIP_MIN_H: f32 = 330.0;
+/// wide enough for three knobs in a row
+const STRIP_W: f32 = 96.0;
+/// the master strip's width, its frame's margins with it
+const MASTER_W: f32 = 122.0;
+
+/// the height a strip needs for its name, two rows of knobs, a short fader and its buttons: under the dock's own, so
+/// that a strip stands whole in it and its fader takes what is left
+const STRIP_MIN_H: f32 = 200.0;
 
 /// the render's peak envelope at `t` in dB, and its average
 fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
@@ -53,23 +58,30 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     page_frame().show(ui, |ui| {
         // strips shorter than they can be drawn scroll, rather than push the dock up over the arrangement
         let h = ui.available_height().max(STRIP_MIN_H);
-        egui::ScrollArea::both().id_salt("mixer").auto_shrink([false, false]).show(ui, |ui| {
-            ui.horizontal_top(|ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                for (i, t) in song.tracks.iter_mut().enumerate() {
-                    let plays = match (&section_layers, layers.contains(&t.name)) {
-                        (Some(l), true) => l.contains(&t.name),
-                        _ => true,
-                    };
-                    let silenced = t.muted || (solo && !t.solo);
-                    // while playing: the track's loudness riding the render's envelope, silent where it does not play
-                    let live =
-                        env.map(|(at, avg)| t.loudness.filter(|_| plays && !silenced).map(|l| l as f32 + (at - avg)));
-                    strip(ui, t, colors[i], h, live, solo, &mut out);
-                }
-                ui.add_space(8.0);
-                master(ui, render, h, env.map(|(at, _)| at));
+        // the master strip at the right, where it stays as the tracks' strips scroll beside it
+        ui.horizontal_top(|ui| {
+            let tracks_w = (ui.available_width() - MASTER_W - 8.0).max(STRIP_W);
+            ui.allocate_ui(vec2(tracks_w, h), |ui| {
+                egui::ScrollArea::both().id_salt("mixer").auto_shrink([false, false]).show(ui, |ui| {
+                    ui.horizontal_top(|ui| {
+                        ui.spacing_mut().item_spacing.x = 6.0;
+                        for (i, t) in song.tracks.iter_mut().enumerate() {
+                            let plays = match (&section_layers, layers.contains(&t.name)) {
+                                (Some(l), true) => l.contains(&t.name),
+                                _ => true,
+                            };
+                            let silenced = t.muted || (solo && !t.solo);
+                            // while playing: the track's loudness riding the render's envelope, silent where it does not play
+                            let live = env.map(|(at, avg)| {
+                                t.loudness.filter(|_| plays && !silenced).map(|l| l as f32 + (at - avg))
+                            });
+                            strip(ui, t, colors[i], h, live, solo, &mut out);
+                        }
+                    });
+                });
             });
+            ui.add_space(8.0);
+            master(ui, render, h, env.map(|(at, _)| at));
         });
     });
     cx.out.extend(out);
@@ -138,7 +150,7 @@ fn strip(
             });
             let pct = |v: f32| format!("{:.0}%", v * 100.0);
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.spacing_mut().item_spacing.x = 2.0;
                 let short_pan = |v: f32| {
                     if v.abs() < 0.01 {
                         "C".into()
@@ -160,40 +172,18 @@ fn strip(
                 if commit(&r) {
                     out.push(MixEdit { reverb: Some(t.reverb), ..Default::default() }.on(&t.name));
                 }
-            });
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
                 let r = widgets::knob(ui, &mut t.delay, 0.0..=1.0, "delay", color, pct, |v| {
                     format!("delay: {} of it sent to the delay, echoes in time with the song", pct(v))
                 });
                 if commit(&r) {
                     out.push(MixEdit { delay: Some(t.delay), ..Default::default() }.on(&t.name));
                 }
-                let r = widgets::knob(ui, &mut t.duck, 0.0..=1.0, "duck", color, pct, |v| {
-                    format!("duck: {}, how far it dips each time the kick hits, so that the kick comes through", pct(v))
-                });
-                if commit(&r) {
-                    out.push(MixEdit { duck: Some(t.duck), ..Default::default() }.on(&t.name));
-                }
             });
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                let drive = |v: f32| if v < 0.5 { "off".to_string() } else { format!("{v:.0} dB") };
-                let r = widgets::knob(ui, &mut t.drive_db, 0.0..=36.0, "drive", color, drive, |v| {
-                    format!(
-                        "drive: {}, saturation after its effects: it thickens and roughens the track at the same \
-                         loudness",
-                        drive(v)
-                    )
-                });
-                if commit(&r) {
-                    out.push(MixEdit { drive_db: Some(t.drive_db), ..Default::default() }.on(&t.name));
-                }
-            });
-            let fader_h = (ui.available_height() - 64.0).clamp(60.0, 220.0);
-            ui.horizontal(|ui| {
+            // the fader takes what the strip has left over its level and its buttons, as tall as the duck and the drive
+            // beside it at least
+            let fader_h = (ui.available_height() - 44.0).clamp(78.0, 300.0);
+            ui.horizontal_top(|ui| {
                 ui.spacing_mut().item_spacing.x = 3.0;
-                ui.add_space(2.0);
                 let r = widgets::fader(ui, &mut t.level_db, -36.0..=12.0, fader_h, color, !t.muted);
                 if commit(&r) {
                     out.push(MixEdit { level_db: Some(t.level_db), ..Default::default() }.on(&t.name));
@@ -204,6 +194,30 @@ fn strip(
                     None => "render to measure".into(),
                 };
                 widgets::meter(ui, vec2(9.0, fader_h), shown, -48.0, t.loudness.map(|l| l as f32)).on_hover_text(tip);
+                // the duck and the drive beside the fader, where the strip has room to spare
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    let r = widgets::knob(ui, &mut t.duck, 0.0..=1.0, "duck", color, pct, |v| {
+                        format!(
+                            "duck: {}, how far it dips each time the kick hits, so that the kick comes through",
+                            pct(v)
+                        )
+                    });
+                    if commit(&r) {
+                        out.push(MixEdit { duck: Some(t.duck), ..Default::default() }.on(&t.name));
+                    }
+                    let drive = |v: f32| if v < 0.5 { "off".to_string() } else { format!("{v:.0} dB") };
+                    let r = widgets::knob(ui, &mut t.drive_db, 0.0..=36.0, "drive", color, drive, |v| {
+                        format!(
+                            "drive: {}, saturation after its effects: it thickens and roughens the track at the same \
+                             loudness",
+                            drive(v)
+                        )
+                    });
+                    if commit(&r) {
+                        out.push(MixEdit { drive_db: Some(t.drive_db), ..Default::default() }.on(&t.name));
+                    }
+                });
             });
             ui.vertical_centered(|ui| {
                 ui.label(RichText::new(format!("{:+.1} dB", t.level_db)).monospace().size(11.0).color(if dim {
@@ -212,14 +226,6 @@ fn strip(
                     TEXT
                 }))
                 .on_hover_text("its level: how much louder or quieter it is than tracks of its role are mixed at");
-                ui.label(
-                    RichText::new(t.loudness.map_or("— LUFS".into(), |l| format!("{l:.1} LUFS")))
-                        .size(9.5)
-                        .color(TEXT_DIM),
-                )
-                .on_hover_text(
-                    "how loud it plays in the latest render, in LUFS, as streaming services measure loudness",
-                );
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 4.0;
                     let w = (STRIP_W - 24.0) / 2.0;
