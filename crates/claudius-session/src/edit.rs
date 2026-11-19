@@ -565,7 +565,7 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
                 None => Ok(said),
             }
         }
-        Command::AddSection { after, kind, bars } => add_section(bp, *after, kind, *bars),
+        Command::AddSection { after, kind, bars, like } => add_section(bp, *after, kind, *bars, like.as_deref()),
         Command::RemoveSection { index } => {
             if bp.form.len() <= 1 {
                 Err("a song needs at least one section".into())
@@ -647,9 +647,56 @@ pub fn scratch(
     Ok(claudius::scratch::Take { track, bar, bars: bars.unwrap_or(1), moves, recording })
 }
 
-fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Result<String, String> {
+/// The section a new one of kind `k` after section `after` is set as: the one named `like`, else the song's nearest of
+/// the kind (before `after` first), else the genre's own of the kind (its layers among the song's, its energy and
+/// progression), else section `after` at the kind's energy.
+fn shaped(bp: &Blueprint, after: usize, k: SectionKind, like: Option<&str>) -> Result<Option<SectionSpec>, String> {
+    if let Some(name) = like {
+        return match bp.form.iter().find(|s| s.name == name) {
+            Some(s) => Ok(Some(s.clone())),
+            None => Err(format!("no section {name} to set the new one as")),
+        };
+    }
+    let near = after.min(bp.form.len().saturating_sub(1));
+    let before = bp.form[..(near + 1).min(bp.form.len())].iter().rev().find(|s| s.kind == k);
+    if let Some(s) = before.or_else(|| bp.form.iter().skip(near + 1).find(|s| s.kind == k)) {
+        return Ok(Some(s.clone()));
+    }
+    let mut spec = bp.form.get(near).cloned();
+    let genre = bp.genre.split('+').next().unwrap_or(&bp.genre);
+    let written =
+        claudius::genres::get(genre).ok().and_then(|g| g.forms.iter().flatten().find(|s| s.kind == k).cloned());
+    if let Some(s) = spec.as_mut() {
+        s.energy = kind_energy(k);
+        if let Some(w) = written {
+            let ours = bp.layer_names();
+            let layers: Vec<String> = w.layers.iter().filter(|l| ours.contains(l)).cloned().collect();
+            if !layers.is_empty() {
+                s.layers = layers;
+            }
+            (s.energy, s.prog, s.variant) = (w.energy, w.prog, w.variant);
+        }
+    }
+    Ok(spec)
+}
+
+/// how much a section of kind `k` plays when nothing else says, as the studio shows a section added before the song
+/// comes back
+fn kind_energy(k: SectionKind) -> f32 {
+    match k {
+        SectionKind::Intro | SectionKind::Outro => 0.4,
+        SectionKind::Break => 0.35,
+        SectionKind::Verse => 0.55,
+        SectionKind::Build => 0.6,
+        SectionKind::Groove => 0.65,
+        SectionKind::Hook => 0.85,
+        SectionKind::Drop => 0.95,
+    }
+}
+
+fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32, like: Option<&str>) -> Result<String, String> {
     let k = section_kind(kind)?;
-    let like = bp.form.get(after.min(bp.form.len().saturating_sub(1))).cloned();
+    let like = shaped(bp, after, k, like)?;
     let mut spec = like.unwrap_or_else(|| SectionSpec {
         name: String::new(),
         kind: k,
@@ -905,6 +952,42 @@ mod tests {
         assert!(c.contains(&(first, 16.0, 8.0)) && c.contains(&(first + 16.0, beats - first, first)), "{c:?}");
         let alone = cmd(&json!({"cmd": "set_section", "index": 1, "take": "vox"}));
         assert!(change(&alone, &mut bp, 1).unwrap().unwrap_err().contains("give the source too"));
+    }
+
+    #[test]
+    fn a_section_added_is_set_as_the_songs_own_of_its_kind_or_as_the_genre_writes_it() {
+        let mut bp = song();
+        let brk = bp.form.iter().find(|s| s.kind == SectionKind::Break).cloned().expect("a house song has a break");
+        let drop_at = bp.form.iter().position(|s| s.kind == SectionKind::Drop).expect("and a drop");
+        // a break added after the drop plays as the song's break does, not as the drop
+        let add = cmd(&json!({"cmd": "add_section", "after": drop_at, "kind": "break", "bars": 8}));
+        change(&add, &mut bp, 1).unwrap().unwrap();
+        let new = &bp.form[drop_at + 1];
+        assert_eq!((new.kind, &new.layers, new.energy), (SectionKind::Break, &brk.layers, brk.energy));
+        // as a section named
+        let intro = bp.form[0].clone();
+        let like = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "groove", "bars": 4, "like": intro.name}));
+        change(&like, &mut bp, 1).unwrap().unwrap();
+        assert_eq!((bp.form[1].kind, &bp.form[1].layers, bp.form[1].bars), (SectionKind::Groove, &intro.layers, 4));
+        let none = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "groove", "bars": 4, "like": "no such"}));
+        assert!(change(&none, &mut bp, 1).unwrap().unwrap_err().contains("no section no such"));
+        // a kind the song has none of, which the genre writes: its layers among the song's, its energy
+        let mut bare = song();
+        bare.form.retain(|s| s.kind != SectionKind::Break);
+        let drop_at = bare.form.iter().position(|s| s.kind == SectionKind::Drop).unwrap();
+        let g = claudius::genres::get("house").unwrap();
+        let written = g.forms.iter().flatten().find(|s| s.kind == SectionKind::Break).unwrap().clone();
+        let add = cmd(&json!({"cmd": "add_section", "after": drop_at, "kind": "break", "bars": 8}));
+        change(&add, &mut bare, 1).unwrap().unwrap();
+        let new = &bare.form[drop_at + 1];
+        let ours = bare.layer_names();
+        let expected: Vec<String> = written.layers.iter().filter(|l| ours.contains(l)).cloned().collect();
+        assert_eq!((&new.layers, new.energy), (&expected, written.energy), "as house writes a break");
+        assert!(new.energy < bare.form[drop_at].energy, "under the drop it follows");
+        // and one it does not write either: as the section before, at the kind's energy
+        let verse = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "verse", "bars": 8}));
+        change(&verse, &mut bare, 1).unwrap().unwrap();
+        assert_eq!((bare.form[1].kind, bare.form[1].energy), (SectionKind::Verse, 0.55));
     }
 
     #[test]

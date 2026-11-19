@@ -387,7 +387,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         });
         ui.add(egui::DragValue::new(&mut cx.view.add_bars).range(1..=64).suffix(" bars"));
         if widgets::icon_button(ui, Icon::Plus, 24.0, false, true, "add a section after this one").clicked() {
-            cx.out.push(Command::AddSection { after: i, kind: cx.view.add_kind.clone(), bars: cx.view.add_bars });
+            let (kind, bars) = (cx.view.add_kind.clone(), cx.view.add_bars);
+            cx.out.push(Command::AddSection { after: i, kind, bars, like: None });
             cx.view.section = i + 1;
         }
     });

@@ -184,18 +184,38 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             relayout(song);
             Ok(msg)
         }
-        Command::AddSection { after, kind, bars } => {
-            // like the server: a copy of the `after` section (layers, prog, variant, energy...) of the new kind, without
-            // the song's takes, so that the sections after it play what they played
+        Command::AddSection { after, kind, bars, like } => {
+            // as the server sets it: as the section named `like`, else the song's nearest of the kind, else section
+            // `after` at the kind's energy (the server takes the genre's own layers for a kind the song has none of,
+            // which the song shows once it comes back); without the song's takes, so that the sections after it play
+            // what they played
             let at = (*after + 1).min(song.sections.len());
             let near = (*after).min(song.sections.len().saturating_sub(1));
-            let like = song.sections.get(near).cloned().unwrap_or_else(|| SectionView {
-                energy: energy_for(kind),
-                layers: layers_for(song, kind, near),
-                prog: "A".into(),
-                variant: "main".into(),
-                ..Default::default()
-            });
+            let named = like.as_deref().map(|n| song.sections.iter().find(|s| s.name == n).cloned());
+            let like = match named {
+                Some(Some(s)) => s,
+                Some(None) => {
+                    return Some(Err(format!("no section {} to set the new one as", like.as_deref().unwrap_or(""))));
+                }
+                None => {
+                    let of_kind = song.sections[..(near + 1).min(song.sections.len())]
+                        .iter()
+                        .rev()
+                        .find(|s| s.kind == *kind)
+                        .or_else(|| song.sections.iter().skip(near + 1).find(|s| s.kind == *kind));
+                    match (of_kind, song.sections.get(near)) {
+                        (Some(s), _) => s.clone(),
+                        (None, Some(s)) => SectionView { energy: energy_for(kind), ..s.clone() },
+                        (None, None) => SectionView {
+                            energy: energy_for(kind),
+                            layers: layers_for(song, kind, near),
+                            prog: "A".into(),
+                            variant: "main".into(),
+                            ..Default::default()
+                        },
+                    }
+                }
+            };
             let take = |l: &String| song.tracks.iter().any(|t| t.name == *l && t.kind == "take");
             let section = SectionView {
                 name: unique_name(song, kind),
