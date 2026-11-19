@@ -38,8 +38,11 @@ pub(super) fn section_kind(k: &str) -> R<SectionKind> {
         "hook" | "chorus" => SectionKind::Hook,
         "groove" | "loop" => SectionKind::Groove,
         "outro" => SectionKind::Outro,
+        "bridge" | "middle_eight" => SectionKind::Bridge,
         other => {
-            return fail(format!("unknown section kind '{other}' (intro verse build drop break hook groove outro)"));
+            return fail(format!(
+                "unknown section kind '{other}' (intro verse build drop break hook groove outro bridge)"
+            ));
         }
     })
 }
@@ -48,10 +51,26 @@ pub(super) fn default_energy(k: SectionKind) -> f32 {
     match k {
         SectionKind::Intro | SectionKind::Outro => 0.4,
         SectionKind::Break => 0.35,
+        SectionKind::Bridge => 0.5,
         SectionKind::Build => 0.6,
         SectionKind::Verse | SectionKind::Groove => 0.65,
         SectionKind::Drop | SectionKind::Hook => 0.95,
     }
+}
+
+/// the progression a section of kind `k` plays unless it names another: a break the song's second, a bridge one of
+/// its own (written when the form is set), the rest the first
+pub(super) fn default_prog(k: SectionKind) -> &'static str {
+    match k {
+        SectionKind::Break => "B",
+        SectionKind::Bridge => crate::form::BRIDGE_CHORDS,
+        _ => "A",
+    }
+}
+
+/// the drum pattern a section of kind `k` plays unless it names another
+pub(super) fn default_variant(k: SectionKind) -> &'static str {
+    if matches!(k, SectionKind::Intro | SectionKind::Outro | SectionKind::Bridge) { "sparse" } else { "main" }
 }
 
 /// a section being built by sec(...).build().impact() ...
@@ -82,13 +101,9 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 kind: k,
                 bars: bars.clamp(1, 256) as u32,
                 energy: default_energy(k),
-                prog: if matches!(k, SectionKind::Break) { "B".into() } else { "A".into() },
+                prog: default_prog(k).into(),
                 layers,
-                variant: if matches!(k, SectionKind::Intro | SectionKind::Outro) {
-                    "sparse".into()
-                } else {
-                    "main".into()
-                },
+                variant: default_variant(k).into(),
                 filter_in: false,
                 build: k == SectionKind::Build,
                 build_style: Default::default(),
@@ -182,6 +197,8 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     spec
                 })
                 .collect();
+            // a bridge's chords of its own, when it names none the song has
+            crate::form::bridge_chords(bp);
             let optional = optional_layers(bp);
             for s in &bp.form {
                 check_section(bp, s, &optional)?;

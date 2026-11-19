@@ -82,6 +82,7 @@ impl Label {
             SectionKind::Hook => Label::Chorus,
             SectionKind::Groove => Label::Groove,
             SectionKind::Outro => Label::Outro,
+            SectionKind::Bridge => Label::Bridge,
         }
     }
 

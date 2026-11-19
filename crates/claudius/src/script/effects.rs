@@ -69,7 +69,7 @@ pub(super) fn register_effects(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     Err(_) => {
                         return fail(format!(
                             "sections(): no section or kind '{k}' (sections: {}; kinds: intro verse build drop break \
-                             hook groove outro)",
+                             hook groove outro bridge)",
                             names.join(" ")
                         ));
                     }

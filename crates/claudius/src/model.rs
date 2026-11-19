@@ -275,6 +275,9 @@ pub enum SectionKind {
     Hook,
     Groove,
     Outro,
+    /// somewhere the song has not been before it comes back: under the sections around it, on chords of its own that
+    /// lead into the section after it (`form::bridge`)
+    Bridge,
 }
 
 impl SectionKind {
@@ -288,6 +291,7 @@ impl SectionKind {
             SectionKind::Hook => "hook",
             SectionKind::Groove => "groove",
             SectionKind::Outro => "outro",
+            SectionKind::Bridge => "bridge",
         }
     }
 }

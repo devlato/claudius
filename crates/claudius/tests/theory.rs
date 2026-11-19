@@ -119,6 +119,39 @@ fn an_answer_plays_the_loop_then_ends_it_another_way() {
 }
 
 #[test]
+fn a_bridge_sets_out_away_from_the_tonic_on_chords_the_song_has_not_played_and_leads_into_what_follows() {
+    for (key, next) in [("C major", "I"), ("A minor", "i"), ("C major", "vi"), ("A minor", "VI"), ("D dorian", "i")] {
+        let key = Key::parse(key).unwrap();
+        let verse = progression::parse(if key.mode.is_minor() { "i VI III VII" } else { "I V vi IV" });
+        for seed in 0..40 {
+            for len in [2, 4, 8] {
+                let b =
+                    progression::bridge(&key, std::slice::from_ref(&verse), Some(next), len, 1, &mut Rng::new(seed));
+                assert_eq!(b.len(), len, "{b:?}");
+                assert_ne!(b, verse, "{b:?}");
+                let cs = progression::chords(&b, &key);
+                assert_ne!(cs[0].root, key.tonic, "{key:?} {b:?}: it sets out away from home");
+                // the last chord is the dominant seventh of the chord that follows, and nothing before it sits on it
+                let to = roman(next, &key).unwrap();
+                let last = cs[len - 1];
+                assert_eq!((last.root, last.quality), ((to.root + 7) % 12, Quality::Dom7), "{key:?} {b:?} into {next}");
+                assert_ne!(cs[len - 2].root, last.root, "{b:?}");
+                assert!(cs.windows(2).all(|w| w[0] != w[1]), "{b:?}: a chord twice in a row");
+                // every chord reads back as it was written
+                for rn in &b {
+                    assert_eq!(roman_of(&roman(rn, &key).unwrap(), &key), *rn);
+                }
+            }
+        }
+    }
+    // with nothing after it, it leads home
+    let key = Key::parse("E minor").unwrap();
+    let b = progression::bridge(&key, &[], None, 4, 0, &mut Rng::new(3));
+    let last = progression::chords(&b, &key)[3];
+    assert_eq!((last.root, last.quality), ((key.tonic + 7) % 12, Quality::Dom7), "{b:?}");
+}
+
+#[test]
 fn colours_and_suspensions_of_diatonic_chords_keep_to_the_key() {
     // a chord coloured in place (extended or suspended, not borrowed) stays in the key, unless it became a
     // dominant, which may lean on a leading tone the mode does not have

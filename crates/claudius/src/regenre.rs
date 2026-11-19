@@ -12,7 +12,7 @@ use crate::theory::Note;
 
 /// What a drum lane does in a kit, by its name, else by what it plays (`DrumLane::role`: `bd` is the kick, and a lane of
 /// a name of its own is the drum its sound is): a section's drums go from one kit to the next by it.
-fn kit(lane: &DrumLane) -> &'static str {
+pub(crate) fn kit(lane: &DrumLane) -> &'static str {
     let does = |what: &str| match what {
         "kick" | "808" | "sub" => Some("kick"),
         "snare" | "clap" | "rim" | "rs" | "snap" => Some("backbeat"),
@@ -27,13 +27,13 @@ fn kit(lane: &DrumLane) -> &'static str {
 /// section, its hats, percussion and parts by the section's energy, as a song like a recording places them
 /// (`analysis::song::to_blueprint`).
 fn fills(what: &str, s: &SectionSpec) -> bool {
-    let quiet = matches!(s.kind, SectionKind::Intro | SectionKind::Outro | SectionKind::Break);
+    let quiet = matches!(s.kind, SectionKind::Intro | SectionKind::Outro | SectionKind::Break | SectionKind::Bridge);
     match what {
         "kick" | "backbeat" => s.energy >= 0.5 && !quiet,
         "hats" | "chords" | "keys" => s.energy >= 0.4,
         "perc" => s.energy >= 0.6,
         "bass" => s.energy >= 0.45,
-        "pad" => s.energy < 0.75 || s.kind == SectionKind::Break,
+        "pad" => s.energy < 0.75 || matches!(s.kind, SectionKind::Break | SectionKind::Bridge),
         "lead" => s.energy >= 0.8,
         "arp" => s.energy >= 0.9,
         _ => false,

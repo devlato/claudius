@@ -8,7 +8,7 @@ use crate::music::Key;
 /// the most a lane or a part plays behind (or ahead of) the beat, in milliseconds, as the server's scripts take it
 pub(crate) const MOST_LATE: f32 = 80.0;
 
-pub const SECTION_KINDS: [&str; 8] = ["intro", "verse", "groove", "build", "drop", "break", "hook", "outro"];
+pub const SECTION_KINDS: [&str; 9] = ["intro", "verse", "groove", "build", "drop", "break", "hook", "bridge", "outro"];
 
 /// step notation of one velocity: x hit, X accent, o ghost, . rest
 pub use claudius_api::{step_char, step_velocity};
@@ -52,6 +52,7 @@ fn energy_for(kind: &str) -> f32 {
     match kind {
         "intro" | "outro" => 0.4,
         "break" => 0.35,
+        "bridge" => 0.5,
         "verse" => 0.55,
         "build" => 0.6,
         "groove" => 0.65,
@@ -187,8 +188,8 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
         Command::AddSection { after, kind, bars, like } => {
             // as the server sets it: as the section named `like`, else the song's nearest of the kind, else section
             // `after` at the kind's energy (the server takes the genre's own layers for a kind the song has none of,
-            // which the song shows once it comes back); without the song's takes, so that the sections after it play
-            // what they played
+            // and a bridge's own layers and chords, which the song shows once it comes back); without the song's
+            // takes, so that the sections after it play what they played
             let at = (*after + 1).min(song.sections.len());
             let near = (*after).min(song.sections.len().saturating_sub(1));
             let named = like.as_deref().map(|n| song.sections.iter().find(|s| s.name == n).cloned());

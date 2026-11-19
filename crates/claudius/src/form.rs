@@ -23,8 +23,8 @@
 //! in or out, two neighbours set apart.
 
 use crate::genres::GenreProfile;
-use crate::model::{Role, SectionKind, SectionSpec};
-use crate::rng::Rng;
+use crate::model::{Blueprint, Role, SectionKind, SectionSpec};
+use crate::rng::{Rng, hash_str};
 
 /// the bar counts a section of `kind` takes
 fn lengths(kind: SectionKind) -> &'static [u32] {
@@ -38,6 +38,7 @@ fn lengths(kind: SectionKind) -> &'static [u32] {
         SectionKind::Hook => &[8, 16],
         SectionKind::Groove => &[8, 16, 32],
         SectionKind::Outro => &[4, 8, 16],
+        SectionKind::Bridge => &[8, 16],
     }
 }
 
@@ -611,6 +612,72 @@ fn apply(f: &mut Vec<SectionSpec>, g: &GenreProfile, c: Change, aim: Aim, rng: &
     }
 }
 
+/// the progression a bridge plays unless it names another: one of its own, which `bridge_chords` writes
+pub const BRIDGE_CHORDS: &str = "bridge";
+
+/// A bridge of `bars` to go after section `after` of song `bp`: under the sections around it (its energy 0.15 below
+/// the quieter of the two, from 0.2 to 0.55), its drums thinned to those of the section before that keep time (the
+/// kick and the hats), on their sparse patterns where they have them, with the song's bass and its chords, pads, keys
+/// and lead, and on a progression of its own (`BRIDGE_CHORDS`, which `bridge_chords` writes).
+pub fn new_bridge(bp: &Blueprint, after: usize, bars: u32) -> SectionSpec {
+    let around = [after, after + 1].iter().filter_map(|&i| bp.form.get(i)).map(|s| s.energy).fold(f32::MAX, f32::min);
+    let energy = if around == f32::MAX { 0.5 } else { (around - 0.15).clamp(0.2, 0.55) };
+    let keeps_time =
+        |l: &String| bp.drums.iter().any(|d| d.name == *l && matches!(crate::regenre::kit(d), "kick" | "hats"));
+    let drums = bp.form.get(after).map(|s| s.layers.iter().filter(|l| keeps_time(l)).cloned().collect::<Vec<_>>());
+    let parts =
+        bp.parts.iter().filter(|p| matches!(p.role, Role::Bass | Role::Chords | Role::Pad | Role::Keys | Role::Lead));
+    SectionSpec {
+        name: "bridge".into(),
+        kind: SectionKind::Bridge,
+        bars: bars.clamp(1, 256),
+        energy,
+        prog: BRIDGE_CHORDS.into(),
+        layers: drums.unwrap_or_default().into_iter().chain(parts.map(|p| p.name.clone())).collect(),
+        variant: "sparse".into(),
+        filter_in: false,
+        build: false,
+        build_style: Default::default(),
+        build_amount: 0.5,
+        gap: false,
+        impact: false,
+        fills: false,
+        takes: Default::default(),
+    }
+}
+
+/// The progression of each bridge of song `bp` that names one the song does not have, written: a progression of its
+/// own (`progression::bridge`), its chords as many as its bars take at the song's pace (two to eight), leading into
+/// the chord the section after it starts on. Returns what was written, by name.
+pub fn bridge_chords(bp: &mut Blueprint) -> Vec<(String, Vec<String>)> {
+    let mut written = Vec::new();
+    for i in 0..bp.form.len() {
+        let s = &bp.form[i];
+        if s.kind != SectionKind::Bridge || bp.harmony.progressions.contains_key(&s.prog) {
+            continue;
+        }
+        let name = s.prog.clone();
+        let len = (s.bars / bp.harmony.bars_per_chord.max(1)).clamp(2, 8) as usize;
+        // a section plays the progression it names, or A when the song has none of that name
+        let next = bp.form.get(i + 1).and_then(|n| {
+            bp.harmony.progressions.get(&n.prog).or_else(|| bp.harmony.progressions.get("A"))?.first().cloned()
+        });
+        let heard: Vec<Vec<String>> = bp.harmony.progressions.values().cloned().collect();
+        let key = bp.key;
+        let sevenths = heard
+            .iter()
+            .flatten()
+            .filter_map(|rn| crate::theory::chord::roman(rn, &key))
+            .any(|c| c.quality != c.quality.triad());
+        let mut rng = Rng::new(bp.seed ^ hash_str(&name) ^ i as u64);
+        let chords =
+            crate::theory::progression::bridge(&key, &heard, next.as_deref(), len, u8::from(sevenths), &mut rng);
+        bp.harmony.progressions.insert(name.clone(), chords.clone());
+        written.push((name, chords));
+    }
+    written
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -782,6 +849,54 @@ mod tests {
                 assert!(a.layers != b.layers || a.prog != b.prog, "{what}");
             }
         }
+    }
+
+    #[test]
+    fn a_bridge_added_comes_under_its_neighbours_on_the_drums_that_keep_time_and_chords_that_lead_on() {
+        use crate::theory::chord::{Quality, roman};
+        let g = crate::genres::get("synthwave").unwrap();
+        let mut bp = crate::compose::generate(&g, 4, &crate::compose::Options::default(), None);
+        let hook = (0..bp.form.len() - 1).find(|&i| bp.form[i].kind == SectionKind::Hook).expect("a chorus, then more");
+        let b = new_bridge(&bp, hook, 8);
+        let (before, after) = (&bp.form[hook], &bp.form[hook + 1]);
+        assert_eq!(b.energy, (before.energy.min(after.energy) - 0.15).clamp(0.2, 0.55), "under its neighbours");
+        assert_eq!(
+            (b.kind, b.prog.as_str(), b.variant.as_str(), b.bars),
+            (SectionKind::Bridge, BRIDGE_CHORDS, "sparse", 8)
+        );
+        // of the section before's drums, those that keep time; the bass and every part that carries the harmony
+        let kit = |l: &String| bp.drums.iter().find(|d| d.name == *l).map(crate::regenre::kit);
+        let drums: Vec<&String> = b.layers.iter().filter(|l| kit(l).is_some()).collect();
+        assert!(!drums.is_empty(), "{:?}", b.layers);
+        for l in drums {
+            assert!(matches!(kit(l), Some("kick" | "hats")) && before.layers.contains(l), "{l}: {:?}", b.layers);
+        }
+        assert!(before.layers.iter().any(|l| kit(l) == Some("backbeat")), "the chorus has a backbeat to leave out");
+        for p in &bp.parts {
+            let melodic = matches!(p.role, Role::Bass | Role::Chords | Role::Pad | Role::Keys | Role::Lead);
+            assert_eq!(b.layers.contains(&p.name), melodic, "{}", p.name);
+        }
+        // in the song, its chords of its own, ending on the dominant of the chord the next section starts on
+        bp.form.insert(hook + 1, b);
+        let written = bridge_chords(&mut bp);
+        assert_eq!(written.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), [BRIDGE_CHORDS]);
+        let chords = bp.harmony.progressions[BRIDGE_CHORDS].clone();
+        assert_eq!(chords.len(), (8 / bp.harmony.bars_per_chord) as usize, "{chords:?}");
+        let progs = &bp.harmony.progressions;
+        let next = progs.get(&bp.form[hook + 2].prog).or_else(|| progs.get("A")).unwrap()[0].clone();
+        let (to, last) = (roman(&next, &bp.key).unwrap(), roman(chords.last().unwrap(), &bp.key).unwrap());
+        assert_eq!((last.root, last.quality), ((to.root + 7) % 12, Quality::Dom7), "{chords:?} into {next}");
+        assert!(
+            progs.iter().all(|(n, p)| n == BRIDGE_CHORDS || *p != chords),
+            "{chords:?}: one the song plays already"
+        );
+        assert!(bridge_chords(&mut bp).is_empty(), "written once");
+        // the parts play it with notes of their own
+        let song = crate::compose::arrange(&bp);
+        let start: u32 = bp.form[..hook + 1].iter().map(|s| s.bars).sum();
+        let (a, z) = (f64::from(start * 4), f64::from((start + 8) * 4));
+        let bass = song.tracks.iter().find(|t| t.name == "bass").expect("a bass");
+        assert!(bass.notes.iter().any(|n| n.t >= a && n.t < z), "the bass plays the bridge");
     }
 
     #[test]
