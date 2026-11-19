@@ -4,6 +4,7 @@
 mod bench;
 mod credits;
 mod dist;
+mod icons;
 mod perf;
 mod release;
 mod site;
@@ -50,6 +51,9 @@ usage: cargo xtask <command>
                           correction among slices. Prints Markdown for the pull request and fails unless every
                           metric is better overall and no slice worse (--report only prints). The files are JSON
                           lines; docs/src/contributing/benchmarks.md says what they hold
+  icons [--out DIR]       write claudius's logo and every file that shows it (the app's, the installers', the
+                          site's and the book's icons and favicons, the disk image's window) into the repository,
+                          or into DIR to compare them
   release prepare <patch|minor|major|X.Y.Z>
                           bump the workspace version, Cargo.lock and CHANGELOG.md, then print the new version
   release notes <X.Y.Z>   print that version's section of CHANGELOG.md
@@ -114,6 +118,11 @@ fn main() -> Result<()> {
             };
             args.finish()?;
             perf::run(&sh, base, threshold)
+        }
+        Some("icons") => {
+            let out = args.value("--out")?.map_or_else(root, |d| root().join(d));
+            args.finish()?;
+            icons::icons(&out)
         }
         Some("bench") => match args.next().as_deref() {
             Some("compare") => {

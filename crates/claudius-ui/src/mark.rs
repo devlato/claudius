@@ -1,5 +1,5 @@
 //! Claudius' mark, a C cut out of colourful ripples, drawn into a texture at the size it's shown. The numbers are the
-//! ones `scripts/icons.py` draws the app's icons from, on its 1024 grid; change them in both.
+//! ones `cargo xtask icons` draws the app's icons from, on its 1024 grid; change them in both.
 
 use eframe::egui::emath::GuiRounding as _;
 use eframe::egui::{Color32, ColorImage, Id, Rect, TextureHandle, TextureOptions, Ui, pos2, vec2};

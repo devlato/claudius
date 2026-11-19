@@ -80,7 +80,7 @@ pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn
     )
 }
 
-/// The window's icon, from `scripts/icons.py`. eframe puts egui's logo there otherwise, in the Dock too: on a Mac it
+/// The window's icon, from `cargo xtask icons`. eframe puts egui's logo there otherwise, in the Dock too: on a Mac it
 /// replaces the app's icon while the studio runs, so the Mac gets the icon on Apple's grid, with its margin.
 #[cfg(not(target_arch = "wasm32"))]
 fn icon_png() -> &'static [u8] {

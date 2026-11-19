@@ -53,7 +53,7 @@ a comment in `_headers`.
 - `audio/`: the four demos. Each has the excerpt (`.mp3`), its waveform (`.json`) and the script or the printed song
   that made it (`.rhai`).
 - `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-512.png`, `site.webmanifest`, and `og.png`
-  (1200×630, the preview image for links). `scripts/icons.py` draws the logo, the mark and the icons; `og.png` has
+  (1200×630, the preview image for links). `cargo xtask icons` draws the logo, the mark and the icons; `og.png` has
   the logo at (72, 64), at its own size.
 - `_headers` and `_redirects`: what Cloudflare adds to responses and where it redirects, described below.
 - `wrangler.toml`: the Worker that serves the built site on claudius.devlato.com (not published itself).
