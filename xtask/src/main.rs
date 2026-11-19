@@ -121,7 +121,7 @@ fn main() -> Result<()> {
                 let new = args.required("the experiment's results")?;
                 let report = args.flag("--report");
                 args.finish()?;
-                bench::compare(Path::new(&base), Path::new(&new), report)
+                bench::compare(&root().join(base), &root().join(new), report)
             }
             _ => bail!("usage: cargo xtask bench compare BASE NEW [--report]"),
         },

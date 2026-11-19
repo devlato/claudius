@@ -58,8 +58,12 @@ labels it is counted under; each metric is `true` or `false` (right or wrong) or
 unless `better` says lower. `primary` names the metrics the change is made to improve; the others are guards it must
 not make worse (without it, every metric is primary). The command prints, for each metric, the whole set and every
 slice with the difference, its interval, the items better and worse and the test, then the ids of the items that got
-worse, as Markdown for the pull request. It fails unless each primary metric is better overall and no metric is worse
-overall or in a slice after Holm's correction; `--report` prints the same without failing.
+worse, as Markdown for the pull request. Which way a metric went is its test's: for a score, whether the ranks of the
+items that got better outweigh those of the items that got worse, so that a few items much better cannot carry a
+change most items got worse with. It fails unless each primary metric is better overall, its mean too, and no metric
+is worse overall or in a slice after Holm's correction, and when there is nothing to compare (no items, or a primary
+metric no item has); `--report` prints the same without failing. Its paths are taken from the root of the
+repository, as every `cargo xtask` path is.
 
 ## When a change ships
 

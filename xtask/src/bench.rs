@@ -11,8 +11,11 @@
 //! Each metric is compared overall and in each slice: right/wrong items with McNemar's exact test on the items one run
 //! gets right and the other wrong, scores with the Wilcoxon signed-rank test on the paired differences; the difference
 //! of the means with a 95% interval from 10,000 paired bootstrap resamples; and the slices of each kind corrected
-//! together with Holm's method. A change passes when each primary metric is better overall at p < 0.05, and no metric is
-//! worse overall at p < 0.05 or in a slice at p < 0.05 after the correction.
+//! together with Holm's method. Which way a group went is the test's own: for a score, whether the ranks of the items
+//! that got better outweigh those of the items that got worse; for right/wrong, whether more items are right only in
+//! the experiment than only in the baseline. A change passes when each primary metric is better overall at p < 0.05,
+//! with the mean better too, and no metric is worse overall at p < 0.05 or in a slice at p < 0.05 after the correction.
+//! A comparison of nothing (no items, or a primary metric no item has) is an error, not a pass.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
@@ -103,6 +106,9 @@ struct Row {
     /// items better in the experiment, and worse
     better: usize,
     worse: usize,
+    /// which way the test's statistic leans, above zero better: for a score, the summed ranks of the items better less
+    /// those of the items worse; for right/wrong, the items better less the items worse
+    lean: f64,
     p: f64,
     /// after Holm's correction among the slices of its kind (the whole set is not corrected)
     adjusted: f64,
@@ -120,9 +126,12 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
         base.display(),
         new.display()
     );
+    ensure!(!b.items.is_empty(), "no items in {} and {}: nothing to compare", base.display(), new.display());
     let lower: BTreeSet<String> = b.lower.union(&n.lower).cloned().collect();
     let metrics: BTreeSet<&String> = b.items.values().flat_map(|i| i.metrics.keys()).collect();
     let primary: BTreeSet<String> = b.primary.union(&n.primary).cloned().collect();
+    let missing: Vec<&str> = primary.iter().filter(|m| !metrics.contains(m)).map(String::as_str).collect();
+    ensure!(missing.is_empty(), "the primary metric {} is in no item", missing.join(", "));
     let mut failed = Vec::new();
     for metric in metrics {
         let sign = if lower.contains(metric) { -1.0 } else { 1.0 };
@@ -161,13 +170,19 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
             }
             rows.extend(slices);
         }
+        // which way each group went is the test's own statistic; better overall needs the mean to agree with it as well,
+        // so that a few items much better cannot carry a change most items got worse with, nor the other way round
         let all = &rows[0];
-        let gained = all.p < ALPHA && sign * (all.new - all.base) > 0.0;
-        let worse: Vec<&Row> = rows.iter().filter(|r| r.adjusted < ALPHA && sign * (r.new - r.base) < 0.0).collect();
+        let leans_better = all.p < ALPHA && all.lean > 0.0;
+        let gained = leans_better && sign * (all.new - all.base) > 0.0;
+        let worse: Vec<&Row> = rows.iter().filter(|r| r.adjusted < ALPHA && r.lean < 0.0).collect();
         let aim = primary.is_empty() || primary.contains(metric);
         let verdict = match (aim, gained, worse.is_empty()) {
             (_, _, false) => format!("does not pass: worse in {}", names(&worse)),
             (true, true, true) => "passes: better overall, and worse in no slice".to_string(),
+            (true, false, true) if leans_better => {
+                "does not pass: most items better, but the mean is not (a few items much worse)".to_string()
+            }
             (true, false, true) => "does not pass: not shown better overall".to_string(),
             (false, _, true) => "holds: worse in no slice (a guard)".to_string(),
         };
@@ -193,9 +208,14 @@ fn row(group: &str, pairs: &[(&Item, f64, f64)], binary: bool, sign: f64) -> Row
     let diffs: Vec<f64> = pairs.iter().map(|p| p.2 - p.1).collect();
     let better = diffs.iter().filter(|d| sign * **d > 0.0).count();
     let worse = diffs.iter().filter(|d| sign * **d < 0.0).count();
-    let p = if binary { mcnemar(better, worse) } else { wilcoxon(&diffs) };
+    let (p, lean) = if binary {
+        (mcnemar(better, worse), better as f64 - worse as f64)
+    } else {
+        let (p, lean) = wilcoxon(&diffs);
+        (p, sign * lean)
+    };
     let (low, high) = interval(&diffs);
-    Row { group: group.to_string(), n, base, new, low, high, better, worse, p, adjusted: p }
+    Row { group: group.to_string(), n, base, new, low, high, better, worse, lean, p, adjusted: p }
 }
 
 /// McNemar's exact test, two-sided: of the `b + c` items the runs disagree on, how unlikely a split this uneven is when
@@ -220,12 +240,12 @@ fn mcnemar(b: usize, c: usize) -> f64 {
 
 /// The Wilcoxon signed-rank test, two-sided, on paired differences: the ranks of their sizes, zeros left out and ties
 /// given their mean rank, with the normal approximation corrected for ties and continuity (exact below 20 differences
-/// without ties)
-fn wilcoxon(diffs: &[f64]) -> f64 {
+/// without ties); and which way the differences lean, the summed ranks of the positive ones less those of the negative
+fn wilcoxon(diffs: &[f64]) -> (f64, f64) {
     let mut d: Vec<f64> = diffs.iter().copied().filter(|x| x.abs() > 1e-12).collect();
     let n = d.len();
     if n == 0 {
-        return 1.0;
+        return (1.0, 0.0);
     }
     d.sort_by(|a, b| a.abs().total_cmp(&b.abs()));
     let (mut ranks, mut ties) = (vec![0.0; n], 0.0);
@@ -245,6 +265,8 @@ fn wilcoxon(diffs: &[f64]) -> f64 {
     let plus: f64 = d.iter().zip(&ranks).filter(|(x, _)| **x > 0.0).map(|(_, r)| r).sum();
     let nf = n as f64;
     let mean = nf * (nf + 1.0) / 4.0;
+    // the negative ranks sum to n(n + 1)/2 less the positive ones
+    let lean = 2.0 * (plus - mean);
     if n < 20 && ties == 0.0 {
         // the exact distribution of the sum of the positive ranks: how many of the 2^n sign patterns give each sum
         let most = n * (n + 1) / 2;
@@ -258,11 +280,11 @@ fn wilcoxon(diffs: &[f64]) -> f64 {
         let total = 2f64.powi(n as i32);
         let w = plus.min(nf * (nf + 1.0) / 2.0 - plus).round() as usize;
         let tail: f64 = ways[..=w].iter().sum::<f64>() / total;
-        return (2.0 * tail).min(1.0);
+        return ((2.0 * tail).min(1.0), lean);
     }
     let var = nf * (nf + 1.0) * (2.0 * nf + 1.0) / 24.0 - ties / 48.0;
     let z = ((plus - mean).abs() - 0.5).max(0.0) / var.sqrt();
-    (2.0 * (1.0 - normal_cdf(z))).min(1.0)
+    ((2.0 * (1.0 - normal_cdf(z))).min(1.0), lean)
 }
 
 /// the standard normal distribution below `z` (Abramowitz and Stegun 7.1.26, within 1.5e-7)
@@ -361,12 +383,66 @@ mod tests {
     #[test]
     fn the_signed_rank_test_is_exact_for_few_and_approximate_for_many() {
         // eight differences all positive: 2 / 2^8
-        assert!((wilcoxon(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]) - 2.0 / 256.0).abs() < 1e-12);
-        assert_eq!(wilcoxon(&[0.0, 0.0]), 1.0, "no difference");
+        assert!((wilcoxon(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).0 - 2.0 / 256.0).abs() < 1e-12);
+        assert_eq!(wilcoxon(&[0.0, 0.0]), (1.0, 0.0), "no difference");
         let balanced: Vec<f64> = (1..=40).map(|i| if i % 2 == 0 { f64::from(i) } else { -f64::from(i) }).collect();
-        assert!(wilcoxon(&balanced) > 0.5);
+        assert!(wilcoxon(&balanced).0 > 0.5);
         let shifted: Vec<f64> = (1..=40).map(|i| f64::from(i % 7) + 0.5).collect();
-        assert!(wilcoxon(&shifted) < 1e-6);
+        assert!(wilcoxon(&shifted).0 < 1e-6);
+    }
+
+    #[test]
+    fn the_signed_rank_test_leans_the_way_the_ranks_do_not_the_mean() {
+        // all eight better: the positive ranks sum to 36 and the negative to none
+        assert_eq!(wilcoxon(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).1, 36.0);
+        // most a little worse, a few much better: the mean goes up, the ranks down
+        let d = mostly_worse();
+        assert!(d.iter().sum::<f64>() > 0.0);
+        let (p, lean) = wilcoxon(&d);
+        assert!(p < ALPHA && lean < 0.0, "p {p}, lean {lean}");
+    }
+
+    /// 34 items a point worse and 6 twenty points better
+    fn mostly_worse() -> Vec<f64> {
+        (0..40).map(|i| if i < 34 { -1.0 } else { 20.0 }).collect()
+    }
+
+    /// a run's results file in the system's temporary folder, an item a line with its score
+    fn results(name: &str, header: &str, scores: &[f64]) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!("claudius-bench-{}-{name}.jsonl", std::process::id()));
+        let mut text = format!("{header}\n");
+        for (i, s) in scores.iter().enumerate() {
+            text += &format!(
+                "{{\"item\": \"i{i}\", \"slice\": {{\"half\": \"{}\"}}, \"metrics\": {{\"score\": {s}}}}}\n",
+                i % 2
+            );
+        }
+        std::fs::write(&path, text).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_few_items_much_better_do_not_carry_a_change_most_items_got_worse_with() {
+        let base = results("mostly-worse-base", "", &[10.0; 40]);
+        let new = results("mostly-worse-new", "", &mostly_worse().iter().map(|d| 10.0 + d).collect::<Vec<_>>());
+        let failed = compare(&base, &new, false).unwrap_err().to_string();
+        assert!(failed.contains("score"), "{failed}");
+        // and the other way round: most items a little better, a few much worse, is not shown better either
+        let new = results("mostly-better-new", "", &mostly_worse().iter().map(|d| 10.0 - d).collect::<Vec<_>>());
+        assert!(compare(&base, &new, false).is_err());
+        // a change every item is better with passes
+        let new = results("all-better-new", "", &[11.0; 40]);
+        compare(&base, &new, false).unwrap();
+    }
+
+    #[test]
+    fn a_comparison_of_nothing_is_an_error_not_a_pass() {
+        let empty = results("empty", "", &[]);
+        assert!(compare(&empty, &empty, true).is_err(), "no items");
+        let base = results("primary-base", r#"{"primary": ["right"]}"#, &[10.0; 4]);
+        let new = results("primary-new", r#"{"primary": ["right"]}"#, &[11.0; 4]);
+        let missing = compare(&base, &new, true).unwrap_err().to_string();
+        assert!(missing.contains("right"), "a primary metric no item has: {missing}");
     }
 
     #[test]
