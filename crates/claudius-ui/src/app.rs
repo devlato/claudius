@@ -1474,12 +1474,12 @@ impl eframe::App for Studio {
         }
         if self.state.song.is_some() && main == panels::Main::Arrangement {
             let dock = egui::Frame::new().fill(PANEL.into()).stroke(Stroke::new(1.0, LINE));
-            let dock_size = (ui.available_height() * 0.38).clamp(200.0, 360.0);
+            let (first, range) = dock_sizes(ui.available_height());
             let shown = egui::Panel::bottom("dock")
                 .frame(dock)
                 .resizable(true)
-                .default_size(dock_size)
-                .size_range(180.0..=800.0)
+                .default_size(first)
+                .size_range(range)
                 .show(ui, |ui| self.dock(ui, now));
             self.view.anchors.editors = Some(shown.response.rect);
         }
@@ -1792,6 +1792,20 @@ impl DoubleClick {
     }
 }
 
+/// what the arrangement keeps above the dock: its header, its ruler, its sections and a few tracks, and its master band
+const ARRANGEMENT_MIN: f32 = 220.0;
+/// the shortest a dock is drawn: its tabs and a row of what they show
+const DOCK_MIN: f32 = 120.0;
+
+/// How tall the dock under the arrangement may be in `room` points, and how tall it is first: as tall as it is dragged,
+/// up to what leaves the arrangement the room it takes (`ARRANGEMENT_MIN`), and no shorter than a tab of it can be drawn;
+/// first about two fifths of the room. A window made smaller shrinks the dock before the arrangement, which a dock kept
+/// at its height squeezed until the arrangement's rows were drawn over one another.
+fn dock_sizes(room: f32) -> (f32, std::ops::RangeInclusive<f32>) {
+    let most = (room - ARRANGEMENT_MIN).clamp(DOCK_MIN, 800.0);
+    ((room * 0.38).clamp(200.0, 360.0).min(most), DOCK_MIN..=most)
+}
+
 /// the system's setting for a double-click on a title bar, read once
 #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
 fn double_click() -> DoubleClick {
@@ -1808,6 +1822,20 @@ mod tests {
     use super::*;
     #[cfg(target_os = "macos")]
     use eframe::egui::{Pos2, Rect, pos2};
+
+    #[test]
+    fn a_window_made_smaller_shrinks_the_dock_before_the_arrangement() {
+        // as the studio opens in a full window: the dock about two fifths of it, and draggable up to what leaves the
+        // arrangement its room
+        let (first, range) = dock_sizes(880.0);
+        assert!((first - 334.4).abs() < 1e-3 && *range.end() == 660.0, "{first} {range:?}");
+        // a short window: the arrangement keeps its room, and the dock, however tall it was, is the rest
+        let (first, range) = dock_sizes(430.0);
+        assert_eq!((first, *range.end()), (200.0, 430.0 - ARRANGEMENT_MIN));
+        // a window shorter still: the dock as short as a tab of it is drawn
+        let (first, range) = dock_sizes(250.0);
+        assert_eq!((first, *range.start(), *range.end()), (DOCK_MIN, DOCK_MIN, DOCK_MIN));
+    }
 
     /// the pointer pressed at `at`, moved to `to` (none: released where it was pressed) over a top bar of a title bar
     /// and a button laid over it: whether the window was asked to move, and whether anything took the keyboard

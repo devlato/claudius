@@ -355,8 +355,13 @@ impl Plan {
                 None
             }
             "size" => {
-                let (w, h) = arg.split_once(',')?;
-                Some(Step::Size(w.trim().parse().ok()?, h.trim().parse().ok()?))
+                match arg.split_once(',').and_then(|(w, h)| Some((w.trim().parse().ok()?, h.trim().parse().ok()?))) {
+                    Some((w, h)) => Some(Step::Size(w, h)),
+                    None => {
+                        say(&format!("plan step size:{arg} is not width,height (size:1000,520)"));
+                        None
+                    }
+                }
             }
             "exit" => Some(Step::Exit),
             other => {
