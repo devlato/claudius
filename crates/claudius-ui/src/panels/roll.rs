@@ -4,11 +4,12 @@
 //! (`set_notes`); Back to the theory engine lets it write the cycle again.
 
 use claudius_api::{Command, NoteView, SongView};
-use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use eframe::egui::{self, Align2, Color32, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
-use super::{Cx, empty, layer_color, small};
+use super::{Cx, empty, layer_color, page_frame, small};
 use crate::music::note_name;
 use crate::theme::{self, LINE, LINE_SOFT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::widgets;
 
 /// what the roll shows, and the note a drag holds
 #[derive(Default)]
@@ -54,7 +55,14 @@ fn range(song: &SongView, part: usize, notes: &[NoteView]) -> (i32, i32) {
     if hi - lo < 24 { (lo.min(127 - 24), (lo + 24).min(127)) } else { (lo, hi) }
 }
 
+/// the most parts shown as a segmented control; more are a list to open
+const PARTS_SEGMENTED: usize = 5;
+
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
+    page_frame().show(ui, |ui| body(ui, cx));
+}
+
+fn body(ui: &mut Ui, cx: &mut Cx) {
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
         return;
@@ -69,57 +77,91 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     }
     let pi = roll.part.as_ref().and_then(|n| song.parts.iter().position(|p| &p.name == n)).unwrap_or(0);
     let part = &song.parts[pi];
-    ui.horizontal_wrapped(|ui| {
-        ui.label(small("part"));
-        for p in &song.parts {
-            if ui
-                .selectable_label(
-                    p.name == part.name,
-                    RichText::new(&p.name).color(theme::legible(layer_color(song, &p.name))),
-                )
-                .clicked()
-            {
-                roll.part = Some(p.name.clone());
-                roll.prog = None;
-                roll.draft = None;
-                roll.drag = None;
-            }
-        }
-    });
-    if part.cycles.is_empty() {
-        empty(ui, &format!("{} plays in no section: switch it on in the arrangement to write its notes.", part.name));
-        return;
-    }
     let ci = roll.prog.as_ref().and_then(|g| part.cycles.iter().position(|c| &c.prog == g)).unwrap_or(0);
-    let cycle = &part.cycles[ci];
+    let cycle = part.cycles.get(ci);
     let played = |prog: &str| {
         song.sections
             .iter()
             .any(|s| s.layers.contains(&part.name) && (s.prog == prog || (s.prog.is_empty() && prog == "A")))
     };
     let mut out: Vec<Command> = Vec::new();
-    ui.horizontal_wrapped(|ui| {
-        ui.label(small("over"));
-        for c in &part.cycles {
-            let how = match (c.written, played(&c.prog)) {
-                (true, true) => "written out",
-                (true, false) => "written out, played nowhere now",
-                _ => "the theory engine's",
-            };
-            let label = format!("{} · {how}", c.prog);
-            if ui.selectable_label(c.prog == cycle.prog, label).on_hover_text(format!("{} beats", c.beats)).clicked() {
-                roll.prog = Some(c.prog.clone());
-                roll.draft = None;
-                roll.drag = None;
-            }
+    // the part, its progression and the grid, as the drums' variant is chosen: a segmented control for a choice of
+    // one of a few, and what a click and a drag do at the right
+    widgets::row(ui, "roll_head", |ui, side| {
+        if side == widgets::Side::Right {
+            ui.label(small(match cycle {
+                Some(c) if c.written => {
+                    "click adds a note · drag moves it · drag its end lengthens it · right-click takes it out"
+                }
+                Some(_) => "the theory engine's notes: the first edit writes them out for you to change",
+                None => "",
+            }));
+            return;
         }
-        ui.separator();
-        ui.label(small("grid"));
-        for (label, g) in GRIDS {
-            ui.selectable_value(&mut roll.grid, g, label);
+        widgets::heading(ui, "Part");
+        let mut at = pi;
+        let picked = if song.parts.len() <= PARTS_SEGMENTED {
+            let tips: Vec<String> =
+                song.parts.iter().map(|p| format!("{}: {} progression(s) to write", p.name, p.cycles.len())).collect();
+            let choices: Vec<(usize, &str, &str)> =
+                song.parts.iter().zip(&tips).enumerate().map(|(n, (p, t))| (n, p.name.as_str(), t.as_str())).collect();
+            widgets::segmented_small(ui, &mut at, &choices)
+        } else {
+            let mut picked = false;
+            egui::ComboBox::from_id_salt("roll_part").selected_text(&part.name).width(110.0).show_ui(ui, |ui| {
+                for (n, p) in song.parts.iter().enumerate() {
+                    if ui.selectable_label(n == at, &p.name).clicked() && n != at {
+                        at = n;
+                        picked = true;
+                    }
+                }
+            });
+            picked
+        };
+        if picked && let Some(p) = song.parts.get(at) {
+            roll.part = Some(p.name.clone());
+            roll.prog = None;
+            roll.draft = None;
+            roll.drag = None;
+        }
+        let Some(cycle) = cycle else { return };
+        ui.add_space(12.0);
+        widgets::heading(ui, "Progression");
+        let tips: Vec<String> = part
+            .cycles
+            .iter()
+            .map(|c| {
+                let how = match (c.written, played(&c.prog)) {
+                    (true, true) => "its notes written out",
+                    (true, false) => "its notes written out, played nowhere now",
+                    _ => "the theory engine's notes",
+                };
+                format!("progression {}: {how}, {} beats", c.prog, c.beats)
+            })
+            .collect();
+        let choices: Vec<(usize, &str, &str)> =
+            part.cycles.iter().zip(&tips).enumerate().map(|(n, (c, t))| (n, c.prog.as_str(), t.as_str())).collect();
+        let mut at = ci;
+        if widgets::segmented_small(ui, &mut at, &choices)
+            && let Some(c) = part.cycles.get(at)
+        {
+            roll.prog = Some(c.prog.clone());
+            roll.draft = None;
+            roll.drag = None;
+        }
+        ui.add_space(12.0);
+        widgets::heading(ui, "Grid");
+        let grids: Vec<(usize, &str, &str)> = GRIDS
+            .iter()
+            .enumerate()
+            .map(|(n, (label, _))| (n, *label, "the beats a note snaps to and starts as long as"))
+            .collect();
+        let mut at = GRIDS.iter().position(|(_, g)| *g == roll.grid).unwrap_or(0);
+        if widgets::segmented_small(ui, &mut at, &grids) {
+            roll.grid = GRIDS[at].1;
         }
         if cycle.written {
-            ui.separator();
+            ui.add_space(12.0);
             if ui
                 .button("Back to the theory engine")
                 .on_hover_text("forget these notes: the part writes this progression itself again")
@@ -129,11 +171,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
         }
     });
-    ui.label(small(if cycle.written {
-        "click to add a note, drag to move it, drag its right edge to make it longer, right-click to take it out"
-    } else {
-        "as the theory engine writes it: the first edit writes these notes out for you to change"
-    }));
+    let Some(cycle) = cycle else {
+        empty(ui, &format!("{} plays in no section: switch it on in the arrangement to write its notes.", part.name));
+        return;
+    };
+    ui.add_space(6.0);
 
     let notes: Vec<NoteView> = roll.draft.clone().unwrap_or_else(|| cycle.notes.clone());
     let (lo, hi) = range(song, pi, &notes);
