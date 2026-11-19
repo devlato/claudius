@@ -1,0 +1,66 @@
+name: Ubuntu packages
+description: >-
+  Installs Ubuntu packages on a Linux runner (scripts/ci/apt-get.sh). A job that may use a cache installs the ones the
+  last run on main kept for its runner image, with no mirror at all; Ubuntu's mirrors have slowed to a trickle for many
+  minutes at a time (19 November 2026: six minutes for four small packages, and valgrind cut off at ten), and every
+  Linux job fetched its packages anew. A job that makes a release or a deploy uses no cache, and fetches them.
+
+inputs:
+  packages:
+    description: The packages, space-separated.
+    required: true
+  cache:
+    description: '"false" fetches them from a mirror: for the jobs that make releases and deploys, which use no cache.'
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # the image's own packages decide what an install fetches, so what is kept is kept for one image
+    - name: Runner image
+      id: image
+      if: inputs.cache == 'true'
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        name=$(printf '%s' "$PACKAGES" | tr -s ' ' '-')
+        echo "key=debs-$ImageOS-$ImageVersion-$name" >> "$GITHUB_OUTPUT"
+        echo "dir=$RUNNER_TEMP/debs/$name" >> "$GITHUB_OUTPUT"
+
+    - name: Packages kept for this image
+      id: kept
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.image.outputs.dir }}
+        key: ${{ steps.image.outputs.key }}-${{ hashFiles('scripts/ci/apt-get.sh') }}
+
+    - name: Packages
+      id: packages
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        KEPT: ${{ steps.image.outputs.dir }}
+      run: |
+        read -ra packages <<< "$PACKAGES"
+        if [ -n "$KEPT" ]; then
+          sh scripts/ci/apt-get.sh kept "$KEPT" "${packages[@]}"
+          # whole when what was fetched installed as it is: only such a folder is kept
+          if [ -f "$KEPT/.kept" ]; then
+            echo "whole=true" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          sh scripts/ci/apt-get.sh update
+          sh scripts/ci/apt-get.sh install "${packages[@]}"
+        fi
+
+    # pull requests read what main keeps, and keep nothing of their own; a folder that did not install whole is not kept
+    - name: Keep the packages for this image
+      if: >-
+        inputs.cache == 'true' && steps.kept.outputs.cache-hit != 'true' && steps.packages.outputs.whole == 'true'
+        && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.image.outputs.dir }}
+        key: ${{ steps.image.outputs.key }}-${{ hashFiles('scripts/ci/apt-get.sh') }}

@@ -75,10 +75,10 @@ runs:
     # pkg-config and libssl-dev: ort-sys downloads ONNX Runtime over native TLS at build time. libasound2-dev: rodio,
     # the studio's audio output, links ALSA. libclang-dev: signalsmith-stretch runs bindgen. X11, Wayland and GL are
     # loaded at run time, so they need no -dev packages.
+    # Kept for each runner image by main's runs, or fetched with time limits from the fastest mirror (.github/actions/debs)
     - name: Linux packages
       if: runner.os == 'Linux' && inputs.linux-packages == 'true'
-      shell: bash
-      # with time limits on every fetch, and other mirrors when Azure's fails (scripts/ci/apt-get.sh)
-      run: |
-        sh scripts/ci/apt-get.sh update
-        sh scripts/ci/apt-get.sh install pkg-config libssl-dev libasound2-dev libclang-dev
+      uses: ./.github/actions/debs
+      with:
+        packages: pkg-config libssl-dev libasound2-dev libclang-dev
+        cache: ${{ inputs.cache }}
