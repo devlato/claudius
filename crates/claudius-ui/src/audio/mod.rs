@@ -20,6 +20,8 @@ pub mod record;
 pub mod take;
 
 #[cfg(any(target_arch = "wasm32", test))]
+mod pending;
+#[cfg(any(target_arch = "wasm32", test))]
 mod seam;
 #[cfg(target_arch = "wasm32")]
 mod web;
