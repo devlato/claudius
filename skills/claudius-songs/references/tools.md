@@ -103,8 +103,10 @@ A script says most of these more readably (`tempo(124)`, `section("drop", #{ ene
 
 Notes:
 
-- `run_script`, `new_song`, `listen`, `undo` and `redo` wait for the render and return the verdict. `mutate`,
-  `evolve` and `save` wait up to about four minutes; if the job is still running, `status` follows it.
+- `run_script`, `new_song`, `listen`, `undo` and `redo` wait for the render and return the verdict. A call whose
+  work takes longer than 45 s (remaking or sampling a long recording, rendering a long song, `mutate`, `evolve`,
+  `save`) answers that it is still going instead, as an assistant's link gives up on a call after a minute or so:
+  `status` says how it goes, and gives its answer once it is done.
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}`, `move_section`,
