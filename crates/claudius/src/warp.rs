@@ -47,7 +47,7 @@ pub fn warp(
     }
     let disk = format!("{}.f32", &blake3::hash(key.as_bytes()).to_hex()[..20]);
     if config::FILES
-        && let Some(bytes) = config::cache::get("stretched", &disk)
+        && let Some(bytes) = config::cache::get("stretched", &disk, config::cache::STRETCHED)
     {
         let x: Vec<f32> = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
         let s = Arc::new(Stereo::from_interleaved(&x));

@@ -367,6 +367,11 @@ pub fn remembered_version(path: &str) -> Option<u64> {
 /// takes, a song in a fraction of a second, which its ten times larger decoded file does not save
 const KEPT_DECODED: f64 = 30.0;
 
+/// whether decoded audio (interleaved stereo) is short enough to keep in the cache `decoded` (`KEPT_DECODED`)
+fn kept_decoded(interleaved: &[f32]) -> bool {
+    (interleaved.len() / 2) as f64 <= KEPT_DECODED * config::SRF
+}
+
 /// decode any audio file to 48 kHz stereo (a sound of at most `KEPT_DECODED` seconds kept as raw f32 in the cache
 /// `decoded`, `config::cache`), or hand out what `remember` keeps for its path
 pub fn load(path: &Path) -> Result<Stereo> {
@@ -376,13 +381,17 @@ pub fn load(path: &Path) -> Result<Stereo> {
     readable(path)?;
     let key = format!("{}.f32", cache_key(path)?);
     if config::FILES
-        && let Some(bytes) = config::cache::get("decoded", &key)
+        && let Some(bytes) = config::cache::get("decoded", &key, config::cache::DECODED)
     {
         let x: Vec<f32> = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
-        return Ok(Stereo::from_interleaved(&x));
+        if kept_decoded(&x) {
+            return Ok(Stereo::from_interleaved(&x));
+        }
+        // a long recording kept before such ones stopped being kept: out of the cache, and decoded as they are
+        config::cache::remove("decoded", &key);
     }
     let x = decode_file(path)?;
-    if config::FILES && (x.len() / 2) as f64 <= KEPT_DECODED * config::SRF {
+    if config::FILES && kept_decoded(&x) {
         let bytes: Vec<u8> = x.iter().flat_map(|v| v.to_le_bytes()).collect();
         config::cache::put("decoded", &key, &bytes, config::cache::DECODED);
     }

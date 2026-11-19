@@ -97,22 +97,52 @@ pub fn cache_dir(name: &str) -> PathBuf {
 }
 
 /// The audio caches on disk (`decoded`, `stretched`), each a folder of files under a cap: what is read is marked used,
-/// and a folder written past its cap loses the files used least lately until it is three quarters of it. Without a cap
-/// they grew with every recording ever opened: a song's decoded audio is about ten times its MP3.
+/// and a folder past its cap, looked at on the cache's first use in a process and on every 16th write to it after,
+/// loses the files used least lately until it is three quarters of it. Without a cap they grew with every recording
+/// ever opened: a song's decoded audio is about ten times its MP3.
 pub mod cache {
+    use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Mutex;
 
     /// the caps: decoded sounds, and sounds stretched to a tempo
     pub const DECODED: u64 = 2 << 30;
     pub const STRETCHED: u64 = 1 << 30;
 
-    /// what the cache `name` keeps under `key`, marked used
-    pub fn get(name: &str, key: &str) -> Option<Vec<u8>> {
-        let path = super::cache_dir(name).join(key);
+    /// what the cache `name` keeps under `key`, marked used; a cache's first use in a process trims it to `cap`
+    /// (`due`), so that a folder an earlier claudius grew past it is trimmed whether claudius reads it or writes to it
+    pub fn get(name: &str, key: &str, cap: u64) -> Option<Vec<u8>> {
+        let dir = super::cache_dir(name);
+        if due(name, false) {
+            trim(&dir, cap);
+        }
+        let path = dir.join(key);
         let bytes = std::fs::read(&path).ok()?;
         used(&path);
         Some(bytes)
+    }
+
+    /// what the cache `name` keeps under `key` taken out of it (a sound kept before such sounds stopped being kept)
+    pub fn remove(name: &str, key: &str) {
+        let _ = std::fs::remove_file(super::cache_dir(name).join(key));
+    }
+
+    /// Whether the cache `name` is due a look at its folder: on its first use in this process, and on every 16th write
+    /// to it after, each cache counted on its own (listing a folder at each write would cost more than the writes).
+    pub(super) fn due(name: &str, write: bool) -> bool {
+        static SEEN: Mutex<BTreeMap<String, u32>> = Mutex::new(BTreeMap::new());
+        let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+        match seen.get_mut(name) {
+            None => {
+                seen.insert(name.to_string(), 0);
+                true
+            }
+            Some(writes) if write => {
+                *writes += 1;
+                writes.is_multiple_of(16)
+            }
+            Some(_) => false,
+        }
     }
 
     /// the file at `path` marked used now, for the trimming to keep it over those used less lately
@@ -128,7 +158,7 @@ pub mod cache {
     fn used(_: &Path) {}
 
     /// keeps `bytes` in the cache `name` under `key`, written whole (a part file renamed), and now and then trims the
-    /// cache to `cap`
+    /// cache to `cap` (`due`)
     pub fn put(name: &str, key: &str, bytes: &[u8], cap: u64) {
         let dir = super::cache_dir(name);
         let path = dir.join(key);
@@ -136,9 +166,7 @@ pub mod cache {
         if std::fs::write(&tmp, bytes).is_ok() {
             let _ = std::fs::rename(&tmp, &path);
         }
-        // a look at the folder every few writes: listing it each time would cost more than the writes
-        static WRITES: AtomicU32 = AtomicU32::new(0);
-        if WRITES.fetch_add(1, Ordering::Relaxed).is_multiple_of(16) {
+        if due(name, true) {
             trim(&dir, cap);
         }
     }
@@ -281,6 +309,18 @@ mod tests {
         left.sort();
         assert_eq!(left, ["c.f32", "d.f32", "e.123.tmp"]);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn each_cache_is_looked_at_on_its_first_use_read_or_written_and_every_sixteenth_write_to_it_after() {
+        let (a, b) = (format!("due-a-{}", std::process::id()), format!("due-b-{}", std::process::id()));
+        assert!(cache::due(&a, false), "a first read looks");
+        assert!(!cache::due(&a, false), "a read after it does not");
+        let looks: Vec<usize> = (1..=32).filter(|_| cache::due(&a, true)).collect();
+        assert_eq!(looks.len(), 2, "two looks in 32 writes");
+        // another cache's writes count for it alone, and its first use looks whatever the first's count
+        assert!(cache::due(&b, true), "the other's first write looks");
+        assert!((1..16).all(|_| !cache::due(&b, true)) && cache::due(&b, true), "its 16th write after looks");
     }
 
     #[test]
