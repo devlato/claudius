@@ -36,6 +36,8 @@ for (`TEXT`, `PANEL`, `WELL`, `ACCENT`); the parts are `widgets`':
 
 | Part | What it is for | `widgets::` |
 |---|---|---|
+| a dialog | a window shown over the studio, which nothing behind it takes a click while it is open (New song, Publish): framed as a window is | `dialog` |
+| a dialog's head | the top of a dialog as a window's title bar draws it: a band with the title in the middle and a close button at its right | `head` |
 | the primary button | what a window is for (Create song, Open it, Play it as ...): one a window, filled with the accent | `primary` |
 | a window's foot | under what a window holds: a rule, then its buttons from the right, the primary first, then Cancel, then a word on what it does | `foot` |
 | a segmented control | a choice of one of a few that changes what a window shows (New song's From a genre, From a recording, From an example) | `segmented` |

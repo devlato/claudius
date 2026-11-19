@@ -186,10 +186,11 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     {
         out.push(Command::SetRelease { details: Box::new(r.details.clone()), artwork: None });
     }
-    let modal = egui::Modal::new(egui::Id::unique("publish")).show(ctx, |ui| {
+    let modal = widgets::dialog(ctx, "publish").show(ctx, |ui| {
         ui.set_width(780.0);
-        ui.heading("Publish");
-        ui.add_space(4.0);
+        if widgets::head(ui, "Publish") {
+            p.open = false;
+        }
         ui.label(small(
             "Spotify, Apple Music and the other stores take music from distributors. claudius checks the song the \
              way they do, and writes the files and the answers a distributor's form asks for.",
@@ -219,28 +220,26 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
             out.push(Command::SetRelease { details: Box::new(details), artwork: None });
         }
         ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            let current = release.checked > 0 && release.checked >= song_version;
-            let can = current && release.ready;
-            let why = if !current {
-                "the checks come once the song as it is now is rendered"
-            } else {
-                "fix the problems first: they are marked red"
-            };
-            let r = widgets::tool_button(ui, Icon::Save, "Write the release kit", can, can)
+        let current = release.checked > 0 && release.checked >= song_version;
+        let can = current && release.ready;
+        let why = if !current {
+            "the checks come once the song as it is now is rendered"
+        } else {
+            "fix the problems first: they are marked red"
+        };
+        widgets::foot(ui, |ui| {
+            let r = widgets::primary(ui, "Write the release kit", can)
                 .on_hover_text("the WAVs, the cover and release.txt, into release/ in the song's folder")
                 .on_disabled_hover_text(why);
             if r.clicked() {
                 out.push(Command::WriteKit { path: None });
             }
+            if ui.button("Close").clicked() {
+                p.open = false;
+            }
             if let Some(k) = &release.kit {
                 ui.add(egui::Label::new(small(format!("written to {k}"))).truncate());
             }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::tool_button(ui, Icon::Cancel, "Close", true, false).clicked() {
-                    p.open = false;
-                }
-            });
         });
     });
     if modal.should_close() {
@@ -250,9 +249,8 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
 }
 
 fn close_row(ui: &mut Ui, p: &mut Publish) {
-    ui.add_space(10.0);
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        if widgets::tool_button(ui, Icon::Cancel, "Close", true, false).clicked() {
+    widgets::foot(ui, |ui| {
+        if ui.button("Close").clicked() {
             p.open = false;
         }
     });
