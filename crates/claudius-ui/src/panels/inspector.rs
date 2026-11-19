@@ -229,6 +229,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             };
             widgets::field(ui, label, |ui| {
                 // a few patterns are a segmented control, as any choice of one of a few; more, a list to open
+                let variants = offered(&variants, &s.variant);
                 let shown: Vec<(usize, String, String)> = variants
                     .iter()
                     .enumerate()
@@ -598,10 +599,27 @@ fn layer_words(layer: &serde_json::Value) -> String {
     words.join(", ")
 }
 
+/// The drum patterns a section is offered: main and those its drum lanes write steps for, and the section's own when
+/// it names another (one whose lane was taken out, or set from a script), so that the pattern it plays always shows.
+fn offered(variants: &[String], current: &str) -> Vec<String> {
+    let mut v = variants.to_vec();
+    if !v.iter().any(|x| x == current) {
+        v.push(current.to_string());
+    }
+    v
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_section_is_offered_the_pattern_it_plays_even_when_no_lane_writes_it() {
+        let lanes = ["main".to_string(), "sparse".to_string()];
+        assert_eq!(offered(&lanes, "sparse"), lanes, "a pattern a lane writes is offered once");
+        assert_eq!(offered(&lanes, "fill"), ["main", "sparse", "fill"], "the section's own, last");
+    }
 
     #[test]
     fn a_layer_says_its_sound_its_band_and_what_else_it_does() {
