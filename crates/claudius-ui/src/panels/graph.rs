@@ -108,9 +108,8 @@ fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: b
     let spelt_out = spelt + 180.0 <= ui.available_width();
     widgets::row(ui, "graph_head", |ui, side| {
         if side == widgets::Side::Left {
-            if large {
-                ui.add_space(10.0);
-            }
+            // the page's margin in the dock, as every tab's, and the bar's when open large
+            ui.add_space(if large { 10.0 } else { 12.0 });
             if spelt_out {
                 ui.label(small(hint));
             } else {
