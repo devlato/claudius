@@ -209,15 +209,9 @@ fn run(
                     if let Some(on) = share_near(&a.bar_starts, &s.downbeats) {
                         metrics["on_downbeats"] = json!((on * 1000.0).round() / 1000.0);
                     }
-                    let line = json!({
-                        "item": s.id,
-                        "slice": {
-                            let mut slice = slice_of(s);
-                            slice["steady"] = json!(if a.steady { "steady" } else { "drifting" });
-                            slice
-                        },
-                        "metrics": metrics,
-                    });
+                    let mut slice = slice_of(s);
+                    slice["steady"] = json!(if a.steady { "steady" } else { "drifting" });
+                    let line = json!({"item": s.id, "slice": slice, "metrics": metrics});
                     let _ = writeln!(file.lock().unwrap_or_else(|p| p.into_inner()), "{line}");
                 }
             });
