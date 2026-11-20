@@ -24,9 +24,13 @@ Rebuild from better parts, and measure every step.
    chords, tempo and drums come to the original's. Each later step has to raise these numbers, and CI keeps them from
    falling.
 2. **Separation** by HTDemucs, fine-tuned (vocals 9.2, drums 10.1, bass 10.4 and the rest 6.3 dB), in pure Rust as
-   the ears are, in place of Spleeter: Demucs and the models it releases are MIT. A Mel-Band RoFormer would hear the
-   voice better still, but the community's checkpoints (Kim's vocal model among them) and UVR's models carry no
-   licence, so one goes in only with weights whose licence allows it.
+   the ears are, in place of Spleeter. Its code is MIT, but on 26 October 2026 its author wrote, in the fork he now
+   keeps, that the licence of its weights is not clear: some of the MUSDB songs it learnt from are for research only,
+   and part of its data is Meta's own; he calls the six-stem model likely CC BY-NC, and the MIT tag is gone from its
+   model card ([adefossez/demucs](https://github.com/adefossez/demucs/commit/829d21890023800713e5dd231c67e43ecc06069b)).
+   So no HTDemucs weights go in until that is settled, whatever a copy of them is tagged. A Mel-Band RoFormer would
+   hear the voice better still: Kim's vocal model has been tagged MIT since April 2026, and goes in only once what it
+   learnt from allows it too; UVR's models carry no licence.
 3. **Transcription** by YourMT3+ (F1 0.59 on the same test), ported to Rust from its paper: its weights are
    Apache-2.0, and its code GPL-3.0, so the port follows the paper and not the code. It writes each instrument's notes
    with its General MIDI program.
