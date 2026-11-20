@@ -31,10 +31,23 @@
 //!   to any other genre's.
 //! - **spread**, how much claudius's songs differ from one another, as a share of how much the real ones do (mean
 //!   cosine distance between pairs): shown, never judged, as neither more nor less is better by itself.
+//! - **beat**, with `--beats` (the real songs' beats, which `beats` hears): how far claudius's songs are from the real
+//!   songs of their genre in how much their beat changes from bar to bar. A song's change is `Analysis::beat_change`'s
+//!   `next`: of the kick, snare and hat hits on the 16th steps of two bars in a row, heard in its drums apart from the
+//!   rest, the share in one bar and not both, the median over its bars; a genre's is the median over its songs, and
+//!   `beat` is the difference from the real songs', shown beside both (`beat_songs`, `beat_real`). Lower is better: a
+//!   beat that changes as much as the genre's real ones do, not more. Measured for a genre whose real songs in the half
+//!   have a beat often enough to tell (`FEWEST`); a song of claudius's in which no kit is heard counts as a beat that
+//!   never changes. A guard (worse in no genre) unless `--primary` names it, as a change to how beats are written does.
 //!
 //! With `--songs`, `run` also writes a line for each song (its genre and seed the item, its typical and whether it is
 //! identified), the yardstick for a change to one genre: a genre is one item of the lines above, and its songs, made
 //! with the same seeds before and after the change, pair up one by one.
+//!
+//! `beats` hears the real songs' beats: for each song a line of `embed`'s lists (`--real`), how much its beat changes
+//! from bar to bar, its stems apart as the studio hears a recording (`Analysis::beat_change`), a line each into `--out`
+//! (a song already there is not heard again). A shard `embed --drop` deleted is downloaded again into DIR, and with
+//! `--drop` deleted once its songs are heard.
 //!
 //! `remake` hears claudius's remakes of real songs in a genre (`--how`: `flip`, a new song on a recording's hook and
 //! pieces of it, or `rework`, the recording all through with the genre under it), the yardstick for a change to how a
@@ -60,8 +73,10 @@
 //! ```text
 //! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
 //!     [--most 300] [--threads N]
+//! cargo run --release -p claudius --example eval_genres -- beats DIR --real FILE [--out FILE] [--drop]
+//!     [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
-//!     [--out FILE] [--genres a,b,...] [--songs FILE] [--threads N] [--keep DIR]
+//!     [--out FILE] [--genres a,b,...] [--songs FILE] [--beats FILE] [--primary a,b] [--threads N] [--keep DIR]
 //! cargo run --release -p claudius --example eval_genres -- remake REAL --sources DIR --genre G
 //!     [--how flip|rework] [--seeds 1..2] [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b]
 //!     [--threads N] [--keep DIR]
@@ -74,6 +89,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, mpsc};
 
+use claudius::analysis::song::BeatChange;
 use claudius::compose::{self, Options};
 use claudius::ears::Ears;
 use claudius::model::{Blueprint, Sound};
@@ -183,9 +199,22 @@ fn main() {
                 only: flag("--genres").map(|g| g.split(',').map(String::from).collect()),
                 keep: flag("--keep").map(PathBuf::from),
                 songs: flag("--songs").map(PathBuf::from),
+                beats: flag("--beats").map(PathBuf::from),
+                primary: flag("--primary")
+                    .map_or_else(|| vec!["kad".to_string()], |p| p.split(',').map(String::from).collect()),
             },
             threads,
         ),
+        (Some("beats"), Some(dir)) => match flag("--real") {
+            Some(real) => beats(
+                Path::new(dir),
+                Path::new(&real),
+                &flag("--out").map_or_else(|| Path::new(dir).join("real-beats.jsonl"), PathBuf::from),
+                args.iter().any(|a| a == "--drop"),
+                threads,
+            ),
+            None => Err("beats needs --real FILE (embed's lines)".into()),
+        },
         (Some("remake"), Some(real)) => match (flag("--sources"), flag("--genre")) {
             (Some(sources), Some(genre)) => remake(
                 Path::new(real),
@@ -206,8 +235,9 @@ fn main() {
             _ => Err("remake needs --sources DIR and --genre G".into()),
         },
         _ => Err("usage: eval_genres embed DIR [--shards 0..99] [--out FILE] [--drop] [--threads N]\n       \
+                  eval_genres beats DIR --real FILE [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres run REAL [--seeds 1..20] [--half tune|confirm] [--out FILE] [--genres a,b] \
-                  [--songs FILE] [--threads N] [--keep DIR]\n       \
+                  [--songs FILE] [--beats FILE] [--primary a,b] [--threads N] [--keep DIR]\n       \
                   eval_genres remake REAL --sources DIR --genre G [--how flip|rework] [--seeds 1..2] \
                   [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]"
             .into()),
@@ -501,7 +531,9 @@ fn heard_as<'a>(e: &[f64], centroids: &'a [(String, Vec<f64>)]) -> Option<&'a st
 }
 
 /// A song of genre `g` made with `seed`, rendered as it is made, written at the dataset's bitrate into `dir` and heard.
-fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path) -> Result<Vec<f64>, String> {
+/// A song of genre `g` made with `seed`, as `run` hears it: its embedding, and with `beats` how much its beat changes
+/// from bar to bar, heard from the MP3 as a real song's is (`beat_of`).
+fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path, beats: bool) -> Result<Song, String> {
     let bp = compose::generate(g, seed, &Options { sampled: Some(false), ..Options::default() }, None);
     let project = compose::arrange(&bp);
     let r = render::render(&project, &render::Options::default()).map_err(|e| format!("{} {seed}: {e:#}", g.name))?;
@@ -510,7 +542,105 @@ fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path) -> Re
     let bytes = export::encode(&r.master, &spec, &export::tags(&bp.title)).map_err(|e| format!("{e:#}"))?;
     std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
     let e = ears.embed_refs(std::slice::from_ref(&path)).map_err(|e| format!("{e:#}"))?;
-    e.into_iter().next().map(|e| kept(&e)).ok_or_else(|| format!("{} {seed}: nothing heard", g.name))
+    let emb = e.into_iter().next().map(|e| kept(&e)).ok_or_else(|| format!("{} {seed}: nothing heard", g.name))?;
+    let beat = if beats { beat_of(&path)? } else { None };
+    Ok(Song { emb, beat })
+}
+
+/// a song of claudius's as `run` hears it
+struct Song {
+    emb: Vec<f64>,
+    beat: Option<BeatChange>,
+}
+
+/// How much the beat of the recording at `path` changes from bar to bar, heard as the studio hears a recording: its
+/// stems apart (the ears' model), its drums in its drums (`Analysis::beat_change`); none where no kit plays.
+fn beat_of(path: &Path) -> Result<Option<BeatChange>, String> {
+    let x = claudius::audio::load(path).map_err(|e| format!("{}: {e:#}", path.display()))?;
+    let stems = claudius::stems::of(&x, &mut |_| {});
+    Ok(claudius::analysis::song::analyze_with(&x, stems.as_deref(), None).beat_change())
+}
+
+/// The beat of each real song that `real` lists (`embed`'s lines), a line each into `out` (`beat_of`; a song already
+/// there is not heard again, so a run stopped part way goes on). A shard whose audio is no longer in DIR (`embed
+/// --drop` deleted it) is downloaded again, and with `drop` deleted once its songs are heard.
+fn beats(dir: &Path, real: &Path, out: &Path, drop: bool, threads: usize) -> Result<(), String> {
+    fetch_tags(dir)?;
+    let lines = std::fs::read_to_string(real).map_err(|e| format!("{}: {e}", real.display()))?;
+    let listed: Vec<(String, u32, String)> = lines
+        .lines()
+        .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+        .filter_map(|v| {
+            Some((v["item"].as_str()?.to_string(), v["shard"].as_u64()? as u32, v["genre"].as_str()?.to_string()))
+        })
+        .collect();
+    let done: BTreeSet<String> = std::fs::read_to_string(out)
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str::<Value>(l).ok()?["item"].as_str().map(String::from))
+        .collect();
+    let tsv = std::fs::read_to_string(dir.join("raw_30s_cleantags.tsv")).map_err(|e| format!("the tags: {e}"))?;
+    let paths: BTreeMap<&str, PathBuf> = tsv
+        .lines()
+        .skip(1)
+        .filter_map(|line| {
+            let cols: Vec<&str> = line.split('\t').map(str::trim).collect();
+            let (s, file) = cols.get(3)?.split_once('/')?;
+            Some((*cols.first()?, dir.join(s).join(file.replace(".mp3", ".low.mp3"))))
+        })
+        .collect();
+    let mut by_shard: BTreeMap<u32, Vec<(String, String, PathBuf)>> = BTreeMap::new();
+    for (id, shard, genre) in listed.into_iter().filter(|(id, ..)| !done.contains(id)) {
+        let path = paths.get(id.as_str()).cloned().ok_or_else(|| format!("{id} is not in the dataset's tags"))?;
+        by_shard.entry(shard).or_default().push((id, genre, path));
+    }
+    let file = std::fs::OpenOptions::new().create(true).append(true).open(out).map_err(|e| e.to_string())?;
+    let file = Mutex::new(file);
+    for (s, todo) in by_shard {
+        // the shard downloaded again where its audio is gone
+        let fetched = !todo.iter().all(|(.., p)| p.is_file());
+        if fetched {
+            let _ = std::fs::remove_file(dir.join(format!("{s:02}.ok")));
+            fetch_shard(dir, s)?;
+        }
+        eprintln!("shard {s:02}: the beats of {} songs", todo.len());
+        let next = AtomicUsize::new(0);
+        std::thread::scope(|scope| {
+            for _ in 0..threads {
+                scope.spawn(|| {
+                    while let Some((id, genre, path)) = todo.get(next.fetch_add(1, Ordering::Relaxed)) {
+                        match beat_of(path) {
+                            Ok(beat) => {
+                                let line = json!({"item": id, "shard": s, "genre": genre, "beat": beat});
+                                let mut f = file.lock().unwrap_or_else(|p| p.into_inner());
+                                let _ = writeln!(f, "{line}");
+                            }
+                            Err(e) => eprintln!("{id}: {e}"),
+                        }
+                    }
+                });
+            }
+        });
+        if drop && fetched {
+            let _ = std::fs::remove_dir_all(dir.join(format!("{s:02}")));
+            let _ = std::fs::remove_file(dir.join(format!("{s:02}.ok")));
+        }
+    }
+    Ok(())
+}
+
+/// the real songs' beats that `beats` wrote, by genre, of the shards of `parity`: how much each changes bar to bar
+fn real_beats(path: &Path, parity: u64) -> Result<BTreeMap<String, Vec<f64>>, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut out: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    for v in text.lines().filter_map(|l| serde_json::from_str::<Value>(l).ok()) {
+        if let (Some(g), Some(s), Some(next)) = (v["genre"].as_str(), v["shard"].as_u64(), v["beat"]["next"].as_f64())
+            && s % 2 == parity
+        {
+            out.entry(g.to_string()).or_default().push(next);
+        }
+    }
+    Ok(out)
 }
 
 /// Each measured genre's songs of `seeds`, heard against its real songs of `half`, a line each into `out`.
@@ -524,6 +654,10 @@ struct Runs {
     keep: Option<PathBuf>,
     /// where to write a line for each song as well (`--songs`), to compare a change to one genre song by song
     songs: Option<PathBuf>,
+    /// the real songs' beats (`beats`' lines), to hear how much claudius's beats change bar to bar beside them
+    beats: Option<PathBuf>,
+    /// the metrics a change is judged on (`--primary`, kad unless told otherwise)
+    primary: Vec<String>,
 }
 
 /// The folder a run renders, separates and hears in: its own in the system's temporary folder, removed when the run
@@ -557,6 +691,7 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     let parity = parity_of(&r.half)?;
     let by_genre = real_songs(real, parity)?;
     let centroids = centroids_of(&by_genre);
+    let real_beat = r.beats.as_deref().map(|p| real_beats(p, parity)).transpose()?;
     let measured: Vec<&(&str, &str, &[&str], &[&str])> = GENRES
         .iter()
         .filter(|(g, ..)| by_genre.get(*g).is_some_and(|s| s.len() >= FEWEST))
@@ -567,7 +702,8 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     // every song of every genre, shared out among the threads, each with ears of its own
     let jobs: Vec<(&str, u64)> = measured.iter().flat_map(|(g, ..)| seeds.iter().map(move |&s| (*g, s))).collect();
     let next = AtomicUsize::new(0);
-    let (tx, rx) = mpsc::channel::<(String, u64, Result<Vec<f64>, String>)>();
+    let (tx, rx) = mpsc::channel::<(String, u64, Result<Song, String>)>();
+    let with_beats = real_beat.is_some();
     std::thread::scope(|scope| {
         for _ in 0..threads {
             let tx = tx.clone();
@@ -578,8 +714,9 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
                     Err(e) => return eprintln!("no ears: {e:#}"),
                 };
                 while let Some(&(g, seed)) = jobs.get(next.fetch_add(1, Ordering::Relaxed)) {
-                    let heard =
-                        genres::get(g).map_err(|e| format!("{e:#}")).and_then(|p| hear_song(&ears, &p, seed, scratch));
+                    let heard = genres::get(g)
+                        .map_err(|e| format!("{e:#}"))
+                        .and_then(|p| hear_song(&ears, &p, seed, scratch, with_beats));
                     let _ = tx.send((g.to_string(), seed, heard));
                 }
             });
@@ -587,14 +724,27 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
         drop(tx);
     });
     let mut songs: BTreeMap<String, Vec<(u64, Vec<f64>)>> = BTreeMap::new();
+    let mut song_beats: BTreeMap<String, Vec<f64>> = BTreeMap::new();
     for (g, seed, heard) in rx {
         match heard {
-            Ok(e) => songs.entry(g).or_default().push((seed, e)),
+            Ok(song) => {
+                if let Some(b) = song.beat {
+                    song_beats.entry(g.clone()).or_default().push(b.next);
+                }
+                songs.entry(g).or_default().push((seed, song.emb));
+            }
             Err(e) => eprintln!("{e}"),
         }
     }
     let mut f = std::fs::File::create(&r.out).map_err(|e| e.to_string())?;
-    let head = json!({"better": {"kad": "lower"}, "primary": ["kad"], "shown": ["spread"]});
+    // with the real songs' beats, how far claudius's beats are from theirs in how much they change bar to bar (lower is
+    // better: as much as theirs, not more), and each's middle shown
+    let (better, shown) = if with_beats {
+        (json!({"kad": "lower", "beat": "lower"}), json!(["spread", "beat_songs", "beat_real"]))
+    } else {
+        (json!({"kad": "lower"}), json!(["spread"]))
+    };
+    let head = json!({"better": better, "primary": r.primary, "shown": shown});
     writeln!(f, "{head}").map_err(|e| e.to_string())?;
     // each song as an item of its own: how alike it is to the real songs of its genre most like it, and whether it is
     // heard as its genre, paired across two runs by its genre and seed
@@ -631,16 +781,25 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
         let identified = mine.iter().filter(|e| heard_as(e, &centroids) == Some(*g)).count() as f64 / mine.len() as f64;
         let (kad, spread) = (kad(&mine, reals, sigma), spread(&mine) / spread(reals).max(1e-9));
         println!("{g}\t{}\t{}\t{kad:.3}\t{typical:.3}\t{identified:.2}\t{spread:.2}", reals.len(), mine.len());
-        let line = json!({
-            "item": g,
-            "slice": {"family": family},
-            "metrics": {
-                "kad": hundredths(kad),
-                "typical": hundredths(typical),
-                "identified": hundredths(identified),
-                "spread": hundredths(spread),
-            },
+        let mut metrics = json!({
+            "kad": hundredths(kad),
+            "typical": hundredths(typical),
+            "identified": hundredths(identified),
+            "spread": hundredths(spread),
         });
+        // a genre whose real songs have a beat often enough to tell (`FEWEST`, a matter of the real songs alone, so
+        // that two runs measure the same genres); a song of claudius's in which no kit is heard counts as a beat that
+        // never changes
+        if let Some(theirs) = real_beat.as_ref().and_then(|b| b.get(*g)).filter(|t| t.len() >= FEWEST) {
+            let mut ours = song_beats.remove(*g).unwrap_or_default();
+            ours.resize(mine.len().max(ours.len()), 0.0);
+            let (ours, theirs) = (median(ours), median(theirs.clone()));
+            println!("{g}\tbeat change: claudius's {ours:.3}, the real songs' {theirs:.3}");
+            metrics["beat"] = json!(hundredths((ours - theirs).abs()));
+            metrics["beat_songs"] = json!(hundredths(ours));
+            metrics["beat_real"] = json!(hundredths(theirs));
+        }
+        let line = json!({"item": g, "slice": {"family": family}, "metrics": metrics});
         writeln!(f, "{line}").map_err(|e| e.to_string())?;
     }
     Ok(())

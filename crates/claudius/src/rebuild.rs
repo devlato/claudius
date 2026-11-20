@@ -573,6 +573,7 @@ mod tests {
             bars_per_chord: 1,
             sections: vec![section(0, 0.5, SectionKind::Verse), section(4, 0.9, SectionKind::Hook)],
             bar_chroma: Vec::new(),
+            bar_drums: Vec::new(),
             kick_steps: on(&[0, 8]),
             snare_steps: on(&[4, 12]),
             hat_steps: on(&[0, 2, 4, 6, 8, 10, 12, 14]),
