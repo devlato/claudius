@@ -6,12 +6,48 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-20
+
 A song saved from the demo is a project file of its own, `Song.claudius`, in place of a `.zip`: Safari unpacked the zip
 it downloaded into a folder, which **Open** could not take. claudius opens a `.claudius` file wherever it opened a
 project (Open, the MCP tool `open`, the command `load`), and still opens the `.zip` projects earlier demos saved.
 
 Double-clicked, a `.claudius` file opens in the Claudius app: on a Mac (the Finder, the Dock, Open With), on Windows,
 and on Linux from the .deb or .rpm. `claudius studio FILE` opens a song in the studio as it starts.
+
+### Added
+
+- mcp: Arrange makes a change asked for in the person's words, as the palette reads it, as one change ([#347](https://github.com/devlato/claudius/pull/347))
+- songs: A bridge, a section of its own kind: under its neighbours, on the drums that keep time, on chords of its own that lead into the next section ([#350](https://github.com/devlato/claudius/pull/350))
+- songs: Build-ups stack their styles, take the bars asked at a section's end, and gaps last the beats asked ([#351](https://github.com/devlato/claudius/pull/351))
+- studio: A song renamed takes its folder and its history along ([#352](https://github.com/devlato/claudius/pull/352))
+- studio: New song from the microphone: up to a minute recorded, then made a song of as a recording chosen is ([#353](https://github.com/devlato/claudius/pull/353))
+- ui: Themes: a look of your own or a community's, as a file of the colours it changes, added from Look and kept ([#355](https://github.com/devlato/claudius/pull/355))
+- ui: The arrangement, the signal flow and the script are the song's three views, switched over it, and Paint is a tool of the arrangement ([#360](https://github.com/devlato/claudius/pull/360))
+- ui: The signal flow as a board to work on: every track a row with its level, pan, mute, solo, meter and effects, wired into its bus, its sends and the master ([#362](https://github.com/devlato/claudius/pull/362))
+- ui: The pointer says what a press does: the hand, the grab, a knob's arrows, a tool's crosshair, and the sign of a button that is off ([#363](https://github.com/devlato/claudius/pull/363))
+- studio: A song saved from the demo is a project file of its own, Song.claudius, which a browser keeps whole and every claudius opens ([#364](https://github.com/devlato/claudius/pull/364))
+- ui: The signal flow board changes a track's sends and the returns' settings where they are ([#366](https://github.com/devlato/claudius/pull/366))
+- studio: A .claudius project double-clicked opens in the Claudius app, on a Mac, on Windows and on Linux ([#370](https://github.com/devlato/claudius/pull/370))
+
+### Fixed
+
+- studio: A section added is set as the song's own of its kind, else as the genre writes it, or like a section named ([#344](https://github.com/devlato/claudius/pull/344))
+- critic: A window Audiobox Aesthetics rates as not a number is left out, so no song gets a total that is not one ([#354](https://github.com/devlato/claudius/pull/354))
+- packs: A pack's zip is extracted in Rust, so a computer without unzip installs every pack ([#357](https://github.com/devlato/claudius/pull/357))
+- studio: Cancel, or closing the New song window, stops the remake it started, and the song stays as it was ([#361](https://github.com/devlato/claudius/pull/361))
+- audio: A cache's first read keeps the file it reads, and a trim takes out first the files larger than the cache keeps now ([#367](https://github.com/devlato/claudius/pull/367))
+- ui: A dock shorter than a mixer strip scrolls up and down, the tracks' strips and the master's together ([#369](https://github.com/devlato/claudius/pull/369))
+- studio: In the page, a play pressed while the first render is on its way holds across the next, and a song played to its end stays there when its next render arrives ([#373](https://github.com/devlato/claudius/pull/373))
+- studio: In the demo, a change that renders at once takes the place of a mix change's wait rather than waiting it out ([#374](https://github.com/devlato/claudius/pull/374))
+- ui: A window made smaller shrinks the dock before the arrangement, which keeps the room its rows take ([#375](https://github.com/devlato/claudius/pull/375))
+- history: A section renamed together with one added at the end or the last taken out is not said to put the sections in another order ([#378](https://github.com/devlato/claudius/pull/378))
+- mcp: Trim_take says its seconds are the recording's own, which a take stretched to the song's tempo plays faster or slower than ([#379](https://github.com/devlato/claudius/pull/379))
+
+### Documentation
+
+- site: The landing page says what claudius is now, with a sitemap and structured data for search ([#365](https://github.com/devlato/claudius/pull/365))
+- design: 0017 says the licence of HTDemucs's weights is not clear, as its author now writes, and that none go in until it is ([#368](https://github.com/devlato/claudius/pull/368))
 
 ## [0.13.0] - 2026-11-19
 
@@ -1326,7 +1362,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.13.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/devlato/claudius/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/devlato/claudius/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/devlato/claudius/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/devlato/claudius/compare/v0.11.0...v0.12.0
