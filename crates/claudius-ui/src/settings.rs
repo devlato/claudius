@@ -21,6 +21,9 @@ pub const VERSION: u64 = 2;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Prefs {
     pub tab: Tab,
+    /// the view the main area shows (the arrangement, the signal flow or the script); from before the views, the
+    /// tab's, when it named the script or the signal flow, which were tabs then
+    pub main: panels::Main,
     pub volume: f32,
     pub mutate_count: usize,
     pub keep_best: bool,
@@ -48,6 +51,7 @@ impl Prefs {
     pub fn of(v: &View) -> Prefs {
         Prefs {
             tab: v.tab,
+            main: v.main,
             volume: v.volume,
             mutate_count: v.mutate_count,
             keep_best: v.keep_best,
@@ -72,8 +76,10 @@ impl Prefs {
         let d = Prefs::default();
         let record = f.get::<Map<String, Value>>("record").map(Fields::of).unwrap_or_default();
         let r = d.record.clone();
+        let tab: Tab = f.or("tab", d.tab);
         Prefs {
-            tab: f.or("tab", d.tab),
+            tab,
+            main: f.get::<panels::Main>("main").or_else(|| tab.as_main()).unwrap_or(d.main),
             volume: f.or("volume", d.volume),
             mutate_count: f.or("mutate_count", d.mutate_count),
             keep_best: f.or("keep_best", d.keep_best),
@@ -161,7 +167,7 @@ mod tests {
     use eframe::Storage;
 
     use super::{KEY, Prefs, VERSION};
-    use crate::panels::Tab;
+    use crate::panels::{self, Tab};
     use crate::theme::Look;
 
     #[derive(Default)]
@@ -228,6 +234,21 @@ mod tests {
         Prefs::load(Some(&storage)).save(&mut storage);
         assert_eq!(Prefs::load(Some(&storage)).look, Look::Dark);
         assert!(storage.get_string(KEY).is_some_and(|t| t.contains("\"version\": 2")));
+    }
+
+    #[test]
+    fn the_view_the_main_area_shows_is_kept_and_a_tab_that_was_a_view_opens_as_it() {
+        let mut storage = Kept::default();
+        Prefs { main: panels::Main::Script, ..Prefs::default() }.save(&mut storage);
+        assert_eq!(Prefs::load(Some(&storage)).main, panels::Main::Script);
+        // from before the views, when the signal flow and the script were tabs
+        let flow = Prefs::load(Some(&kept(KEY, r#"{"version": 2, "tab": "Graph"}"#)));
+        assert_eq!(flow.main, panels::Main::Flow);
+        let docked = Prefs::load(Some(&kept(KEY, r#"{"version": 2, "tab": "Mixer"}"#)));
+        assert_eq!((docked.main, docked.tab), (panels::Main::Arrangement, Tab::Mixer));
+        // a view kept beside a tab of the dock: both come back
+        let both = Prefs::load(Some(&kept(KEY, r#"{"version": 2, "tab": "Mixer", "main": "Flow"}"#)));
+        assert_eq!((both.main, both.tab), (panels::Main::Flow, Tab::Mixer));
     }
 
     #[test]

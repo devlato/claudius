@@ -94,7 +94,7 @@ impl Studio {
         let mut view = View {
             // the script and the signal flow were tabs once: a setting that names one opens it as the view it is now
             tab: if prefs.tab.as_main().is_some() { Tab::default() } else { prefs.tab },
-            main: prefs.tab.as_main().unwrap_or_default(),
+            main: prefs.main,
             volume: prefs.volume,
             mutate_count: prefs.mutate_count,
             keep_best: prefs.keep_best,

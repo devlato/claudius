@@ -5,7 +5,7 @@
 use claudius_api::{Command, words};
 use eframe::egui::{self, RichText, Ui, vec2};
 
-use super::{Cx, Tab, small};
+use super::{Cx, Tab, View, small};
 use crate::cmds::{MixEdit, SectionEdit};
 use crate::edits::SECTION_KINDS;
 use crate::theme::{self, TEXT_DIM};
@@ -617,7 +617,7 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     if let Some((tab, label, tip)) = editor
                         && ui.button(label).on_hover_text(tip).clicked()
                     {
-                        cx.view.tab = tab;
+                        open_editor(cx.view, tab);
                     }
                     let tip = "its effects, sends and bus, in the signal flow";
                     if ui.button("Its effects").on_hover_text(tip).clicked() {
@@ -629,6 +629,13 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 },
             );
         });
+}
+
+/// Shows `tab`'s editor: in the dock, which only the arrangement shows (the script and the signal flow have none), so
+/// the view goes to the arrangement too.
+fn open_editor(v: &mut View, tab: Tab) {
+    v.tab = tab;
+    v.main = super::Main::Arrangement;
 }
 
 /// A layer of a layered sound (`TrackView::layers`) in a few words: its sound, the band it plays in, and what else it
@@ -679,6 +686,15 @@ fn longest_gap(bars: u32) -> f32 {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn an_editor_opened_from_the_script_or_the_signal_flow_shows_in_the_dock_of_the_arrangement() {
+        for from in [super::super::Main::Script, super::super::Main::Flow, super::super::Main::Arrangement] {
+            let mut v = View { main: from, ..View::default() };
+            open_editor(&mut v, Tab::Sequencer);
+            assert_eq!((v.main, v.tab), (super::super::Main::Arrangement, Tab::Sequencer), "from {from:?}");
+        }
+    }
 
     #[test]
     fn a_gap_can_last_the_whole_section_up_to_the_beats_a_song_keeps() {
