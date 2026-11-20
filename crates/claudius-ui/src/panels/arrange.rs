@@ -639,7 +639,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             ui.menu_button("Insert after", |ui| {
                 for kind in SECTION_KINDS {
                     if ui.button(kind).clicked() {
-                        out.push(Command::AddSection { after: i, kind: kind.into(), bars: 8 });
+                        out.push(Command::AddSection { after: i, kind: kind.into(), bars: 8, like: None });
                         ui.close();
                     }
                 }

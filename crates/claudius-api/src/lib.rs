@@ -1929,10 +1929,16 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         take: Option<String>,
     },
+    /// A section of `kind`, `bars` long, right after section `after`, set as the section named `like`, else as the
+    /// song's nearest section of the kind (a new chorus as its chorus), else as the genre writes the kind (its layers
+    /// and energy), else as section `after` at the kind's energy; without the song's takes, so that the sections after
+    /// it play what they played.
     AddSection {
         after: usize,
         kind: String,
         bars: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        like: Option<String>,
     },
     RemoveSection {
         index: usize,

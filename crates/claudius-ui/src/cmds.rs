@@ -26,7 +26,7 @@ pub struct SectionEdit {
 /// plays its own recording twice; as one change, which one undo takes back whole
 pub fn duplicate(s: &claudius_api::SectionView, i: usize) -> Command {
     let mut commands = vec![
-        Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars },
+        Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars, like: Some(s.name.clone()) },
         SectionEdit {
             energy: Some(s.energy),
             layers: Some(s.layers.clone()),
