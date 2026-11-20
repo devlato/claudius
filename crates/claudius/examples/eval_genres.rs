@@ -51,7 +51,11 @@
 //!   plays the recording at (a flip its hook, a rework all of it), as the song counts it, at its own tempo, half or
 //!   twice it; 0 for a recording played at its own speed, 0.29 for one slowed or sped by a quarter. Lower is better.
 //!
-//! and prints the kernel audio distance between the remakes and the real songs beside the means.
+//! and prints the kernel audio distance between the remakes and the real songs beside the means. Each remake's embedding
+//! goes beside the results, in `FILE.embeddings.jsonl`.
+//!
+//! `run` and `remake` render, separate and hear in a scratch folder of their own in the system's temporary folder,
+//! removed when they end; `--keep DIR` works in DIR instead and leaves it there.
 //!
 //! ```text
 //! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
@@ -522,6 +526,32 @@ struct Runs {
     songs: Option<PathBuf>,
 }
 
+/// The folder a run renders, separates and hears in: its own in the system's temporary folder, removed when the run
+/// ends however it ends, or the one `--keep` names, which stays (each run left about 1.7 GB of remakes behind before).
+struct Scratch {
+    dir: PathBuf,
+    keep: bool,
+}
+
+impl Scratch {
+    fn new(keep: Option<PathBuf>, name: &str) -> Result<Scratch, String> {
+        let (dir, keep) = match keep {
+            Some(dir) => (dir, true),
+            None => (std::env::temp_dir().join(format!("{name}-{}", std::process::id())), false),
+        };
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        Ok(Scratch { dir, keep })
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        if !self.keep {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+}
+
 fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     let (seeds, only) = (&r.seeds, &r.only);
     let parity = parity_of(&r.half)?;
@@ -532,9 +562,8 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
         .filter(|(g, ..)| by_genre.get(*g).is_some_and(|s| s.len() >= FEWEST))
         .filter(|(g, ..)| only.as_ref().is_none_or(|o| o.iter().any(|x| x == g)))
         .collect();
-    let scratch =
-        r.keep.clone().unwrap_or_else(|| std::env::temp_dir().join(format!("eval-genres-{}", std::process::id())));
-    std::fs::create_dir_all(&scratch).map_err(|e| e.to_string())?;
+    let held = Scratch::new(r.keep.clone(), "eval-genres")?;
+    let scratch = &held.dir;
     // every song of every genre, shared out among the threads, each with ears of its own
     let jobs: Vec<(&str, u64)> = measured.iter().flat_map(|(g, ..)| seeds.iter().map(move |&s| (*g, s))).collect();
     let next = AtomicUsize::new(0);
@@ -542,7 +571,7 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     std::thread::scope(|scope| {
         for _ in 0..threads {
             let tx = tx.clone();
-            let (jobs, next, scratch) = (&jobs, &next, &scratch);
+            let (jobs, next) = (&jobs, &next);
             scope.spawn(move || {
                 let ears = match Ears::load(false) {
                     Ok(e) => e,
@@ -760,15 +789,15 @@ fn remake(real: &Path, r: &Remakes, out: &Path, threads: usize, keep: Option<Pat
     }
     // a song's stems are separated as the studio separates them, the ears' model downloaded first when it is not there
     claudius::stems::may_download();
-    let scratch = keep.unwrap_or_else(|| std::env::temp_dir().join(format!("eval-remakes-{}", std::process::id())));
-    std::fs::create_dir_all(&scratch).map_err(|e| e.to_string())?;
+    let held = Scratch::new(keep, "eval-remakes")?;
+    let scratch = &held.dir;
     eprintln!("remaking {} songs as {} ({}), seeds {:?}", songs.len(), r.genre, r.how, r.seeds);
     let next = AtomicUsize::new(0);
     let (tx, rx) = mpsc::channel::<(usize, u64, Heard)>();
     std::thread::scope(|scope| {
         for _ in 0..threads {
             let tx = tx.clone();
-            let (songs, next, scratch, g) = (&songs, &next, &scratch, &g);
+            let (songs, next, g) = (&songs, &next, &g);
             scope.spawn(move || {
                 let ears = match Ears::load(false) {
                     Ok(e) => e,
@@ -803,7 +832,8 @@ fn remake(real: &Path, r: &Remakes, out: &Path, threads: usize, keep: Option<Pat
     let mut f = std::fs::File::create(out).map_err(|e| e.to_string())?;
     let head = json!({"better": {"slowed": "lower"}, "primary": r.primary});
     writeln!(f, "{head}").map_err(|e| e.to_string())?;
-    let mut embs = std::fs::File::create(scratch.join("embeddings.jsonl")).map_err(|e| e.to_string())?;
+    // each remake's embedding beside the results, where the scratch folder that goes at the end is not
+    let mut embs = std::fs::File::create(out.with_extension("embeddings.jsonl")).map_err(|e| e.to_string())?;
     let (mut typical, mut identified, mut moved) = (0.0, 0usize, 0.0);
     for ((i, seed), (e, slow)) in &heard {
         let src = &songs[*i];
