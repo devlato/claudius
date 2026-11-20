@@ -225,6 +225,33 @@ const WEB_INSTRUMENTS: &[&str] = &[
     "tr707:cp",
     "tr707:rim",
     "tr707:tb",
+    "tr909:bd",
+    "tr909:sd",
+    "tr909:lt",
+    "tr909:mt",
+    "tr909:ht",
+    "tr909:hh",
+    "tr909:oh",
+    "tr909:cr",
+    "tr909:rd",
+    "tr909:cp",
+    "tr909:rim",
+    "uzu:bd",
+    "uzu:sd",
+    "uzu:hh",
+    "uzu:oh",
+    "uzu:cp",
+    "uzu:rim",
+    "uzu:lt",
+    "uzu:mt",
+    "uzu:ht",
+    "uzu:cr",
+    "uzu:rd",
+    "uzu:cb",
+    "uzu:sh",
+    "uzu:tb",
+    "uzu:misc",
+    "synthdrums:kit",
 ];
 
 /// The demo's instruments, as `claudius-packs web` keeps them for a browser (a few seconds of a note every few
@@ -284,6 +311,29 @@ fn placeholder(version: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every drum kit a genre plays is in the web demo, so that the demo's songs play the drums the studio's play (and
+    /// the genre benchmark measured) rather than stand-ins synthesized where a kit is missing.
+    #[test]
+    fn the_demo_has_every_drum_kit_a_genre_plays() {
+        let web: std::collections::BTreeSet<&str> =
+            WEB_INSTRUMENTS.iter().filter_map(|p| p.split(':').next()).collect();
+        let mut missing = std::collections::BTreeSet::new();
+        for entry in std::fs::read_dir(root().join("crates/claudius/data/genres")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "json") {
+                continue;
+            }
+            let genre: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            for kit in genre["kits"].as_array().into_iter().flatten() {
+                let pack = kit.get(0).and_then(serde_json::Value::as_str).unwrap_or_default();
+                if !web.contains(pack) {
+                    missing.insert(format!("{pack} ({})", path.file_stem().unwrap_or_default().to_string_lossy()));
+                }
+            }
+        }
+        assert!(missing.is_empty(), "drum kits genres play that the web demo lacks: {missing:?}");
+    }
 
     /// The sitemap names the landing page, the radio and the book's pages, each at the site's address, and leaves out
     /// what is not a page to be found by searching.
