@@ -302,6 +302,10 @@ pub struct LaneTemplate {
     /// played does; 0 plays the first bar over, as a loop does
     #[serde(default)]
     pub drift: f32,
+    /// the steps a ghost note may fall on, as a style places them (drum and bass's ghost snares on the sixteenths around
+    /// the backbeat); none: any step the bar leaves empty
+    #[serde(default)]
+    pub ghost_at: Vec<usize>,
 }
 
 fn default_vel() -> (f32, f32) {
@@ -328,7 +332,7 @@ fn sample_bar(t: &LaneTemplate, rng: &mut Rng, vary: bool) -> Vec<Hit> {
         if hit {
             let v = t.vel.0 + (t.vel.1 - t.vel.0) * (0.35 + 0.65 * step_weight(s)) * (0.85 + 0.15 * rng.f32());
             hits.push(Hit::new(s as f64 * 0.25, v.clamp(0.05, 1.0)));
-        } else if t.ghost > 0.0 && rng.chance(t.ghost as f64) {
+        } else if t.ghost > 0.0 && (t.ghost_at.is_empty() || t.ghost_at.contains(&s)) && rng.chance(t.ghost as f64) {
             hits.push(Hit::new(s as f64 * 0.25, (t.vel.0 * 0.45).clamp(0.05, 1.0)));
         }
     }
