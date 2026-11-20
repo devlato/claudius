@@ -9,6 +9,7 @@ use eframe::egui;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode};
 
+use super::pending::Pending;
 use super::seam::{self, Seam};
 use super::{Pcm, Source};
 
@@ -36,9 +37,8 @@ pub struct Player {
     buffer: Option<AudioBuffer>,
     /// a load being decoded
     decoding: Option<Decoded>,
-    /// play the load being decoded once it is: the song played when it began, or play was pressed since, and not
-    /// paused or stopped after, as the desktop player keeps it
-    play_on_arrival: bool,
+    /// whether the load being decoded plays once it is (`pending`)
+    pending: Pending,
     /// where the last window of the live mix written into the buffer ends, for one that carries on from it
     seam: Option<Seam>,
     playing: Option<Playing>,
@@ -72,7 +72,7 @@ impl Player {
             volume,
             buffer: None,
             decoding: None,
-            play_on_arrival: false,
+            pending: Pending::default(),
             seam: None,
             playing: None,
             offset: 0.0,
@@ -103,7 +103,7 @@ impl Player {
             self.halt();
             self.offset = pos;
         }
-        self.play_on_arrival = was_playing;
+        self.pending.load(was_playing, keep_position);
         self.pcm = None;
         self.loaded = true;
         self.error = None;
@@ -140,7 +140,7 @@ impl Player {
         self.halt();
         self.buffer = None;
         self.decoding = None;
-        self.play_on_arrival = false;
+        self.pending.forget();
         self.seam = None;
         self.pcm = None;
         self.loaded = false;
@@ -153,7 +153,7 @@ impl Player {
         let done = self.decoding.as_ref().and_then(|d| d.borrow_mut().take());
         if let Some(done) = done {
             self.decoding = None;
-            let play = std::mem::take(&mut self.play_on_arrival);
+            let play = self.pending.arrived();
             match done {
                 Ok(buffer) => {
                     // the audio before played on while this one was decoded: it takes over from where the song is now,
@@ -190,6 +190,8 @@ impl Player {
             let end = self.duration();
             self.halt();
             self.offset = end;
+            // played through: audio on its way waits for a press, rather than starting the song again from the top
+            self.pending.ended();
         }
     }
 
@@ -233,7 +235,7 @@ impl Player {
     pub fn play(&mut self) {
         // pressed while the audio is on its way: it plays once it is here
         if self.decoding.is_some() {
-            self.play_on_arrival = true;
+            self.pending.play();
         }
         let Some(ctx) = &self.ctx else { return };
         if self.buffer.is_none() || self.playing.is_some() {
@@ -252,7 +254,7 @@ impl Player {
     }
 
     pub fn pause(&mut self) {
-        self.play_on_arrival = false;
+        self.pending.pause();
         if self.playing.is_some() {
             self.offset = self.position();
             self.halt();
