@@ -58,8 +58,9 @@ and the experiment's. Each file holds a line of JSON for each item:
 Each line is one item, here on two lines to fit. `item` is the same id in every run of the benchmark; `slice` the
 labels it is counted under; each metric is `true` or `false` (right or wrong) or a number (a score), better higher
 unless `better` says lower. `primary` names the metrics the change is made to improve; the others are guards it must
-not make worse (without it, every metric is primary), but for those `shown` names: compared and shown, never judged,
-for a level of which neither more nor less is better. The command prints, for each metric, the whole set and every
+not make worse (without it, every metric is primary, and with it empty, `"primary": []`, none is: the change is judged
+on a measure of the whole set by a test of its own, and these are its guards), but for those `shown` names: compared
+and shown, never judged, for a level of which neither more nor less is better. The command prints, for each metric, the whole set and every
 slice with the difference, its interval, the items better and worse and the test, then the ids of the items that got
 worse, as Markdown for the pull request. Which way a metric went is its test's: for a score, whether the ranks of the
 items that got better outweigh those of the items that got worse, so that a few items much better cannot carry a
@@ -102,7 +103,10 @@ results become the next baseline.
   for each genre: the kernel audio distance to the genre's real songs (KAD, what a change to the generator is made to
   lower), how typical its songs are and how often each is heard as its own genre (guards), and how much they differ
   from one another (shown). Tune on the even shards (`--half tune`, seeds 1 to 20) and confirm on the odd ones
-  (`--half confirm`, seeds 101 to 120). Fifteen genres have enough songs in shards 0 to 49 to be measured, 15 or more
+  (`--half confirm`, seeds 101 to 120). A change to one genre or a few is judged on its songs: `run --songs FILE`
+  writes a line for each, and `kad REAL BEFORE AFTER` tests the genres' KAD on two runs' lines, made with the same
+  seeds, by the paired bootstrap over the seeds; `bench compare` on the same lines keeps how typical each song is and
+  whether it is heard as its genre as guards. Fifteen genres have enough songs in shards 0 to 49 to be measured, 15 or more
   in each half; amapiano, phonk and synthwave have no honest tag, and electro house too few songs. The real songs'
   embeddings are not kept here: the songs' licences are the artists' own.
 - **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and

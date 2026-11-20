@@ -41,9 +41,15 @@
 //!   never changes. A guard (worse in no genre) unless `--primary` names it, as a change to how beats are written does.
 //!
 //! With `--songs`, `run` also writes a line for each song (its genre and seed the item, its typical and whether it is
-//! identified, and with `--beats` its `beat`: how far its own change from bar to bar is from the real songs' middle one),
-//! the yardstick for a change to one genre: a genre is one item of the lines above, and its songs, made
-//! with the same seeds before and after the change, pair up one by one.
+//! identified, with `--beats` its `beat`: how far its own change from bar to bar is from the real songs' middle one, and
+//! its embedding), for a change to one genre or a few: a genre is one item of the lines above, and its songs, made with
+//! the same seeds before and after the change, pair up one by one. `kad` tests such a change on two runs' lines: each
+//! genre's kad before and after, as `run` measures it, the difference with the 95% interval of the paired bootstrap (the
+//! seeds resampled 10,000 times, both runs' kad computed again on each resample, a seed's song never paired with itself)
+//! and its p, and the same for the genres together, the mean of their differences. The change passes when kad is lower
+//! overall and higher in no genre (Holm), and `bench compare` on the same lines finds typical and identified (and
+//! `beat`) worse in no slice: they are guards, and `beat` a primary for a change to how drums are written
+//! (`--primary beat`).
 //!
 //! `beats` hears the real songs' beats: for each song a line of `embed`'s lists (`--real`), how much its beat changes
 //! from bar to bar, its stems apart as the studio hears a recording (`Analysis::beat_change`), a line each into `--out`
@@ -78,6 +84,8 @@
 //!     [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
 //!     [--out FILE] [--genres a,b,...] [--songs FILE] [--beats FILE] [--primary a,b] [--threads N] [--keep DIR]
+//! cargo run --release -p claudius --example eval_genres -- kad REAL BEFORE AFTER [--half tune|confirm]
+//!     [--resamples 10000] [--out FILE]
 //! cargo run --release -p claudius --example eval_genres -- remake REAL --sources DIR --genre G
 //!     [--how flip|rework] [--seeds 1..2] [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b]
 //!     [--threads N] [--keep DIR]
@@ -235,12 +243,24 @@ fn main() {
             ),
             _ => Err("remake needs --sources DIR and --genre G".into()),
         },
+        (Some("kad"), Some(real)) => match (args.get(2), args.get(3)) {
+            (Some(before), Some(after)) if !before.starts_with("--") && !after.starts_with("--") => kad_paired(
+                Path::new(real),
+                Path::new(before),
+                Path::new(after),
+                &flag("--half").unwrap_or_else(|| "tune".into()),
+                flag("--resamples").and_then(|f| f.parse().ok()).unwrap_or(RESAMPLES),
+                flag("--out").map(PathBuf::from).as_deref(),
+            ),
+            _ => Err("kad needs two runs' songs: kad REAL BEFORE AFTER".into()),
+        },
         _ => Err("usage: eval_genres embed DIR [--shards 0..99] [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres beats DIR --real FILE [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres run REAL [--seeds 1..20] [--half tune|confirm] [--out FILE] [--genres a,b] \
                   [--songs FILE] [--beats FILE] [--primary a,b] [--threads N] [--keep DIR]\n       \
                   eval_genres remake REAL --sources DIR --genre G [--how flip|rework] [--seeds 1..2] \
-                  [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]"
+                  [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]\n       \
+                  eval_genres kad REAL BEFORE AFTER [--half tune|confirm] [--resamples 10000] [--out FILE]"
             .into()),
     };
     if let Err(e) = result {
@@ -519,6 +539,268 @@ fn width(reals: &[Vec<f64>]) -> f64 {
     median(d).max(1e-6)
 }
 
+/// how many paired resamples of the seeds `kad`'s intervals and tests are drawn from, as the guide asks of a measure
+/// of a whole set
+const RESAMPLES: usize = 10_000;
+
+/// One genre's songs from two runs, paired by their seeds, with the kernel values (`kad`'s, at `width` of the genre's
+/// real songs) that each run's kad needs, on any resample of the seeds.
+struct Paired {
+    genre: String,
+    seeds: Vec<u64>,
+    real: usize,
+    /// the kernel between the first run's songs, and between the second's
+    bb: Vec<Vec<f64>>,
+    aa: Vec<Vec<f64>>,
+    /// each song's mean kernel with the real songs, the first run's and the second's
+    rb: Vec<f64>,
+    ra: Vec<f64>,
+    /// the real songs' mean kernel between themselves
+    rr: f64,
+}
+
+impl Paired {
+    fn new(genre: &str, seeds: &[u64], before: &[Vec<f64>], after: &[Vec<f64>], reals: &[Vec<f64>]) -> Self {
+        let sigma = width(reals);
+        let k = |a: &[f64], b: &[f64]| (-dist2(a, b) / (2.0 * sigma * sigma)).exp();
+        let grid =
+            |p: &[Vec<f64>]| -> Vec<Vec<f64>> { p.iter().map(|u| p.iter().map(|v| k(u, v)).collect()).collect() };
+        let to_real = |p: &[Vec<f64>]| -> Vec<f64> {
+            p.iter().map(|u| reals.iter().map(|r| k(u, r)).sum::<f64>() / reals.len().max(1) as f64).collect()
+        };
+        let m = reals.len();
+        let mut rr = 0.0;
+        for (i, u) in reals.iter().enumerate() {
+            for v in &reals[i + 1..] {
+                rr += 2.0 * k(u, v);
+            }
+        }
+        Paired {
+            genre: genre.to_string(),
+            seeds: seeds.to_vec(),
+            real: m,
+            bb: grid(before),
+            aa: grid(after),
+            rb: to_real(before),
+            ra: to_real(after),
+            rr: rr / (m * m.saturating_sub(1)).max(1) as f64,
+        }
+    }
+
+    /// the kad of a run's songs of the seeds `picks` names (by place, a seed as often as a resample draws it), the
+    /// second run's with `after`: `kad`'s sum from the kernel values kept, a seed's song never paired with itself
+    fn kad(&self, picks: &[usize], after: bool) -> f64 {
+        let (grid, real) = if after { (&self.aa, &self.ra) } else { (&self.bb, &self.rb) };
+        let (mut within, mut pairs, mut across) = (0.0, 0usize, 0.0);
+        for (a, &i) in picks.iter().enumerate() {
+            across += real[i];
+            for (b, &j) in picks.iter().enumerate() {
+                if a != b && i != j {
+                    within += grid[i][j];
+                    pairs += 1;
+                }
+            }
+        }
+        100.0 * (within / pairs.max(1) as f64 + self.rr - 2.0 * across / picks.len().max(1) as f64)
+    }
+
+    /// the second run's kad less the first's, on the seeds `picks` names
+    fn diff(&self, picks: &[usize]) -> f64 {
+        self.kad(picks, true) - self.kad(picks, false)
+    }
+}
+
+/// a row of `kad`'s report: a genre, or all of them together (the mean of their differences)
+struct Tested {
+    name: String,
+    seeds: usize,
+    real: Option<usize>,
+    before: f64,
+    after: f64,
+    diff: f64,
+    low: f64,
+    high: f64,
+    p: f64,
+    holm: Option<f64>,
+}
+
+/// splitmix64: the resamples' draws, the same every run
+fn draw(state: &mut u64) -> u64 {
+    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = *state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// the 2.5th and 97.5th percentiles of `v`, and the two-sided p of a difference of 0 among them
+fn interval(mut v: Vec<f64>) -> (f64, f64, f64) {
+    v.sort_by(f64::total_cmp);
+    let at = |q: f64| v[((q * (v.len() - 1) as f64).round() as usize).min(v.len() - 1)];
+    let (above, below) = (v.iter().filter(|&&d| d >= 0.0).count(), v.iter().filter(|&&d| d <= 0.0).count());
+    let p = (2.0 * (above.min(below) + 1) as f64 / (v.len() + 1) as f64).min(1.0);
+    (at(0.025), at(0.975), p)
+}
+
+/// Each genre's difference in kad between two runs, and all of them together (the mean of the genres' differences),
+/// by the guide's test of a measure of a whole set: the paired bootstrap, the seeds of each genre resampled
+/// `resamples` times and both runs' kad computed again on each resample; the interval the resamples' percentiles, p
+/// how often they put the difference the other side of none, each genre's Holm-corrected across the genres.
+fn paired_test(rows: &[Paired], resamples: usize) -> Vec<Tested> {
+    let mut state = 0x6b61_645f_7465_7374_u64;
+    let whole: Vec<Vec<usize>> = rows.iter().map(|r| (0..r.seeds.len()).collect()).collect();
+    let observed: Vec<f64> = rows.iter().zip(&whole).map(|(r, w)| r.diff(w)).collect();
+    let (mut each, mut all) = (vec![Vec::with_capacity(resamples); rows.len()], Vec::with_capacity(resamples));
+    for _ in 0..resamples {
+        let mut total = 0.0;
+        for (g, r) in rows.iter().enumerate() {
+            let n = r.seeds.len() as u64;
+            let picks: Vec<usize> = (0..n).map(|_| (draw(&mut state) % n) as usize).collect();
+            let d = r.diff(&picks);
+            each[g].push(d);
+            total += d;
+        }
+        all.push(total / rows.len() as f64);
+    }
+    let tested: Vec<(f64, f64, f64)> = each.into_iter().map(interval).collect();
+    // Holm's step-down correction of the genres' p across them
+    let mut order: Vec<usize> = (0..rows.len()).collect();
+    order.sort_by(|&a, &b| tested[a].2.total_cmp(&tested[b].2));
+    let (mut holm, mut running) = (vec![0.0; rows.len()], 0.0_f64);
+    for (rank, &g) in order.iter().enumerate() {
+        running = running.max(((rows.len() - rank) as f64 * tested[g].2).min(1.0));
+        holm[g] = running;
+    }
+    let mut out: Vec<Tested> = rows
+        .iter()
+        .enumerate()
+        .map(|(g, r)| Tested {
+            name: r.genre.clone(),
+            seeds: r.seeds.len(),
+            real: Some(r.real),
+            before: r.kad(&whole[g], false),
+            after: r.kad(&whole[g], true),
+            diff: observed[g],
+            low: tested[g].0,
+            high: tested[g].1,
+            p: tested[g].2,
+            holm: Some(holm[g]),
+        })
+        .collect();
+    let (low, high, p) = interval(all);
+    let mean = |f: &dyn Fn(&Tested) -> f64| out.iter().map(f).sum::<f64>() / out.len() as f64;
+    let all_row = Tested {
+        name: "all".to_string(),
+        seeds: out.iter().map(|t| t.seeds).sum(),
+        real: None,
+        before: mean(&|t| t.before),
+        after: mean(&|t| t.after),
+        diff: observed.iter().sum::<f64>() / rows.len() as f64,
+        low,
+        high,
+        p,
+        holm: None,
+    };
+    out.insert(0, all_row);
+    out
+}
+
+/// each genre's songs of a run (`run --songs`), by seed: their embeddings
+fn songs_of(path: &Path) -> Result<BTreeMap<String, BTreeMap<u64, Vec<f64>>>, String> {
+    let mut out: BTreeMap<String, BTreeMap<u64, Vec<f64>>> = BTreeMap::new();
+    for line in std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?.lines() {
+        let v: Value = serde_json::from_str(line).map_err(|e| format!("{}: {e}", path.display()))?;
+        let Some((g, seed)) = v["item"].as_str().and_then(|i| i.rsplit_once(':')) else { continue };
+        let seed: u64 = seed.parse().map_err(|_| format!("{}: {seed} is not a seed", path.display()))?;
+        let emb = v["emb"].as_array().ok_or_else(|| {
+            format!("{}: its songs have no embeddings (a run before they were written): run it again", path.display())
+        })?;
+        out.entry(g.to_string()).or_default().insert(seed, emb.iter().filter_map(Value::as_f64).collect());
+    }
+    Ok(out)
+}
+
+/// Two runs' songs (`run --songs`), made with the same seeds before and after a change, against the real songs of
+/// their genres in `half`: each genre's kad before and after, as `run` measures it, and the same for the genres
+/// together, tested by `paired_test`. The test of a change to one genre or a few, whose kad `run` gives as one number a
+/// genre and `bench compare` cannot test: lower overall and higher in no genre, as `bench compare` judges a primary
+/// metric. `out` keeps a line for each row.
+fn kad_paired(
+    real: &Path,
+    before: &Path,
+    after: &Path,
+    half: &str,
+    resamples: usize,
+    out: Option<&Path>,
+) -> Result<(), String> {
+    let by_genre = real_songs(real, parity_of(half)?)?;
+    let (first, second) = (songs_of(before)?, songs_of(after)?);
+    let mut rows = Vec::new();
+    for (g, xs) in &first {
+        let (Some(ys), Some(reals)) = (second.get(g), by_genre.get(g)) else { continue };
+        if reals.len() < FEWEST {
+            eprintln!("{g}: {} real songs in the half, fewer than the {FEWEST} a measure needs", reals.len());
+            continue;
+        }
+        let seeds: Vec<u64> = xs.keys().filter(|s| ys.contains_key(s)).copied().collect();
+        if seeds.len() < 3 {
+            eprintln!("{g}: fewer than three seeds in both runs");
+            continue;
+        }
+        let pick = |m: &BTreeMap<u64, Vec<f64>>| -> Vec<Vec<f64>> { seeds.iter().map(|s| m[s].clone()).collect() };
+        rows.push(Paired::new(g, &seeds, &pick(xs), &pick(ys), reals));
+    }
+    if rows.is_empty() {
+        return Err("no genre is in both runs with enough real songs in the half".into());
+    }
+    let tested = paired_test(&rows, resamples);
+    println!("### kad (lower is better; paired bootstrap over the seeds, {resamples} resamples)\n");
+    println!("| | seeds | real | before | after | difference (95% interval) | p | p, Holm |");
+    println!("|---|---:|---:|---:|---:|---|---:|---:|");
+    for t in &tested {
+        println!(
+            "| {} | {} | {} | {:.4} | {:.4} | {:+.4} ({:+.4} to {:+.4}) | {:.4} | {} |",
+            t.name,
+            t.seeds,
+            t.real.map_or_else(String::new, |r| r.to_string()),
+            t.before,
+            t.after,
+            t.diff,
+            t.low,
+            t.high,
+            t.p,
+            t.holm.map_or_else(String::new, |h| format!("{h:.3}"))
+        );
+    }
+    let all = &tested[0];
+    let higher: Vec<&str> = tested[1..]
+        .iter()
+        .filter(|t| t.diff > 0.0 && t.holm.is_some_and(|h| h < 0.05))
+        .map(|t| t.name.as_str())
+        .collect();
+    let verdict = if !higher.is_empty() {
+        format!("does not pass: higher in {}", higher.join(", "))
+    } else if all.diff < 0.0 && all.p < 0.05 {
+        "passes: lower overall, and higher in no genre".to_string()
+    } else {
+        "does not pass: not shown lower overall".to_string()
+    };
+    println!("\n**kad: {verdict}.**");
+    if let Some(out) = out {
+        let mut f = std::fs::File::create(out).map_err(|e| e.to_string())?;
+        for t in &tested {
+            let line = json!({
+                "genre": t.name, "seeds": t.seeds, "real": t.real, "before": hundredths(t.before),
+                "after": hundredths(t.after), "difference": hundredths(t.diff), "low": hundredths(t.low),
+                "high": hundredths(t.high), "p": t.p, "p_holm": t.holm,
+            });
+            writeln!(f, "{line}").map_err(|e| e.to_string())?;
+        }
+        writeln!(f, "{}", json!({"verdict": format!("kad: {verdict}")})).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// how alike a song is to the `NEAREST` real songs most like it
 fn typical_of(e: &[f64], reals: &[Vec<f64>]) -> f64 {
     let mut c: Vec<f64> = reals.iter().map(|r| cosine(e, r)).collect();
@@ -759,16 +1041,15 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     let mut each = match &r.songs {
         Some(p) => {
             let mut file = std::fs::File::create(p).map_err(|e| e.to_string())?;
-            // with the real songs' beats, each song's beat as far from theirs as it is (a guard, unless --primary
-            // names it, as a change to one genre's drums does)
+            // what a change is made to improve is its genres' kad, which `kad` tests on these lines: typical and
+            // identified are guards, and so is each song's beat (with the real songs' beats) unless --primary names it,
+            // as a change to how a genre's drums are written does
+            let primary: Vec<&str> =
+                if with_beats && r.primary.iter().any(|m| m == "beat") { vec!["beat"] } else { Vec::new() };
             let head = if with_beats {
-                let mut primary = vec!["typical"];
-                if r.primary.iter().any(|m| m == "beat") {
-                    primary.push("beat");
-                }
                 json!({"better": {"beat": "lower"}, "primary": primary})
             } else {
-                json!({"primary": ["typical"]})
+                json!({"primary": primary})
             };
             writeln!(file, "{head}").map_err(|e| e.to_string())?;
             Some(file)
@@ -791,8 +1072,12 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
                 if let Some(theirs) = theirs {
                     metrics["beat"] = json!(hundredths((beat.unwrap_or(0.0) - theirs).abs()));
                 }
-                let line =
-                    json!({"item": format!("{g}:{seed}"), "slice": {"family": family, "genre": g}, "metrics": metrics});
+                let line = json!({
+                    "item": format!("{g}:{seed}"),
+                    "slice": {"family": family, "genre": g},
+                    "metrics": metrics,
+                    "emb": e,
+                });
                 writeln!(file, "{line}").map_err(|e| e.to_string())?;
             }
         }
@@ -1046,4 +1331,36 @@ fn remake(real: &Path, r: &Remakes, out: &Path, threads: usize, keep: Option<Pat
         moved / n
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `n` points in eight dimensions about `centre`, the same for the same `seed`
+    fn cloud(n: usize, centre: f64, seed: u64) -> Vec<Vec<f64>> {
+        let mut state = seed;
+        (0..n).map(|_| (0..8).map(|_| centre + (draw(&mut state) % 1000) as f64 / 1000.0 - 0.5).collect()).collect()
+    }
+
+    #[test]
+    fn a_paired_kad_is_the_runs_own_and_tells_a_real_change_from_none() {
+        let reals = cloud(30, 0.0, 1);
+        let (before, after) = (cloud(12, 0.8, 2), cloud(12, 0.1, 3));
+        let seeds: Vec<u64> = (1..=12).collect();
+        let whole: Vec<usize> = (0..12).collect();
+        let p = Paired::new("g", &seeds, &before, &after, &reals);
+        // each run's kad on all its seeds is `kad`'s, which `run` reports
+        let sigma = width(&reals);
+        assert!((p.kad(&whole, false) - kad(&before, &reals, sigma)).abs() < 1e-9);
+        assert!((p.kad(&whole, true) - kad(&after, &reals, sigma)).abs() < 1e-9);
+        // songs moved towards the real ones: lower, the whole interval below none, and seldom by chance
+        let t = paired_test(std::slice::from_ref(&p), 2000);
+        assert!(t[0].diff < 0.0 && t[0].high < 0.0 && t[0].p < 0.01, "{} {} {}", t[0].diff, t[0].high, t[0].p);
+        assert!((t[0].diff - t[1].diff).abs() < 1e-12, "one genre: all of them is that genre");
+        // the same songs in both runs: no difference on any resample
+        let same = Paired::new("g", &seeds, &before, &before, &reals);
+        let t = paired_test(std::slice::from_ref(&same), 2000);
+        assert!(t[1].diff.abs() < 1e-12 && t[1].low.abs() < 1e-12 && t[1].high.abs() < 1e-12 && t[1].p > 0.99);
+    }
 }
