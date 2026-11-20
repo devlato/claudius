@@ -9,6 +9,7 @@
 //! sections' colours keep their hue at a clean middle shade, so that a clip filled with one is a tint of it and not a
 //! grey; and the LCD is a pale display with dark figures.
 
+use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use eframe::egui::{
@@ -21,6 +22,7 @@ const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
 }
 
 /// The colours of a look, one for each thing drawn: what the swatches turn into.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
     pub bg: Color32,
     /// what the arrangement draws the music on: the background on the dark look, white paper on the light one
@@ -290,9 +292,14 @@ impl Look {
 /// the light look is the one drawn with (`follow`)
 static LIGHT_IN_USE: AtomicBool = AtomicBool::new(false);
 
-/// the look drawn with
+thread_local! {
+    /// a theme of the person's own, worn instead of the look (`wear`), on the thread that draws
+    static OWN: Cell<Option<&'static Palette>> = const { Cell::new(None) };
+}
+
+/// the look drawn with: a theme of the person's own while it is worn, else the dark or the light one
 pub fn palette() -> &'static Palette {
-    if light() { &LIGHT } else { &DARK }
+    OWN.with(Cell::get).unwrap_or(if light() { &LIGHT } else { &DARK })
 }
 
 /// whether the light look is the one drawn with
@@ -579,6 +586,102 @@ pub fn apply(ctx: &egui::Context, look: Look) {
     set_look(ctx, look);
 }
 
+/// Wears `own`, a theme of the person's own drawn on the dark look (`dark`) or the light one, until another is worn;
+/// with none, the look `look` again.
+pub fn wear(ctx: &egui::Context, own: Option<(&Palette, bool)>, look: Look) {
+    match own {
+        None => {
+            OWN.with(|o| o.set(None));
+            ctx.style_mut_of(Theme::Dark, |style| styled(style, &DARK, true));
+            ctx.style_mut_of(Theme::Light, |style| styled(style, &LIGHT, false));
+            set_look(ctx, look);
+        }
+        Some((p, dark)) => {
+            // kept for as long as the studio runs: a theme worn is a few hundred bytes, and worn seldom
+            let p: &'static Palette = Box::leak(Box::new(*p));
+            OWN.with(|o| o.set(Some(p)));
+            let (theme, preference) =
+                if dark { (Theme::Dark, ThemePreference::Dark) } else { (Theme::Light, ThemePreference::Light) };
+            ctx.style_mut_of(theme, |style| styled(style, p, dark));
+            ctx.set_theme(preference);
+            follow(ctx);
+        }
+    }
+}
+
+/// a colour as a theme file writes it: `#rrggbb`, or `#rrggbbaa` when it is not opaque
+fn hex(c: Color32) -> String {
+    let [r, g, b, a] = c.to_srgba_unmultiplied();
+    if a == 255 { format!("#{r:02x}{g:02x}{b:02x}") } else { format!("#{r:02x}{g:02x}{b:02x}{a:02x}") }
+}
+
+/// a colour as a theme file writes it, `#rrggbb` or `#rrggbbaa`
+fn from_hex(s: &str) -> Option<Color32> {
+    let h = s.trim().strip_prefix('#')?;
+    let byte = |i: usize| h.get(i..i + 2).and_then(|x| u8::from_str_radix(x, 16).ok());
+    match h.len() {
+        6 => Some(Color32::from_rgb(byte(0)?, byte(2)?, byte(4)?)),
+        8 => Some(Color32::from_rgba_unmultiplied(byte(0)?, byte(2)?, byte(4)?, byte(6)?)),
+        _ => None,
+    }
+}
+
+/// every colour of a palette, by the name a theme file gives it
+macro_rules! colours {
+    ($m:ident) => {
+        $m!(
+            bg, canvas, panel, raised, raised_hi, well, field, cell, cell_alt, control, control_hi, line, line_soft,
+            text, text_dim, text_faint, accent, good, warn, bad, lcd, lcd_text, info, playhead, solo, strong, edge,
+            faint_bg, hover_line, pressed
+        )
+    };
+}
+
+impl Palette {
+    /// its colours, as a theme file writes them: each by its name, and the LCD's hold and the shadows' darkness
+    pub fn colours(&self) -> serde_json::Map<String, serde_json::Value> {
+        let mut m = serde_json::Map::new();
+        macro_rules! put {
+            ($($f:ident),*) => { $( m.insert(stringify!($f).into(), hex(self.$f).into()); )* };
+        }
+        colours!(put);
+        m.insert("lcd_hold".into(), serde_json::json!((f64::from(self.lcd_hold) * 100.0).round() / 100.0));
+        m.insert("shadow".into(), self.shadow.into());
+        m
+    }
+
+    /// This palette with the colours `m` names (a theme file's), and the names in it that are none of its own, which a
+    /// theme made for a later studio may hold; an error for a colour that does not read.
+    pub fn with_colours(
+        &self,
+        m: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(Palette, Vec<String>), String> {
+        let mut p = *self;
+        let mut known = Vec::new();
+        macro_rules! take {
+            ($($f:ident),*) => { $(
+                known.push(stringify!($f));
+                if let Some(v) = m.get(stringify!($f)) {
+                    p.$f = v.as_str().and_then(from_hex).ok_or_else(|| {
+                        format!("{}: {v} is not a colour (#rrggbb, or #rrggbbaa)", stringify!($f))
+                    })?;
+                }
+            )* };
+        }
+        colours!(take);
+        if let Some(v) = m.get("lcd_hold") {
+            p.lcd_hold =
+                v.as_f64().filter(|x| (0.0..=1.0).contains(x)).ok_or(format!("lcd_hold: {v} is not 0 to 1"))? as f32;
+        }
+        if let Some(v) = m.get("shadow") {
+            p.shadow = v.as_u64().and_then(|x| u8::try_from(x).ok()).ok_or(format!("shadow: {v} is not 0 to 255"))?;
+        }
+        known.extend(["lcd_hold", "shadow"]);
+        let unknown = m.keys().filter(|k| !known.contains(&k.as_str())).cloned().collect();
+        Ok((p, unknown))
+    }
+}
+
 /// the look the studio wears from now on
 pub fn set_look(ctx: &egui::Context, look: Look) {
     ctx.set_theme(look.preference());
@@ -673,6 +776,18 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
 mod tests {
     use super::{DARK, LIGHT, Palette, contrast, held, ink_in, ink_on, legible_in, mix, shade};
     use eframe::egui::Color32;
+
+    #[test]
+    fn a_theme_worn_is_what_the_swatches_turn_into_until_the_look_is_worn_again() {
+        let ctx = eframe::egui::Context::default();
+        let mut own = DARK;
+        own.accent = Color32::from_rgb(1, 2, 3);
+        super::wear(&ctx, Some((&own, true)), super::Look::Dark);
+        assert_eq!(Color32::from(super::ACCENT), Color32::from_rgb(1, 2, 3));
+        assert_eq!(Color32::from(super::TEXT), DARK.text, "the colours it does not change are the look's");
+        super::wear(&ctx, None, super::Look::Dark);
+        assert_ne!(Color32::from(super::ACCENT), Color32::from_rgb(1, 2, 3));
+    }
 
     /// the hue (in degrees), saturation and lightness of `c`, as HSL measures them
     fn hsl(c: Color32) -> (f32, f32, f32) {

@@ -663,8 +663,8 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::Radio => cx.view.radio.toggle(),
         Run::Chat => cx.view.chat.open = true,
         Run::Look(look) => {
-            cx.view.look = look;
-            theme::set_look(ctx, look);
+            (cx.view.look, cx.view.theme) = (look, None);
+            theme::wear(ctx, None, look);
         }
         Run::GoBack(to) => cx.out.push(Command::GoBack { to }),
         Run::Do { said, commands } => cx.out.extend(commands_of(said, commands)),

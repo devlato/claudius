@@ -70,6 +70,8 @@ const UPDATES_TIP: &str = "look for a new release on GitHub once a day and downl
 const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
                               use, and where a setup or a crash failed; never your songs, files or name (`claudius \
                               telemetry` shows exactly what)";
+const THEME_TIP: &str = "a look of your own, or one someone made: a .json theme file, which names the colours it changes \
+                         (Copy this look as a theme writes one out to start from)";
 const RADIO_TIP: &str = "a station of songs claudius writes as it plays them, a genre at a time, each mixed into the next \
                          as a DJ mixes records; your song stays as it is";
 #[cfg(target_arch = "wasm32")]
@@ -80,6 +82,12 @@ impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
         let prefs = crate::settings::Prefs::load(cc.storage);
         theme::apply(&cc.egui_ctx, prefs.look);
+        // a theme of the person's own, when one is kept and still there
+        let themes = crate::themes::added(cc.storage);
+        let theme = prefs.theme.clone().filter(|n| themes.iter().any(|t| &t.name == n));
+        if let Some(t) = theme.as_ref().and_then(|n| themes.iter().find(|t| &t.name == n)) {
+            theme::wear(&cc.egui_ctx, Some((&t.palette, t.dark)), prefs.look);
+        }
         cc.egui_ctx.options_mut(|o| o.screen_reader = prefs.speak);
         // the window the dialogs' threads wake when a file is read or saved
         crate::pick::wake(&cc.egui_ctx);
@@ -93,6 +101,8 @@ impl Studio {
             sevenths: prefs.sevenths,
             tour_done: prefs.tour_done,
             look: prefs.look,
+            theme,
+            themes,
             speak: prefs.speak,
             ..View::default()
         };
@@ -166,6 +176,18 @@ impl Studio {
     fn start_tour(&mut self, i: usize) {
         self.view.tour = Some(i);
         self.view.tour_asks = self.native.as_ref().is_some_and(|n| n.statistics().is_none());
+    }
+
+    /// Wears `theme`, a theme of the person's own, kept with the themes added in place of one of its name; with none,
+    /// the look chosen.
+    fn wear(&mut self, ctx: &egui::Context, theme: Option<crate::themes::Theme>) {
+        crate::themes::wear(ctx, &mut self.view, theme);
+    }
+
+    /// the look worn now, as a theme: the person's own, or the dark or the light one
+    fn worn(&self) -> crate::themes::Theme {
+        let own = self.view.theme.as_ref().and_then(|n| self.view.themes.iter().find(|t| &t.name == n));
+        own.cloned().unwrap_or_else(|| crate::themes::Theme::builtin(!theme::light()))
     }
 
     fn toast(&mut self, text: String, ok: bool, now: f64) {
@@ -374,7 +396,7 @@ impl Studio {
 
     /// Files chosen on this computer, read: a song opens, a recording waits for Analyze or Remake, and a picture goes to
     /// the release as its cover.
-    fn take_picks(&mut self, now: f64) {
+    fn take_picks(&mut self, ctx: &egui::Context, now: f64) {
         use crate::pick::{Want, chosen};
         // what the app's save dialogs saved, from their own threads
         #[cfg(not(target_arch = "wasm32"))]
@@ -413,6 +435,30 @@ impl Studio {
             match got {
                 Ok(file) => self.view.publish.upload = Some(file.bytes),
                 Err(e) => self.view.publish.error = Some(e),
+            }
+        }
+        if let Some(got) = chosen(Want::Theme) {
+            let added = got.and_then(|f| String::from_utf8(f.bytes).map_err(|_| "a theme is text".to_string()));
+            match added.and_then(|text| crate::themes::Theme::parse(&text)) {
+                Ok((theme, unknown)) => {
+                    // a file of its own in the themes folder; a browser keeps it with the settings
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let kept = crate::themes::keep(&theme);
+                    #[cfg(target_arch = "wasm32")]
+                    let kept: Result<(), String> = Ok(());
+                    let left = if unknown.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({} left out: this studio has no such colours)", unknown.join(", "))
+                    };
+                    let said = match kept {
+                        Ok(()) => (format!("wearing the theme {}{left}", theme.name), true),
+                        Err(e) => (format!("wearing the theme {}, but it is not kept: {e}", theme.name), false),
+                    };
+                    self.wear(ctx, Some(theme));
+                    self.toast(said.0, said.1, now);
+                }
+                Err(e) => self.toast(format!("that theme cannot be worn: {e}"), false, now),
             }
         }
     }
@@ -648,6 +694,14 @@ impl Studio {
                     );
                 }
                 Step::Record => self.view.record.show(),
+                Step::Theme(name) => {
+                    let t = self.view.themes.iter().find(|t| t.name == name).cloned();
+                    if t.is_none() && !name.is_empty() {
+                        crate::devplan::say(&format!("theme: no theme {name} added"));
+                    }
+                    crate::themes::wear(ctx, &mut self.view, t);
+                    crate::devplan::say(&format!("theme: {}", self.view.theme.as_deref().unwrap_or("none")));
+                }
                 Step::Mic(start) => {
                     (self.view.new_song.open, self.view.new_song.start) = (true, panels::Start::Microphone);
                     if start {
@@ -1061,11 +1115,40 @@ impl Studio {
                     }
                     ui.menu_button("Look", |ui| {
                         for look in theme::Look::ALL {
-                            if ui.radio(self.view.look == look, look.name()).clicked() {
+                            if ui.radio(self.view.theme.is_none() && self.view.look == look, look.name()).clicked() {
                                 self.view.look = look;
-                                theme::set_look(ui.ctx(), look);
+                                self.wear(&ui.ctx().clone(), None);
                                 ui.close();
                             }
+                        }
+                        // themes of the person's own, or a community's
+                        if !self.view.themes.is_empty() {
+                            ui.separator();
+                        }
+                        let mut worn = None;
+                        for t in &self.view.themes {
+                            if ui.radio(self.view.theme.as_deref() == Some(t.name.as_str()), &t.name).clicked() {
+                                worn = Some(t.clone());
+                            }
+                        }
+                        if let Some(t) = worn {
+                            self.wear(&ui.ctx().clone(), Some(t));
+                            ui.close();
+                        }
+                        ui.separator();
+                        if ui.button("Add a theme…").on_hover_text(THEME_TIP).clicked() {
+                            crate::pick::choose(ui.ctx(), crate::pick::Want::Theme);
+                            ui.close();
+                        }
+                        let copy_tip = "the look worn now as a theme file, every colour named, to change and add";
+                        if ui.button("Copy this look as a theme").on_hover_text(copy_tip).clicked() {
+                            let mut t = self.worn();
+                            t.name = format!("{} (mine)", t.name);
+                            ui.ctx().copy_text(t.to_json());
+                            let said =
+                                "the look is copied as a theme: paste it into a .json file, change it, and add it";
+                            self.toast(said.into(), true, ui.input(|i| i.time));
+                            ui.close();
                         }
                     });
                     if let Some(native) = &self.native {
@@ -1475,7 +1558,8 @@ impl eframe::App for Studio {
         {
             crate::pick::read_dropped(&ctx, crate::pick::Want::Recording, file);
         }
-        self.take_picks(now);
+        let ctx = ui.ctx().clone();
+        self.take_picks(&ctx, now);
         if let Some(q) = self.view.import.search.take() {
             self.backend.search_library(&q);
         }
@@ -1615,6 +1699,8 @@ impl eframe::App for Studio {
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         crate::settings::Prefs::of(&self.view).save(storage);
+        #[cfg(target_arch = "wasm32")]
+        crate::themes::store(&self.view.themes, storage);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
