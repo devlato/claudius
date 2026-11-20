@@ -38,12 +38,16 @@
            HKCU\Software\Classes; the icon is the app's, installed beside the programs, since they carry none. -->
       <Component>
         <File Id="StudioProgram" Source="$(Stage)\bin\claudius-studio.exe" KeyPath="yes" />
-        <File Id="ProjectIcon" Source="$(Icons)\claudius.ico" />
         <ProgId Id="Claudius.Project" Description="Claudius project" Icon="ProjectIcon" IconIndex="0">
           <Extension Id="claudius" ContentType="application/x-claudius-project">
             <Verb Id="open" TargetFile="StudioProgram" Argument="&quot;%1&quot;" />
           </Extension>
         </ProgId>
+      </Component>
+      <!-- the icon a project shows, in a component of its own: WiX makes the GUID of a component of more than one file
+           only when its keypath is a versioned file, and the studio's program carries no version -->
+      <Component>
+        <File Id="ProjectIcon" Source="$(Icons)\claudius.ico" />
       </Component>
       <!-- an entry in the user's Start menu needs a key in the user's registry to stand for it -->
       <Component Id="StartMenuEntry">
