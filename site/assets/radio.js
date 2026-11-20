@@ -457,9 +457,9 @@ function addPlayed(d) {
   while ($("played").children.length > 12) $("played").lastElementChild.remove();
 }
 
-function tick() {
-  if (!ctx) return;
-  const t = ctx.currentTime;
+/** the next song on air once its time `t` has come, as it has from the moment its first bars sound: the clock looks
+ * every quarter second (less often in a tab out of sight), and a skip looks first */
+function promote(t) {
   if (next && t >= next.at) {
     addPlayed(onAir);
     onAir = next.deck;
@@ -467,6 +467,12 @@ function tick() {
     next = null;
     queue();
   }
+}
+
+function tick() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  promote(t);
   if (!onAir) return;
   const at = t - onAir.t0;
   const link = studio(onAir);
@@ -495,6 +501,8 @@ function studio(d) {
 /** the next song in now, on the playing one's next beat; or, while it is still being written, as soon as it is */
 function skip() {
   if (!onAir || !ctx) return;
+  // a song already mixing in is on air: the skip is to the one after it, not back to its own top
+  promote(ctx.currentTime);
   if (!next) {
     skipping = true;
     status("Skipping: the next song comes in as soon as it is written");
@@ -597,10 +605,17 @@ async function genresWanted() {
     engine = new Engine();
     show("genres-said", "loading the list…");
   }
+  const starting = engine;
   try {
-    await engine.ready;
+    await starting.ready;
     genreList();
   } catch (e) {
+    // an engine that did not start is let go of, so that Tune in, or the list opened again, starts another
+    if (engine === starting) {
+      starting.worker.terminate();
+      engine = null;
+    }
+    sayGenres();
     status(`The list of genres could not be had: ${e.message}`);
   }
 }
