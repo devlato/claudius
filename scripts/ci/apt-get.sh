@@ -6,7 +6,8 @@
 # Azure's mirror, Ubuntu's own archive and kernel.org's mirror, of those whose names resolve, the fastest first, as
 # each serves Ubuntu's release file; and an update or an install that fails is tried once more without Azure's. apt
 # checks Ubuntu's signatures on the packages whichever mirror serves them. A job that may use a cache installs the
-# packages that the last run on main for its runner image kept (`kept`), with no mirror at all.
+# packages that a run on main kept for its runner image, or for another image of its Ubuntu where they install as they
+# are (`kept`), with no mirror at all.
 #
 #   scripts/ci/apt-get.sh update
 #   scripts/ci/apt-get.sh install <package>...
@@ -90,20 +91,49 @@ fetch() {
   sudo apt-get install -y -qq --no-install-recommends --download-only -o Dir::Cache::archives="$into" "$@"
 }
 
-# The packages that the last run on main for this runner image kept in `dir` (actions/cache), installed from there
-# with no mirror at all; or, without them, fetched into `dir` for main's run to keep, and installed. `.kept` says the
-# folder is whole: what was fetched installed as it is (which is no package at all where the image has them all). A
-# fetch that dpkg does not install is installed by apt instead and left unmarked, so that main does not keep a folder
-# no later run could install.
+# the packages named are all installed
+installed() {
+  for p in "$@"; do
+    [ "$(dpkg-query -W -f='${Status}' "$p" 2>/dev/null)" = "install ok installed" ] || return 1
+  done
+}
+
+# The packages in `folder`, installed by an apt that reads no list of packages: it takes them from the folder and what
+# the image has installed, never from a mirror, and refuses a folder that needs anything else (a dependency this image
+# lacks, or has in another version) before it changes anything, as it does one that would put older packages in place
+# of the image's. The packages named are asked for beside the folder's, so a folder that lacks one this image does not
+# have is refused whole too, rather than installed in part: the fetch after it then fetches all a clean runner needs,
+# and main keeps that, not the rest of a part. Then the packages named must be installed: a folder kept empty, where
+# one image had them all, says nothing of another.
+from_folder() {
+  folder=$1
+  shift
+  lists=$(mktemp -d)
+  mkdir -p "$lists/partial"
+  took=0
+  if ls "$folder"/*.deb > /dev/null 2>&1; then
+    sudo apt-get install -y -qq --no-install-recommends -o Dir::State::Lists="$lists" "$folder"/*.deb "$@" || took=$?
+  fi
+  sudo rm -rf "$lists"
+  [ "$took" -eq 0 ] && installed "$@"
+}
+
+# The packages that a run on main kept in `dir` (actions/cache), for this runner image or else for another image of
+# this Ubuntu (the newest kept: GitHub moves its runners to a new image over days, so a pull request's job can take a
+# runner of an image that no run on main has had), installed from there with no mirror at all; or, where they do not
+# install, fetched into `dir` for main's run to keep, and installed. `.kept` says the folder is whole: what was fetched
+# installed as it is (which is no package at all where the image has them all). A fetch that does not install so is
+# installed by apt from the lists instead and left unmarked, so that main does not keep a folder no later run could
+# install.
 kept() {
   dir=$1
   shift
   if [ -f "$dir/.kept" ]; then
-    if ! ls "$dir"/*.deb > /dev/null 2>&1 || sudo dpkg -i "$dir"/*.deb; then
-      echo "installed what the last run on main kept for this runner image: $*"
+    if from_folder "$dir" "$@"; then
+      echo "installed the packages a run on main kept: $*"
       return 0
     fi
-    echo "::warning title=Ubuntu packages::the packages kept for this runner image did not install; fetching them"
+    echo "::notice title=Ubuntu packages::the packages kept do not install on this runner image as they are; fetching them"
   fi
   rm -rf "$dir"
   mkdir -p "$dir/partial"
@@ -111,9 +141,7 @@ kept() {
   fetch "$dir" "$@" || { others && update && fetch "$dir" "$@"; }
   sudo rm -rf "$dir/partial" "$dir/lock"
   sudo chown -R "$(id -u):$(id -g)" "$dir"
-  if ! ls "$dir"/*.deb > /dev/null 2>&1; then
-    touch "$dir/.kept"
-  elif sudo dpkg -i "$dir"/*.deb; then
+  if from_folder "$dir" "$@"; then
     touch "$dir/.kept"
   else
     install "$@"

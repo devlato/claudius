@@ -1,9 +1,10 @@
 name: Ubuntu packages
 description: >-
-  Installs Ubuntu packages on a Linux runner (scripts/ci/apt-get.sh). A job that may use a cache installs the ones the
-  last run on main kept for its runner image, with no mirror at all; Ubuntu's mirrors have slowed to a trickle for many
-  minutes at a time (19 November 2026: six minutes for four small packages, and valgrind cut off at ten), and every
-  Linux job fetched its packages anew. A job that makes a release or a deploy uses no cache, and fetches them.
+  Installs Ubuntu packages on a Linux runner (scripts/ci/apt-get.sh). A job that may use a cache installs the ones a
+  run on main kept for its runner image, or for another image of its Ubuntu where they install as they are, with no
+  mirror at all; Ubuntu's mirrors have slowed to a trickle for many minutes at a time (19 November 2026: six minutes for
+  four small packages, and valgrind cut off at ten), and every Linux job fetched its packages anew. A job that makes a
+  release or a deploy uses no cache, and fetches them.
 
 inputs:
   packages:
@@ -26,8 +27,13 @@ runs:
       run: |
         name=$(printf '%s' "$PACKAGES" | tr -s ' ' '-')
         echo "key=debs-$ImageOS-$ImageVersion-$name" >> "$GITHUB_OUTPUT"
+        echo "ubuntu=debs-$ImageOS-" >> "$GITHUB_OUTPUT"
         echo "dir=$RUNNER_TEMP/debs/$name" >> "$GITHUB_OUTPUT"
 
+    # Or, where main kept none for this image, the newest it kept for another image of this Ubuntu: GitHub moves its
+    # runners to a new image over days, and a pull request's job took a runner of an image that no run on main had had
+    # (20 November 2026: valgrind cut off at ten minutes again). actions/cache matches a restore key only among caches
+    # saved from the same path, which names the packages; apt-get.sh installs them only where they fit this image.
     - name: Packages kept for this image
       id: kept
       if: inputs.cache == 'true'
@@ -35,6 +41,7 @@ runs:
       with:
         path: ${{ steps.image.outputs.dir }}
         key: ${{ steps.image.outputs.key }}-${{ hashFiles('scripts/ci/apt-get.sh') }}
+        restore-keys: ${{ steps.image.outputs.ubuntu }}
 
     - name: Packages
       id: packages
@@ -55,7 +62,8 @@ runs:
           sh scripts/ci/apt-get.sh install "${packages[@]}"
         fi
 
-    # pull requests read what main keeps, and keep nothing of their own; a folder that did not install whole is not kept
+    # pull requests read what main keeps, and keep nothing of their own; a folder that did not install whole is not kept,
+    # and one kept for another image that installed whole here is kept for this one
     - name: Keep the packages for this image
       if: >-
         inputs.cache == 'true' && steps.kept.outputs.cache-hit != 'true' && steps.packages.outputs.whole == 'true'
