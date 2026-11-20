@@ -32,10 +32,12 @@
 //! - **spread**, how much claudius's songs differ from one another, as a share of how much the real ones do (mean
 //!   cosine distance between pairs): shown, never judged, as neither more nor less is better by itself.
 //!
-//!   cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
-//!       [--most 300] [--threads N]
-//!   cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
-//!       [--out FILE] [--genres a,b,...] [--threads N] [--keep DIR]
+//! ```text
+//! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
+//!     [--most 300] [--threads N]
+//! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
+//!     [--out FILE] [--genres a,b,...] [--threads N] [--keep DIR]
+//! ```
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
