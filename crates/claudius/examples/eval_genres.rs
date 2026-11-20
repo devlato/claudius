@@ -34,7 +34,7 @@
 //! - **beat**, with `--beats` (the real songs' beats, which `beats` hears): how far claudius's songs are from the real
 //!   songs of their genre in how much their beat changes from bar to bar. A song's change is `Analysis::beat_change`'s
 //!   `next`: of the kick, snare and hat hits on the 16th steps of two bars in a row, heard in its drums apart from the
-//!   rest, the share in one bar and not both, the median over its bars; a genre's is the median over its songs, and
+//!   rest, the share in one bar and not both, the median over the bars of its middle 90 seconds; a genre's is the median over its songs, and
 //!   `beat` is the difference from the real songs', shown beside both (`beat_songs`, `beat_real`). Lower is better: a
 //!   beat that changes as much as the genre's real ones do, not more. Measured for a genre whose real songs in the half
 //!   have a beat often enough to tell (`FEWEST`); a song of claudius's in which no kit is heard counts as a beat that
@@ -553,10 +553,18 @@ struct Song {
     beat: Option<BeatChange>,
 }
 
+/// how many seconds of a song `beat_of` hears: from its middle, where its beat plays (an intro and an outro thin out), and
+/// so that hearing its stems apart takes a fraction of the time a whole song would
+const BEAT_SECS: f64 = 90.0;
+
 /// How much the beat of the recording at `path` changes from bar to bar, heard as the studio hears a recording: its
-/// stems apart (the ears' model), its drums in its drums (`Analysis::beat_change`); none where no kit plays.
+/// stems apart (the ears' model), its drums in its drums (`Analysis::beat_change`), the middle `BEAT_SECS` of it (all of
+/// a shorter one), as of every song, real or claudius's; none where no kit plays.
 fn beat_of(path: &Path) -> Result<Option<BeatChange>, String> {
-    let x = claudius::audio::load(path).map_err(|e| format!("{}: {e:#}", path.display()))?;
+    let whole = claudius::audio::load(path).map_err(|e| format!("{}: {e:#}", path.display()))?;
+    let keep = ((BEAT_SECS * claudius::config::SRF) as usize).min(whole.len());
+    let from = (whole.len() - keep) / 2;
+    let x = whole.slice(from, from + keep);
     let stems = claudius::stems::of(&x, &mut |_| {});
     Ok(claudius::analysis::song::analyze_with(&x, stems.as_deref(), None).beat_change())
 }
