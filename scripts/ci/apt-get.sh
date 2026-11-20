@@ -101,8 +101,10 @@ installed() {
 # The packages in `folder`, installed by an apt that reads no list of packages: it takes them from the folder and what
 # the image has installed, never from a mirror, and refuses a folder that needs anything else (a dependency this image
 # lacks, or has in another version) before it changes anything, as it does one that would put older packages in place
-# of the image's. Then the packages named must be installed: a folder kept empty, where one image had them all, says
-# nothing of another.
+# of the image's. The packages named are asked for beside the folder's, so a folder that lacks one this image does not
+# have is refused whole too, rather than installed in part: the fetch after it then fetches all a clean runner needs,
+# and main keeps that, not the rest of a part. Then the packages named must be installed: a folder kept empty, where
+# one image had them all, says nothing of another.
 from_folder() {
   folder=$1
   shift
@@ -110,7 +112,7 @@ from_folder() {
   mkdir -p "$lists/partial"
   took=0
   if ls "$folder"/*.deb > /dev/null 2>&1; then
-    sudo apt-get install -y -qq --no-install-recommends -o Dir::State::Lists="$lists" "$folder"/*.deb || took=$?
+    sudo apt-get install -y -qq --no-install-recommends -o Dir::State::Lists="$lists" "$folder"/*.deb "$@" || took=$?
   fi
   sudo rm -rf "$lists"
   [ "$took" -eq 0 ] && installed "$@"
