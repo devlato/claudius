@@ -424,14 +424,21 @@ fn track_controls(ui: &mut Ui, cx: &mut Cx, song: &SongView, r: &Row, i: usize) 
     }
     cx.out.extend(sent.into_iter().map(|e| e.on(&name)));
 
-    // the meter: its loudness from the latest render, riding the render's envelope while it plays
+    // the meter: its loudness from the latest render, riding the render's envelope while it plays, and silent, as the
+    // mixer's is, where it does not sound (muted, another track soloed, or not in the section under the playhead)
     let render = cx.state.render.as_ref();
     let playing = cx.player.is_playing();
+    let sounds = super::mixer::sounds(
+        t,
+        song.layers.contains(&t.name),
+        super::mixer::layers_at(song, cx.playhead_bar()).as_deref(),
+        super::any_solo(song),
+    );
     let live = render
         .filter(|_| playing)
         .and_then(|rv| super::mixer::envelope_db(rv, cx.player.position()))
-        .and_then(|(at, avg)| t.loudness.map(|l| l as f32 + (at - avg)));
-    let level = live.or(t.loudness.map(|l| l as f32));
+        .map(|(at, avg)| t.loudness.filter(|_| sounds).map(|l| l as f32 + (at - avg)));
+    let level = live.unwrap_or(t.loudness.map(|l| l as f32));
     let m = Rect::from_min_max(
         pos2(r.card.right() - 6.0, r.card.top() + 8.0),
         pos2(r.card.right() - 3.0, r.card.bottom() - 10.0),
@@ -571,6 +578,12 @@ fn master_card(ui: &mut Ui, cx: &mut Cx, song: &SongView, rect: Rect, fx: &[Valu
         egui::DragValue::new(&mut lufs).speed(0.1).range(-24.0..=-5.0).fixed_decimals(1).suffix(" LUFS"),
     );
     let lr = lr.on_hover_text("how loud the finished song is made: drag, or double-click to type");
+    // the song shown follows the drag, so that it goes on from where it got to; claudius hears it once it is let go
+    if lr.changed()
+        && let Some(s) = cx.state.song.as_mut()
+    {
+        s.mix.lufs = lufs;
+    }
     if commit(&lr) {
         super::graph::set_loudness(cx, lufs);
     }
@@ -629,5 +642,98 @@ mod tests {
             assert!(master + MASTER_W + GAP <= out + 0.01, "{available}");
             assert!((out + OUT_W + MARGIN - width).abs() < 0.01, "the last column ends at the edge: {available}");
         }
+    }
+
+    /// A track's meter is silent while the song plays where the track does not sound, as the mixer's is: muted,
+    /// another track soloed, or not in the section under the playhead (one the arrangement does not lay out plays on).
+    #[test]
+    fn a_meter_is_silent_where_its_track_does_not_sound() {
+        use super::super::mixer::sounds;
+        let t = |name: &str| claudius_api::TrackView { name: name.into(), ..Default::default() };
+        let here = ["drums".to_string(), "bass".to_string()];
+        assert!(sounds(&t("bass"), true, Some(&here), false));
+        assert!(!sounds(&t("lead"), true, Some(&here), false), "not in the section under the playhead");
+        assert!(sounds(&t("lead"), false, Some(&here), false), "not laid out: it plays throughout");
+        assert!(sounds(&t("lead"), true, None, false), "past the sections");
+        assert!(!sounds(&claudius_api::TrackView { muted: true, ..t("bass") }, true, Some(&here), false), "muted");
+        assert!(!sounds(&t("bass"), true, Some(&here), true), "another track soloed");
+        assert!(sounds(&claudius_api::TrackView { solo: true, ..t("bass") }, true, Some(&here), true), "soloed");
+        let song = SongView {
+            sections: vec![claudius_api::SectionView {
+                start_bar: 0,
+                bars: 8,
+                layers: here.to_vec(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        assert_eq!(super::super::mixer::layers_at(&song, 3.5), Some(here.to_vec()));
+        assert_eq!(super::super::mixer::layers_at(&song, 8.0), None);
+    }
+
+    /// The master's loudness dragged on the board is the loudness let go: the song shown follows the drag (the frame
+    /// the button is released draws the control from it), and claudius is sent the value once, at the end.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_masters_loudness_dragged_on_the_board_is_the_one_let_go() {
+        use crate::audio::Player;
+        use claudius_api::{Command, State};
+        let ctx = egui::Context::default();
+        let mut state = State {
+            song: Some(SongView {
+                mix: claudius_api::MixView { lufs: -13.3, ..Default::default() },
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (mut view, mut player) = (super::super::View::default(), Player::new(&ctx));
+        let card = Rect::from_min_size(pos2(100.0, 100.0), vec2(300.0, 120.0));
+        // the loudness's control, where `master_card` puts it
+        let at = pos2(card.right() - 94.0 + 42.0, card.top() + 5.0 + 9.0);
+        let mut frame = |events: Vec<egui::Event>| {
+            let screen = Rect::from_min_size(Pos2::ZERO, vec2(1280.0, 900.0));
+            let input = egui::RawInput { screen_rect: Some(screen), events, ..Default::default() };
+            let mut out = Vec::new();
+            let mut full = ctx.run_ui(input, |ui| {
+                let song = state.song.clone().expect("a song");
+                let mut cx = Cx {
+                    state: &mut state,
+                    view: &mut view,
+                    player: &mut player,
+                    out: &mut out,
+                    sounds: None,
+                    server: None,
+                    now: 0.0,
+                };
+                master_card(ui, &mut cx, &song, card, &song.mix.master);
+            });
+            // the fonts' textures, which nothing draws here
+            full.textures_delta.clear();
+            out
+        };
+        let press = |pressed, pos| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let mut sent = frame(Vec::new());
+        sent.extend(frame(vec![egui::Event::PointerMoved(at), press(true, at)]));
+        for i in 1..=5 {
+            sent.extend(frame(vec![egui::Event::PointerMoved(at + vec2(10.0 * i as f32, 0.0))]));
+        }
+        sent.extend(frame(Vec::new()));
+        sent.extend(frame(vec![press(false, at + vec2(50.0, 0.0))]));
+        let lufs = state.song.as_ref().expect("a song").mix.lufs;
+        assert!(lufs > -13.3 + 2.5, "the song shown follows the whole drag, not its last step: {lufs}");
+        let scripts: Vec<String> = sent
+            .into_iter()
+            .filter_map(|c| match c {
+                Command::RunScript { code } => Some(code),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(scripts.len(), 1, "sent once, when let go: {scripts:?}");
+        assert!(scripts[0].contains(&format!("lufs: {lufs}")), "the value let go: {scripts:?} against {lufs}");
     }
 }

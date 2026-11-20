@@ -5,7 +5,7 @@
 //! effect's settings, its place in its chain, or the effect itself, as the song keeps it; a chain's new effects; the
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
 
-use claudius_api::{Chain, Command, EFFECT_TEMPLATES, Graph, NodeKind, SongView, words};
+use claudius_api::{Chain, Command, EFFECT_TEMPLATES, Graph, Node, NodeKind, SongView, words};
 use eframe::egui::{self, Rect, RichText, Ui, pos2};
 use serde_json::Value;
 
@@ -187,10 +187,27 @@ fn put_chain(song: &mut SongView, c: &Chain, fx: Vec<Value>) {
     }
 }
 
+/// the node chosen on the board (`chosen`: its id), as the graph has it; a return no track sends to is not in the
+/// graph, but the board shows it, and its effect is set all the same
+fn chosen_node(graph: &Graph, chosen: Option<&str>) -> Option<Node> {
+    let id = chosen?;
+    graph.nodes.iter().find(|n| n.id == id).cloned().or_else(|| {
+        let which = id.strip_prefix("return:")?;
+        ["reverb", "delay"].contains(&which).then(|| Node {
+            id: id.to_string(),
+            kind: NodeKind::Return(which.to_string()),
+            title: format!("{which} return"),
+            detail: vec![format!("No track sends to it yet: a track's {which} send brings it in.")],
+            column: 0,
+            row: 0.0,
+        })
+    })
+}
+
 /// what the node chosen is, and everything about it to change
 fn inspector(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
-    let Some(node) = cx.view.graph.selected.clone().and_then(|id| graph.nodes.iter().find(|n| n.id == id).cloned())
-    else {
+    let node = chosen_node(graph, cx.view.graph.selected.as_deref());
+    let Some(node) = node else {
         ui.add_space(8.0);
         ui.label(RichText::new("The song as its signal flows").strong().color(TEXT));
         ui.label(small(
@@ -585,5 +602,24 @@ mod tests {
         assert_eq!(chain_of(&song, &Chain::Bus("glue".into())).len(), 1);
         assert_eq!(song.mix.delay["beats"], 1.5);
         assert!(EFFECT_TEMPLATES.iter().all(|(n, t)| serde_json::from_str::<Value>(t).unwrap()["fx"] == *n));
+    }
+
+    /// The board shows both returns, and a click opens a return in the inspector even when no track sends to it, so
+    /// the graph leaves it out: its effect is set there all the same.
+    #[test]
+    fn a_return_no_track_sends_to_opens_in_the_inspector() {
+        let song = SongView {
+            tracks: vec![claudius_api::TrackView { name: "lead".into(), bus: "music".into(), ..Default::default() }],
+            ..Default::default()
+        };
+        let graph = song.graph();
+        assert!(!graph.nodes.iter().any(|n| matches!(n.kind, NodeKind::Return(_))), "no track sends to a return");
+        let reverb = chosen_node(&graph, Some("return:reverb")).expect("the reverb return");
+        assert_eq!((reverb.kind, reverb.title.as_str()), (NodeKind::Return("reverb".into()), "reverb return"));
+        assert!(chosen_node(&graph, Some("return:delay")).is_some());
+        assert!(chosen_node(&graph, Some("return:chorus")).is_none(), "no such return");
+        assert!(chosen_node(&graph, None).is_none());
+        let first = &graph.nodes[0];
+        assert_eq!(chosen_node(&graph, Some(&first.id)).map(|n| n.id), Some(first.id.clone()), "a node the graph has");
     }
 }
