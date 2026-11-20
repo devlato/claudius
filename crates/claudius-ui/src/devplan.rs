@@ -12,6 +12,8 @@
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
 //! `palette:say` (its microphone clicked: it listens, or stops and sends what it heard),
+//! `mic:<start|stop>` (New song's From the microphone: its recording started or stopped; what it holds goes out as
+//! `mic: ...`),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover|recording>` (a file dialog, as its button opens
@@ -77,6 +79,8 @@ pub enum Step {
     /// the song downloaded (or saved, in the app), as the download button does, once there is a song to download; in
     /// a format, as the export menu does (`download:mp3`)
     Download(Option<String>),
+    /// New song from the microphone, its recording started (true) or stopped (false), as its buttons do
+    Mic(bool),
     /// the Record window
     Record,
     /// the Play from a phone window, which has claudius serve the phone's page
@@ -248,6 +252,14 @@ impl Plan {
             "publish" => Some(Step::Publish),
             "download" => Some(Step::Download((!arg.is_empty()).then(|| arg.to_string()))),
             "record" => Some(Step::Record),
+            "mic" => match arg {
+                "start" => Some(Step::Mic(true)),
+                "stop" => Some(Step::Mic(false)),
+                _ => {
+                    say(&format!("a plan's mic is mic:start or mic:stop, not '{step}'"));
+                    None
+                }
+            },
             "phone" => Some(Step::Phone),
             "palette" => match arg {
                 "" => Some(Step::Palette),

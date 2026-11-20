@@ -648,6 +648,14 @@ impl Studio {
                     );
                 }
                 Step::Record => self.view.record.show(),
+                Step::Mic(start) => {
+                    (self.view.new_song.open, self.view.new_song.start) = (true, panels::Start::Microphone);
+                    if start {
+                        panels::transport::mic_start(&mut self.view, now);
+                    } else {
+                        panels::transport::mic_stop(&mut self.view);
+                    }
+                }
                 Step::Phone => self.view.phone.show(self.state.phone.is_some()),
                 Step::Palette if !self.view.palette.open => self.view.palette.toggle(),
                 Step::Palette => {}
@@ -704,6 +712,7 @@ impl Studio {
         }
         // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
+        plan.tell("mic", &panels::transport::mic_told(&self.view));
         plan.tell("import", &self.view.import.told());
         plan.tell("library", &self.view.import.listed());
         // each piece by where it is, a piece of another kind than a phrase by its kind first ("3. break: bars 1-2 ..."),
