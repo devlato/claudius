@@ -1425,6 +1425,62 @@ async fn a_recording_is_reworked_all_through_or_flipped_on_its_hook_and_kept_wit
     std::fs::remove_dir_all(&songs).unwrap();
 }
 
+/// A remake stops between its steps (the parts, the listening, the remake) when the studio sends a stop, as the New song
+/// window does when it is closed while it works, and the song stays as it was; a stop sent before it began is not
+/// for it.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_remake_stops_between_its_steps_and_the_song_stays_as_it_was() {
+    let songs = std::env::temp_dir().join(format!("claudius-remake-stop-songs-{}", std::process::id()));
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+        songs: Some(songs.clone()),
+    });
+    let file = std::env::temp_dir().join(format!("claudius-remake-stop-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &a_recording(), true).unwrap();
+    let path = file.display().to_string();
+    let remake = || Command::Remake {
+        path: path.clone(),
+        genre: Some("boom_bap".into()),
+        seed: Some(3),
+        bpm: None,
+        sampled: None,
+        flip: None,
+        rebuild: None,
+    };
+    // a stop sent before the remake began is not for it
+    assert!(app.command(Command::Cancel).ok);
+    let r = app.command(remake());
+    assert!(r.ok && r.message.starts_with(&format!("reworked {path} as boom_bap")), "{}", r.message);
+    let before = serde_json::to_string(&app.blueprint()).unwrap();
+    // one sent while it works stops it after the step under way
+    let working = {
+        let (app, r) = (app.clone(), remake());
+        std::thread::spawn(move || app.command(r))
+    };
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    loop {
+        let busy = app.state().busy.unwrap_or_default();
+        if ["taking ", "listening to ", "remaking "].iter().any(|w| busy.starts_with(w)) {
+            break;
+        }
+        assert!(!working.is_finished() && std::time::Instant::now() < until, "the remake shows on the busy line");
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert!(app.command(Command::Cancel).ok);
+    let r = working.join().unwrap();
+    assert!(!r.ok && r.message.starts_with("stopped: claudius-remake-stop-"), "{}", r.message);
+    assert!(r.message.ends_with("was not remade, and the song stays as it was"), "{}", r.message);
+    assert_eq!(serde_json::to_string(&app.blueprint()).unwrap(), before, "the song stays as it was");
+    std::fs::remove_file(&file).unwrap();
+    let _ = std::fs::remove_dir_all(&songs);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     let app = app();

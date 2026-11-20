@@ -911,6 +911,11 @@ fn export_menu(ui: &mut Ui, cx: &mut Cx) {
 /// the "New song" dialog
 pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !cx.view.new_song.open {
+        // closed (Cancel, its close button, Escape) while a song it asked for is being made: that stops it, and the
+        // song stays as it was
+        if std::mem::take(&mut cx.view.new_song.making) && cx.view.analyzing {
+            cx.out.push(Command::Cancel);
+        }
         return;
     }
     let mut closed = false;
@@ -1621,6 +1626,7 @@ fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::p
         let remake = matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip | WithRecording::Rebuild)
             .then(|| (f.genre_name(), f.seed.trim().parse().ok()));
         let sample = f.with_recording == WithRecording::Sample;
+        f.making = remake.is_some();
         cx.view.listen = Some(super::Listen {
             file,
             remake,
@@ -1756,6 +1762,51 @@ pub(crate) fn file_name(title: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    /// A song the New song window asked for from a recording stops when the window closes while it is made, whichever
+    /// way it closes (Cancel, its close button, Escape): the studio sends the stop, once. Closed after the song came,
+    /// it sends nothing.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn closing_the_new_song_window_while_it_makes_a_song_stops_it() {
+        use claudius_api::{Command, State};
+        use eframe::egui;
+
+        use super::super::{Cx, View};
+        use crate::audio::Player;
+        let ctx = egui::Context::default();
+        let (mut state, mut view, mut player) = (State::default(), View::default(), Player::new(&ctx));
+        let mut frame = |view: &mut View| -> Vec<Command> {
+            let mut out = Vec::new();
+            let mut full = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let ctx = ui.ctx().clone();
+                let mut cx = Cx {
+                    state: &mut state,
+                    view,
+                    player: &mut player,
+                    out: &mut out,
+                    sounds: None,
+                    server: None,
+                    now: 0.0,
+                };
+                super::new_song_dialog(&ctx, &mut cx);
+            });
+            // the fonts' textures, which nothing draws here
+            full.textures_delta.clear();
+            out
+        };
+        // a remake asked for, its answer not in yet
+        (view.new_song.open, view.new_song.making, view.analyzing) = (true, true, true);
+        assert!(frame(&mut view).is_empty(), "open, the window stops nothing");
+        view.new_song.open = false;
+        assert!(matches!(frame(&mut view)[..], [Command::Cancel]), "closed, it stops the song being made");
+        assert!(frame(&mut view).is_empty(), "once");
+        // the answer in first: the song is made, and the window it closes has nothing to stop
+        (view.new_song.open, view.new_song.making, view.analyzing) = (true, true, true);
+        view.listened("remake", true, "remade it".into());
+        assert!(!view.new_song.open, "the song made closes the window");
+        assert!(frame(&mut view).is_empty(), "nothing to stop");
+    }
+
     #[test]
     fn the_top_bar_leaves_room_for_the_window_buttons_on_a_mac_unless_in_full_screen() {
         // AppKit's buttons end 69 points from the window's edge; the bar's margin is 12 of them

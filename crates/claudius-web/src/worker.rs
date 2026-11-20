@@ -232,7 +232,19 @@ fn receive(engine: &Shared, m: &MessageEvent) {
             .map(|b| b.to_vec())
             .unwrap_or_default();
         let (what, reply) = match serde_json::from_value::<Listen>(l.clone()) {
-            Ok(l) => (l.what().to_string(), engine.borrow_mut().host.listen(&l, bytes)),
+            Ok(l) => {
+                // a remake goes a stage a turn (`render`), so that a stop sent meanwhile is read between them, and
+                // answers once it is made or stopped
+                let started = engine.borrow_mut().host.start_listen(&l, bytes);
+                let Some(reply) = started else {
+                    let e = engine.borrow();
+                    post(&e.scope, &serde_json::json!({ "state": e.host.state() }), None);
+                    drop(e);
+                    schedule(engine);
+                    return;
+                };
+                (l.what().to_string(), reply)
+            }
             Err(e) => {
                 let why = format!("nothing the engine listens for: {e}");
                 ("listen".to_string(), Reply { ok: false, message: why, version: 0 })
@@ -312,11 +324,12 @@ fn encode(scope: &DedicatedWorkerGlobalScope, ask: &serde_json::Value, samples: 
 }
 
 /// A render soon, when the song is newer than its render and none is on its way, or the next candidate of a mutation
-/// or an evolution. After a change only to the mix it waits until the changes have stopped a moment (`Host::waits`),
-/// while the studio hears them by windows (`window`), which a render under way would hold up.
+/// or an evolution, or the next stage of a remake. After a change only to the mix it waits until the changes have
+/// stopped a moment (`Host::waits`), while the studio hears them by windows (`window`), which a render under way would
+/// hold up.
 fn schedule(engine: &Shared) {
     let mut e = engine.borrow_mut();
-    if e.scheduled || !(e.host.stale() || e.host.breeding()) {
+    if e.scheduled || !(e.host.stale() || e.host.breeding() || e.host.remaking().is_some()) {
         return;
     }
     let ms = e.host.waits().map_or(30, |w| w.as_millis() as i32 + 1);
@@ -333,6 +346,23 @@ fn in_a_while(engine: &Shared, e: &mut Engine, ms: i32) {
 
 fn render(engine: &Shared) {
     engine.borrow_mut().scheduled = false;
+    // a remake a stage a turn, with the messages that came meanwhile (a stop) between them: its answer, once it is made
+    // or stopped, is the one a recording listened to gives
+    let remaking = engine.borrow().host.remaking().map(str::to_string);
+    if let Some(what) = remaking {
+        let mut e = engine.borrow_mut();
+        let done = match e.host.step_listen() {
+            Some(reply) => {
+                let heard = e.host.take_listened();
+                serde_json::json!({ "what": what, "reply": reply, "heard": heard, "state": e.host.state() })
+            }
+            None => serde_json::json!({ "state": e.host.state() }),
+        };
+        post(&e.scope, &done, None);
+        drop(e);
+        schedule(engine);
+        return;
+    }
     // nothing plays an instrument before its files are in: the render comes once they are
     if fetch_files(engine) {
         return;

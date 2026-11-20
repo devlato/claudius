@@ -774,7 +774,18 @@ impl App {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
+        // a stop is read between the steps (the parts, the listening, the remake), and the song stays as it was; one
+        // sent before this remake began is not for it
+        self.cancel.store(false, Ordering::Relaxed);
+        let stopped = || {
+            self.cancel
+                .swap(false, Ordering::Relaxed)
+                .then(|| no(format!("stopped: {name} was not remade, and the song stays as it was"), v))
+        };
         let (stems, a) = self.listen_to(x, &name);
+        if let Some(r) = stopped() {
+            return r;
+        }
         let seed = seed.unwrap_or_else(now_seed);
         let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
@@ -784,6 +795,9 @@ impl App {
         let shown = genre.replace('_', " ");
         let (bp, verb, told) =
             self.listening(&format!("remaking {name} as {shown}"), |_| listen::remake(&src, &g, seed, bpm, how, &with));
+        if let Some(r) = stopped() {
+            return r;
+        }
         self.lock().folder = None;
         self.commit_song(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
     }
