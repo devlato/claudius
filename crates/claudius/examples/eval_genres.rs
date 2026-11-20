@@ -41,7 +41,8 @@
 //!   never changes. A guard (worse in no genre) unless `--primary` names it, as a change to how beats are written does.
 //!
 //! With `--songs`, `run` also writes a line for each song (its genre and seed the item, its typical and whether it is
-//! identified), the yardstick for a change to one genre: a genre is one item of the lines above, and its songs, made
+//! identified, and with `--beats` its `beat`: how far its own change from bar to bar is from the real songs' middle one),
+//! the yardstick for a change to one genre: a genre is one item of the lines above, and its songs, made
 //! with the same seeds before and after the change, pair up one by one.
 //!
 //! `beats` hears the real songs' beats: for each song a line of `embed`'s lists (`--real`), how much its beat changes
@@ -547,6 +548,10 @@ fn hear_song(ears: &Ears, g: &genres::GenreProfile, seed: u64, dir: &Path, beats
     Ok(Song { emb, beat })
 }
 
+/// a song of claudius's as `run` keeps it: its seed, its embedding, and how much its beat changes bar to bar (none: no
+/// kit heard)
+type Composed = (u64, Vec<f64>, Option<f64>);
+
 /// a song of claudius's as `run` hears it
 struct Song {
     emb: Vec<f64>,
@@ -731,16 +736,11 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
         }
         drop(tx);
     });
-    let mut songs: BTreeMap<String, Vec<(u64, Vec<f64>)>> = BTreeMap::new();
-    let mut song_beats: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    // each song's embedding, and with the real songs' beats how much its own changes bar to bar (none: no kit heard)
+    let mut songs: BTreeMap<String, Vec<Composed>> = BTreeMap::new();
     for (g, seed, heard) in rx {
         match heard {
-            Ok(song) => {
-                if let Some(b) = song.beat {
-                    song_beats.entry(g.clone()).or_default().push(b.next);
-                }
-                songs.entry(g).or_default().push((seed, song.emb));
-            }
+            Ok(song) => songs.entry(g).or_default().push((seed, song.emb, song.beat.map(|b| b.next))),
             Err(e) => eprintln!("{e}"),
         }
     }
@@ -759,7 +759,18 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     let mut each = match &r.songs {
         Some(p) => {
             let mut file = std::fs::File::create(p).map_err(|e| e.to_string())?;
-            writeln!(file, "{}", json!({"primary": ["typical"]})).map_err(|e| e.to_string())?;
+            // with the real songs' beats, each song's beat as far from theirs as it is (a guard, unless --primary
+            // names it, as a change to one genre's drums does)
+            let head = if with_beats {
+                let mut primary = vec!["typical"];
+                if r.primary.iter().any(|m| m == "beat") {
+                    primary.push("beat");
+                }
+                json!({"better": {"beat": "lower"}, "primary": primary})
+            } else {
+                json!({"primary": ["typical"]})
+            };
+            writeln!(file, "{head}").map_err(|e| e.to_string())?;
             Some(file)
         }
         None => None,
@@ -768,18 +779,25 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
     for (g, family, ..) in measured {
         let reals = &by_genre[*g];
         let mut mine = songs.remove(*g).unwrap_or_default();
-        mine.sort_by_key(|(s, _)| *s);
+        mine.sort_by_key(|(s, ..)| *s);
+        // the real songs' middle change, where they have a beat often enough to tell (`FEWEST`, a matter of the real
+        // songs alone, so that two runs measure the same genres); a song of claudius's in which no kit is heard counts
+        // as a beat that never changes
+        let theirs =
+            real_beat.as_ref().and_then(|b| b.get(*g)).filter(|t| t.len() >= FEWEST).map(|t| median(t.clone()));
         if let Some(file) = each.as_mut() {
-            for (seed, e) in &mine {
-                let line = json!({
-                    "item": format!("{g}:{seed}"),
-                    "slice": {"family": family, "genre": g},
-                    "metrics": {"typical": hundredths(typical_of(e, reals)), "identified": heard_as(e, &centroids) == Some(*g)},
-                });
+            for (seed, e, beat) in &mine {
+                let mut metrics = json!({"typical": hundredths(typical_of(e, reals)), "identified": heard_as(e, &centroids) == Some(*g)});
+                if let Some(theirs) = theirs {
+                    metrics["beat"] = json!(hundredths((beat.unwrap_or(0.0) - theirs).abs()));
+                }
+                let line =
+                    json!({"item": format!("{g}:{seed}"), "slice": {"family": family, "genre": g}, "metrics": metrics});
                 writeln!(file, "{line}").map_err(|e| e.to_string())?;
             }
         }
-        let mine: Vec<Vec<f64>> = mine.into_iter().map(|(_, e)| e).collect();
+        let beats_of_mine: Vec<f64> = mine.iter().map(|(_, _, b)| b.unwrap_or(0.0)).collect();
+        let mine: Vec<Vec<f64>> = mine.into_iter().map(|(_, e, _)| e).collect();
         if mine.len() < 2 {
             eprintln!("{g}: fewer than two songs heard");
             continue;
@@ -795,13 +813,8 @@ fn run(real: &Path, r: &Runs, threads: usize) -> Result<(), String> {
             "identified": hundredths(identified),
             "spread": hundredths(spread),
         });
-        // a genre whose real songs have a beat often enough to tell (`FEWEST`, a matter of the real songs alone, so
-        // that two runs measure the same genres); a song of claudius's in which no kit is heard counts as a beat that
-        // never changes
-        if let Some(theirs) = real_beat.as_ref().and_then(|b| b.get(*g)).filter(|t| t.len() >= FEWEST) {
-            let mut ours = song_beats.remove(*g).unwrap_or_default();
-            ours.resize(mine.len().max(ours.len()), 0.0);
-            let (ours, theirs) = (median(ours), median(theirs.clone()));
+        if let Some(theirs) = theirs {
+            let ours = median(beats_of_mine);
             println!("{g}\tbeat change: claudius's {ours:.3}, the real songs' {theirs:.3}");
             metrics["beat"] = json!(hundredths((ours - theirs).abs()));
             metrics["beat_songs"] = json!(hundredths(ours));
