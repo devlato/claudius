@@ -1104,11 +1104,30 @@ async fn a_song_renamed_takes_its_folder_and_its_history_along_and_stays_one_pro
     assert!(app.command(Command::Save { stems: false, path: None }).ok);
     app.settled(Duration::from_secs(240)).await;
     assert_eq!(folders(), ["house-night-drive-4"], "no second folder");
+    // and exported into it too, whatever its title says now
+    assert!(app.command(Command::Render { stems: false }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    let r = app.command(Command::Export { formats: vec!["flac:16".into()], path: None });
+    assert!(r.ok, "{}", r.message);
+    assert_eq!(folders(), ["house-night-drive-4"], "exported where it lives: {}", r.message);
+    let flac = std::fs::read_dir(&dir).unwrap().flatten().any(|e| e.file_name().to_string_lossy().ends_with(".flac"));
+    assert!(flac, "{}", r.message);
+    // renamed while a save still renders, the save goes where the folder went: one project still
+    assert!(app.command(Command::Save { stems: false, path: None }).ok);
+    let r = app.command(Command::RenameSong { title: "Morning Run".into() });
+    assert!(r.ok && r.message.contains("its folder moved to"), "{}", r.message);
+    app.settled(Duration::from_secs(240)).await;
+    assert_eq!(folders(), ["house-morning-run-4"], "the save in flight wrote into the folder's new place");
+    let dir = songs.join("house-morning-run-4");
+    assert!(dir.join("song.wav").is_file(), "its audio in it");
+    let saved =
+        claudius::model::Blueprint::from_json(&std::fs::read_to_string(dir.join("blueprint.json")).unwrap()).unwrap();
+    assert_eq!(saved.title, "Morning Run");
     // a title another song's folder holds is refused, and nothing changes
     std::fs::create_dir_all(songs.join("house-taken-4")).unwrap();
     let r = app.command(Command::RenameSong { title: "Taken".into() });
     assert!(!r.ok && r.message.contains("another song's folder"), "{}", r.message);
-    assert_eq!(app.state().song.unwrap().title, "First Light");
+    assert_eq!(app.state().song.unwrap().title, "Morning Run");
     let r = app.command(Command::RenameSong { title: "   ".into() });
     assert!(!r.ok && r.message.contains("some words"), "{}", r.message);
     let _ = std::fs::remove_dir_all(&songs);

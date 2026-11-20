@@ -916,7 +916,7 @@ impl App {
         let Some(version) = rendered else {
             return no("the song has changed since its last render: render it, then export", v);
         };
-        let dir = path.unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
+        let dir = path.unwrap_or_else(|| self.home(&bp));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
@@ -980,10 +980,23 @@ impl App {
         if same(&from, &to) {
             return r;
         }
-        if let Err(e) = std::fs::rename(&from, &to) {
-            return ok(format!("{}; its folder stays at {}: {e}", r.message, from.display()), r.version);
+        {
+            // not while a render writes a save into the folder; and a save the running job holds, or one waiting for
+            // it, writes where the folder went, so that the song stays one project
+            let _writing = self.folders.lock().unwrap_or_else(|e| e.into_inner());
+            if let Err(e) = std::fs::rename(&from, &to) {
+                return ok(format!("{}; its folder stays at {}: {e}", r.message, from.display()), r.version);
+            }
+            self.update(|s| {
+                super::release::moved(s, to.clone());
+                if s.job {
+                    s.moved_folders.push((from.clone(), to.clone()));
+                }
+                for (d, _) in s.pending_saves.iter_mut().filter(|(d, _)| same(d, &from)) {
+                    *d = to.clone();
+                }
+            });
         }
-        self.update(|s| super::release::moved(s, to.clone()));
         let saved = self.save(Some(to.clone()), false);
         let said = format!("{}, its folder moved to {} with its history", r.message, to.display());
         if saved.ok {
@@ -993,13 +1006,18 @@ impl App {
         }
     }
 
+    /// Where song `bp` is saved and exported when no folder is given: the folder of its own it lives in under the
+    /// songs folder, whatever its title says now (a rename undone, a title a script changed); else the one its genre,
+    /// title and seed name.
+    fn home(&self, bp: &Blueprint) -> PathBuf {
+        let own = self.lock().folder.clone().filter(|d| d.starts_with(&self.songs) && d.is_dir());
+        own.unwrap_or_else(|| super::release::default_folder(&self.songs, bp))
+    }
+
     fn save(self: &Arc<Self>, path: Option<PathBuf>, stems: bool) -> Reply {
         let v = self.version();
         let Some(mut bp) = self.blueprint() else { return no("no song to save", v) };
-        // the folder of its own it lives in under the songs folder, whatever its title says now; else the one its
-        // genre, title and seed name
-        let home = self.lock().folder.clone().filter(|d| d.starts_with(&self.songs) && d.is_dir());
-        let dir = path.or(home).unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
+        let dir = path.unwrap_or_else(|| self.home(&bp));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }

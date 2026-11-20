@@ -166,6 +166,8 @@ impl App {
             Nothing,
         }
         let next = self.update(|s| {
+            // the folders a rename moved were for the job that just ended (the waiting saves already go where they went)
+            s.moved_folders.clear();
             // a waiting save takes the slot straight away, so nobody sees the session idle in between; its render
             // of the song as it is now also serves as the fresh render
             if !s.pending_saves.is_empty() {
@@ -433,11 +435,20 @@ impl App {
                 loudness.insert(t.name.clone(), ((l + t.gain_db as f64 + master_gain) * 10.0).round() / 10.0);
             }
         }
-        // the whole folder from this render, so the score in it is the song its audio plays
-        let saved: Vec<_> = saves
-            .iter()
-            .map(|(dir, stems)| (dir, song::write_folder(dir, &bp, &project, &r, &verdict, *stems)))
-            .collect();
+        // the whole folder from this render, so the score in it is the song its audio plays: where the folder is now,
+        // when a rename moved it while the render ran
+        let saved: Vec<_> = {
+            let _writing = self.folders.lock().unwrap_or_else(|e| e.into_inner());
+            let moved = self.lock().moved_folders.clone();
+            saves
+                .iter()
+                .map(|(dir, stems)| {
+                    let dir = moved.iter().fold(dir.clone(), |d, (from, to)| if d == *from { to.clone() } else { d });
+                    let written = song::write_folder(&dir, &bp, &project, &r, &verdict, *stems);
+                    (dir, written)
+                })
+                .collect()
+        };
         // encode the browser's copy now, so the first request for it does not wait
         let _ = self.audio_path(version, "mp3");
         let vv = views::verdict(&verdict, &bp);
