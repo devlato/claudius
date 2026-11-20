@@ -311,6 +311,7 @@ impl App {
             Command::Load { path } => self.load(Path::new(&path)),
             Command::OpenText { name, text } => self.open_text(&name, &text, None),
             Command::Save { path, stems } => self.save(path.map(PathBuf::from), stems),
+            Command::RenameSong { title } => self.rename(&title),
             Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
             Command::SetRelease { details, artwork } => self.set_release(*details, artwork.map(PathBuf::from)),
             Command::WriteKit { path } => self.write_kit(path.map(PathBuf::from)),
@@ -937,10 +938,54 @@ impl App {
         ok(format!("exported {}", list.join(", ")), self.version())
     }
 
+    /// The song titled `title` (`edit::change`, an edit undo takes back). A song saved in a folder claudius named for
+    /// it (in the songs folder, named for its genre, a title and its seed) moves to the one its new title names, with
+    /// its history, and is saved there: one project, under its new name. A folder of the person's own naming stays
+    /// where it is.
+    fn rename(self: &Arc<Self>, title: &str) -> Reply {
+        let v = self.version();
+        let Some(bp) = self.blueprint() else { return no("no song yet: start one with new_song", v) };
+        let same = |a: &Path, b: &Path| a == b || std::fs::canonicalize(a).ok() == std::fs::canonicalize(b).ok();
+        let (head, tail) = (format!("{}-", bp.genre), format!("-{}", bp.seed));
+        let named = |d: &Path| {
+            d.parent().is_some_and(|p| same(p, &self.songs))
+                && d.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(&head) && n.ends_with(&tail))
+        };
+        let from = self.lock().folder.clone().filter(|d| d.is_dir() && named(d));
+        let to = from.as_ref().map(|_| {
+            super::release::default_folder(&self.songs, &Blueprint { title: title.trim().to_string(), ..bp.clone() })
+        });
+        if let (Some(f), Some(t)) = (&from, &to)
+            && !same(f, t)
+            && t.exists()
+        {
+            return no(format!("{} is another song's folder: give this one another title", t.display()), v);
+        }
+        let r = self.edit(&Command::RenameSong { title: title.to_string() });
+        let (Some(from), Some(to), true) = (from, to, r.ok) else { return r };
+        if same(&from, &to) {
+            return r;
+        }
+        if let Err(e) = std::fs::rename(&from, &to) {
+            return ok(format!("{}; its folder stays at {}: {e}", r.message, from.display()), r.version);
+        }
+        self.update(|s| super::release::moved(s, to.clone()));
+        let saved = self.save(Some(to.clone()), false);
+        let said = format!("{}, its folder moved to {} with its history", r.message, to.display());
+        if saved.ok {
+            ok(format!("{said}, and saved there"), saved.version)
+        } else {
+            no(format!("{said}, but {}", saved.message), saved.version)
+        }
+    }
+
     fn save(self: &Arc<Self>, path: Option<PathBuf>, stems: bool) -> Reply {
         let v = self.version();
         let Some(mut bp) = self.blueprint() else { return no("no song to save", v) };
-        let dir = path.unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
+        // the folder of its own it lives in under the songs folder, whatever its title says now; else the one its
+        // genre, title and seed name
+        let home = self.lock().folder.clone().filter(|d| d.starts_with(&self.songs) && d.is_dir());
+        let dir = path.or(home).unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }

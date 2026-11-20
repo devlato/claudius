@@ -65,6 +65,15 @@ fn energy_for(kind: &str) -> f32 {
 /// Applies a song edit. `None` when `cmd` is not a plain song edit (jobs, undo, new song, scripts ...).
 pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String>> {
     Some(match cmd {
+        // as the server: the title as written but for the spaces around it, the folder moving on the server's side
+        Command::RenameSong { title } => {
+            let title = title.trim();
+            if title.is_empty() {
+                return Some(Err("a song's title has some words in it".into()));
+            }
+            song.title = title.to_string();
+            Ok(format!("renamed the song to {title}"))
+        }
         // edits made as one: each shown as it is alone, all of them or, when one cannot be, none
         Command::Together { said, commands } => {
             let mut after = song.clone();
@@ -648,6 +657,15 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
 #[cfg(test)]
 mod tests {
     use claudius_api::{Command, SectionView, SongView};
+
+    #[test]
+    fn a_song_renamed_in_the_studio_shows_its_new_title_at_once() {
+        let mut song = SongView { title: "Untitled".into(), ..Default::default() };
+        let r = super::apply(&mut song, &Command::RenameSong { title: " Night Drive ".into() }).unwrap();
+        assert_eq!((r.unwrap().as_str(), song.title.as_str()), ("renamed the song to Night Drive", "Night Drive"));
+        assert!(super::apply(&mut song, &Command::RenameSong { title: " ".into() }).unwrap().is_err());
+        assert_eq!(song.title, "Night Drive");
+    }
 
     #[test]
     fn a_section_split_in_the_studio_is_two_that_play_on_as_it_played() {

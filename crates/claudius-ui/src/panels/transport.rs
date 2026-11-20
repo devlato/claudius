@@ -268,6 +268,26 @@ fn about(song: &claudius_api::SongView) -> String {
     )
 }
 
+/// A title of the person's own for the song: what renaming it asks. Saved, it moves its folder too (in the demo, which
+/// keeps no folders, only the title).
+fn rename(ui: &mut Ui, view: &mut View, out: &mut Vec<Command>, demo: bool) {
+    ui.set_min_width(300.0);
+    ui.label(RichText::new("Rename the song").strong());
+    let where_ =
+        if demo { "its title, as the download names it" } else { "its title, and its folder once it is saved" };
+    ui.label(small(where_));
+    ui.add_space(4.0);
+    let field = ui.add(egui::TextEdit::singleline(&mut view.rename).desired_width(280.0).hint_text("a title"));
+    field.request_focus();
+    let title = view.rename.trim().to_string();
+    let enter = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+    let go = ui.add_enabled(!title.is_empty(), egui::Button::new("Rename")).clicked();
+    if (go || enter) && !title.is_empty() {
+        out.push(Command::RenameSong { title });
+        ui.close();
+    }
+}
+
 fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
     let Some(song) = cx.state.song.as_mut() else {
         ui.label(RichText::new("no song yet").color(TEXT_FAINT));
@@ -281,7 +301,17 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
             ui.scope(|ui| {
                 ui.set_max_width([240.0, 240.0, 240.0, 240.0, 120.0, 90.0][level.min(5)]);
                 let title = RichText::new(&song.title).size(15.5).strong().color(TEXT);
-                ui.add(egui::Label::new(title).truncate()).on_hover_text(about(song));
+                let named = ui
+                    .add(egui::Label::new(title).truncate().sense(Sense::click()))
+                    .on_hover_cursor(egui::CursorIcon::Text)
+                    .on_hover_text(format!("{}\nclick to rename it", about(song)));
+                if named.clicked() {
+                    cx.view.rename.clone_from(&song.title);
+                }
+                let demo = cx.server.is_none();
+                egui::Popup::from_toggle_button_response(&named)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                    .show(|ui| rename(ui, &mut *cx.view, &mut *cx.out, demo));
             });
             ui.horizontal(|ui| {
                 if level < 4 {

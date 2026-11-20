@@ -1045,6 +1045,75 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     }
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_song_renamed_takes_its_folder_and_its_history_along_and_stays_one_project() {
+    let songs = std::env::temp_dir().join(format!("claudius-rename-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&songs);
+    std::fs::create_dir_all(&songs).unwrap();
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+        songs: Some(songs.clone()),
+    });
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(4),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    // before it is saved, only its title
+    let r = app.command(Command::RenameSong { title: "  First Light ".into() });
+    assert!(r.ok && r.message == "renamed the song to First Light", "{}", r.message);
+    assert!(app.command(Command::Save { stems: false, path: None }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    let folders = || {
+        let mut v: Vec<String> =
+            std::fs::read_dir(&songs).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        v.sort();
+        v
+    };
+    assert_eq!(folders(), ["house-first-light-4"]);
+    // saved, its folder moves with it, its history in it, and it is saved there under the new title
+    let r = app.command(Command::RenameSong { title: "Night Drive".into() });
+    assert!(
+        r.ok && r.message.contains("its folder moved to") && r.message.ends_with("and saved there"),
+        "{}",
+        r.message
+    );
+    app.settled(Duration::from_secs(240)).await;
+    assert_eq!(folders(), ["house-night-drive-4"]);
+    let dir = songs.join("house-night-drive-4");
+    let saved =
+        claudius::model::Blueprint::from_json(&std::fs::read_to_string(dir.join("blueprint.json")).unwrap()).unwrap();
+    assert_eq!(saved.title, "Night Drive");
+    let history = std::fs::read_to_string(dir.join("history.jsonl")).unwrap();
+    assert!(history.contains("First Light") && history.contains("Night Drive"), "both names in its history");
+    // undone, it is still the one project: saved again into the folder it lives in
+    assert!(app.command(Command::Undo).ok);
+    assert_eq!(app.state().song.unwrap().title, "First Light");
+    assert!(app.command(Command::Save { stems: false, path: None }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    assert_eq!(folders(), ["house-night-drive-4"], "no second folder");
+    // a title another song's folder holds is refused, and nothing changes
+    std::fs::create_dir_all(songs.join("house-taken-4")).unwrap();
+    let r = app.command(Command::RenameSong { title: "Taken".into() });
+    assert!(!r.ok && r.message.contains("another song's folder"), "{}", r.message);
+    assert_eq!(app.state().song.unwrap().title, "First Light");
+    let r = app.command(Command::RenameSong { title: "   ".into() });
+    assert!(!r.ok && r.message.contains("some words"), "{}", r.message);
+    let _ = std::fs::remove_dir_all(&songs);
+}
+
 #[tokio::test]
 async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     let app = app();

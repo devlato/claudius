@@ -25,7 +25,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `go_back` | `to`: a change's id from `history`. The song as it was before that change, which undoes it and every change since; `redo` brings them back one at a time | |
 | `catalog` | | `claudius genres`; `claudius-packs instruments` (installed next to `claudius`) |
 | `find_genre` | `query`: what the person said ("90s", "west coast", "r&b", "dusty") | `claudius genres west coast` |
-| `save` | `path` (default `~/Music/claudius/<genre>-<title>-<seed>`), `stems` (each track on its own in `stems/`; off) | every command writes a song folder |
+| `save` | `path` (default: the folder the song lives in under `~/Music/claudius`, else `~/Music/claudius/<genre>-<title>-<seed>`), `stems` (each track on its own in `stems/`; off) | every command writes a song folder |
 | `export` | `formats` (`["mp3", "flac:16", "opus"]`), `path` | `claudius export SONG -f mp3,flac:16,opus` |
 | `publish` | what the person said: `artist`, `writers`, `artwork` (a file), `made`, and `title`, `album`, `genre`, `date` ...; `write` (default false: only check), `path` | `claudius publish SONG --artwork FILE --artist NAME --writer "FULL NAME" --made written` (`--check` only checks) |
 | `open` | `path`: a song folder, a `blueprint.json`, a `.rhai` script, or a project the online demo saved (a `.zip`, unpacked into a song folder of its own) | `--on SONG` |
@@ -74,6 +74,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
 | The chat: what the person writes to an assistant listening, clearing it | `wait_for_message`, `send_message`; `command` | `chat_listen`, `chat_answer`; `chat_say`, `clear_chat` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |
+| the song's title, clicked: renaming the song (its folder, when claudius named it, moves with its history) | `command` | `rename_song` |
 | Render, and each track on its own | `listen` (`stems`) | `render` |
 | Variations, Improve, Cancel | `mutate`, `evolve`, `stop` | `mutate`, `evolve`, `cancel` |
 | Undo, Redo | `undo`, `redo` | `undo`, `redo` |

@@ -468,6 +468,9 @@ pub fn together(
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit. `seed`
 /// is the one a track generated or varied takes, when the command names none.
 pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<String, String>> {
+    if let Command::RenameSong { title } = cmd {
+        return Some(rename(bp, title));
+    }
     // a change to the sections leaves each section's stretch of every take where it is
     if matches!(
         cmd,
@@ -658,6 +661,25 @@ pub fn scratch(
         .map_err(|_| "the recording is no WAV file in base64".to_string())?;
     let moves = moves.iter().map(|m| claudius::scratch::Move { t: m.t, at: m.at, fader: m.fader }).collect();
     Ok(claudius::scratch::Take { track, bar, bars: bars.unwrap_or(1), moves, recording })
+}
+
+/// the most a song's title holds, in characters
+const TITLE_MOST: usize = 120;
+
+/// Song `bp` titled `title`, as it is written but for the spaces around it: a line of words, not none.
+fn rename(bp: &mut Blueprint, title: &str) -> Result<String, String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("a song's title has some words in it".into());
+    }
+    if title.chars().any(char::is_control) {
+        return Err("a song's title is one line, without tabs".into());
+    }
+    if title.chars().count() > TITLE_MOST {
+        return Err(format!("a song's title is {TITLE_MOST} characters at most"));
+    }
+    bp.title = title.to_string();
+    Ok(format!("renamed the song to {title}"))
 }
 
 /// The section a new one of kind `k` after section `after` is set as: the one named `like`, else the song's nearest of
@@ -1066,6 +1088,19 @@ mod tests {
         assert!(change(&none, &mut bp, 1).unwrap().unwrap_err().contains("a gap lasts some beats"));
         let wrong = cmd(&json!({"cmd": "set_section", "index": 1, "build_style": "roll+swirl"}));
         assert!(change(&wrong, &mut bp, 1).unwrap().unwrap_err().contains("no build-up 'swirl'"));
+    }
+
+    #[test]
+    fn a_song_renamed_takes_the_title_written_one_line_of_words() {
+        let mut bp = song();
+        let said =
+            change(&cmd(&json!({"cmd": "rename_song", "title": "  Glass Garden  "})), &mut bp, 1).unwrap().unwrap();
+        assert_eq!((said.as_str(), bp.title.as_str()), ("renamed the song to Glass Garden", "Glass Garden"));
+        for (bad, says) in [("", "some words"), ("one\ttwo", "one line"), (&"x".repeat(121)[..], "120 characters")] {
+            let e = change(&cmd(&json!({"cmd": "rename_song", "title": bad})), &mut bp, 1).unwrap().unwrap_err();
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+        assert_eq!(bp.title, "Glass Garden");
     }
 
     #[test]

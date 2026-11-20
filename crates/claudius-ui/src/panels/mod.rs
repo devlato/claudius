@@ -408,6 +408,8 @@ pub struct View {
     /// loop the selected section rather than the whole render
     pub loop_section: bool,
     pub log_filter: String,
+    /// the title being written when the song's title is clicked to rename it
+    pub rename: String,
     pub add_kind: String,
     pub add_bars: u32,
     pub drag_section: Option<usize>,
@@ -526,6 +528,7 @@ impl Default for View {
             looping: false,
             loop_section: false,
             log_filter: String::new(),
+            rename: String::new(),
             add_kind: "drop".into(),
             add_bars: 8,
             drag_section: None,
