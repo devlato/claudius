@@ -63,7 +63,7 @@ pub struct Palette {
 /// microphone to open, which a browser asks the person about first (seconds); how loud speech is
 const PAUSE: f64 = 1.2;
 const LONGEST: f64 = 15.0;
-const OPENING: f64 = 30.0;
+pub(crate) const OPENING: f64 = 30.0;
 const SPEECH: f32 = 0.02;
 
 /// what the palette says when the microphone heard nothing at all
