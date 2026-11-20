@@ -328,9 +328,16 @@ pub struct SectionSpec {
     /// how hard it builds, from 0 (gently) to 1 (as hard as it goes); half, as builds always did, by default
     #[serde(default = "half", skip_serializing_if = "is_half")]
     pub build_amount: f32,
-    /// a beat of silence before the next section
+    /// the bars at the section's end its build-up takes: its roll, its riser and its sweep over them, and the kick or
+    /// the drums leaving no earlier; as long as its style and amount make each when not given
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_bars: Option<u32>,
+    /// silence before the next section, `gap_beats` long
     #[serde(default)]
     pub gap: bool,
+    /// how long the gap lasts, in beats: one, as gaps always did, by default
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub gap_beats: f32,
     /// crash + impact on the downbeat
     #[serde(default)]
     pub impact: bool,
@@ -403,9 +410,9 @@ fn is_half(v: &f32) -> bool {
     *v == 0.5
 }
 
-/// How a build-up builds into the next section (`SectionSpec::build`), as producers take one there.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+/// How a build-up builds into the next section (`SectionSpec::build`), as producers take one there: one of the styles
+/// below, or several stacked (`roll+riser`), which play what each plays, together. Kept and written by its name.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum BuildStyle {
     /// all of it: the snare rolling faster and louder, the kick out for the last bars, a riser, and a highpass sweeping
     /// the lows out of the music
@@ -419,6 +426,9 @@ pub enum BuildStyle {
     Riser,
     /// the drums out for the last bars, the riser over the music alone, as a pop or EDM song holds its breath
     DropOut,
+    /// two or more of the styles above stacked, a bit each in `ALL`'s order (`parse` makes one of them alone that
+    /// style)
+    Stack(u8),
 }
 
 /// what a build-up of a style plays
@@ -435,21 +445,46 @@ impl BuildStyle {
     pub const ALL: [BuildStyle; 5] =
         [BuildStyle::Classic, BuildStyle::Roll, BuildStyle::Sweep, BuildStyle::Riser, BuildStyle::DropOut];
 
-    pub fn name(self) -> &'static str {
+    /// its name: a style's own, or the styles stacked joined by `+` (`roll+riser`)
+    pub fn name(self) -> String {
+        match self {
+            BuildStyle::Stack(bits) => BuildStyle::ALL
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| bits & (1 << i) != 0)
+                .map(|(_, b)| b.own())
+                .collect::<Vec<_>>()
+                .join("+"),
+            style => style.own().to_string(),
+        }
+    }
+
+    fn own(self) -> &'static str {
         match self {
             BuildStyle::Classic => "classic",
             BuildStyle::Roll => "roll",
             BuildStyle::Sweep => "sweep",
             BuildStyle::Riser => "riser",
             BuildStyle::DropOut => "drop_out",
+            BuildStyle::Stack(_) => "stack",
         }
     }
 
+    /// A style by its name, or several stacked with `+` (`roll+riser`); one alone is that style.
     pub fn parse(s: &str) -> Result<BuildStyle, String> {
-        let s = s.trim().to_lowercase().replace([' ', '-'], "_");
-        BuildStyle::ALL.into_iter().find(|b| b.name() == s).ok_or_else(|| {
-            let names: Vec<&str> = BuildStyle::ALL.iter().map(|b| b.name()).collect();
-            format!("no build-up '{s}' (build-ups: {})", names.join(", "))
+        let mut bits = 0u8;
+        for word in s.split('+') {
+            let w = word.trim().to_lowercase().replace([' ', '-'], "_");
+            let i = BuildStyle::ALL.iter().position(|b| b.own() == w).ok_or_else(|| {
+                let names: Vec<&str> = BuildStyle::ALL.iter().map(|b| b.own()).collect();
+                format!("no build-up '{w}' (build-ups: {}, or several with +, as roll+riser)", names.join(", "))
+            })?;
+            bits |= 1 << i;
+        }
+        Ok(if bits.count_ones() == 1 {
+            BuildStyle::ALL[bits.trailing_zeros() as usize]
+        } else {
+            BuildStyle::Stack(bits)
         })
     }
 
@@ -457,6 +492,7 @@ impl BuildStyle {
         *self == BuildStyle::Classic
     }
 
+    /// what it plays: a stack, all that each of its styles plays
     pub fn parts(self) -> BuildParts {
         let p = |roll, kick_out, riser, sweep, drums_out| BuildParts { roll, kick_out, riser, sweep, drums_out };
         match self {
@@ -465,7 +501,33 @@ impl BuildStyle {
             BuildStyle::Sweep => p(false, false, true, true, false),
             BuildStyle::Riser => p(false, false, true, false, false),
             BuildStyle::DropOut => p(false, false, true, false, true),
+            BuildStyle::Stack(bits) => {
+                BuildStyle::ALL.iter().enumerate().filter(|(i, _)| bits & (1 << i) != 0).map(|(_, b)| b.parts()).fold(
+                    p(false, false, false, false, false),
+                    |a, b| {
+                        p(
+                            a.roll || b.roll,
+                            a.kick_out || b.kick_out,
+                            a.riser || b.riser,
+                            a.sweep || b.sweep,
+                            a.drums_out || b.drums_out,
+                        )
+                    },
+                )
+            }
         }
+    }
+}
+
+impl Serialize for BuildStyle {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.name())
+    }
+}
+
+impl<'de> Deserialize<'de> for BuildStyle {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        BuildStyle::parse(&String::deserialize(d)?).map_err(serde::de::Error::custom)
     }
 }
 

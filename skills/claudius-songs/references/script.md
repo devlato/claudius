@@ -48,8 +48,9 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 Section kinds are `intro verse build drop break hook groove outro bridge` (a bridge gets chords of its own that lead
 into the next section, a sparse drum pattern and energy 0.5), and sections take `.energy(0..1)`, `.prog("B")`,
 `.variant("sparse")`, `.build()` (riser, snare roll, highpass sweep; `.build("sweep", 0.8)` chooses how and how hard:
-`classic`, `roll`, `sweep`, `riser`, `drop_out`, 0 to 1), `.impact()` (crash on the downbeat), `.gap()`
-(a beat of silence before the next section), `.fills()` (the genre's drummer ends the phrases: turns every four
+`classic`, `roll`, `sweep`, `riser`, `drop_out`, 0 to 1; stacked with `+`, as `.build("roll+riser")`; `.build_bars(4)`
+puts the roll, riser and sweep over the last 4 bars), `.impact()` (crash on the downbeat), `.gap()` (a beat of
+silence before the next section; `.gap(2)` two), `.fills()` (the genre's drummer ends the phrases: turns every four
 bars, fills every eight and at the section's end, as the genre's drummers play them; `lane("snare", #{ genre:
 "funk" })` brings another genre's drummer) and `.filter_in()`. `"*"` means every track.
 

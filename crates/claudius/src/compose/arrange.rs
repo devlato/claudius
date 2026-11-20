@@ -300,6 +300,16 @@ pub fn drummer(bp: &Blueprint) -> &'static drummer::Drummer {
     drummer::of(backbeat(bp, &roles).and_then(|d| d.genre.as_deref()).unwrap_or(&bp.genre))
 }
 
+/// the beats at a section's end its build-up takes when it says how many bars (`build_bars`), within the section
+fn build_span(s: &SectionSpec) -> Option<f64> {
+    s.build_bars.filter(|&n| n > 0).map(|n| f64::from(n.min(s.bars)) * 4.0)
+}
+
+/// the beats a section's gap lasts: `gap_beats`, from a sixteenth to the whole section
+fn gap_of(s: &SectionSpec) -> f64 {
+    f64::from(s.gap_beats).clamp(0.25, f64::from(s.bars) * 4.0)
+}
+
 pub fn arrange(bp: &Blueprint) -> Project {
     let mut sections = Vec::new();
     let mut chords = Vec::new();
@@ -358,7 +368,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let (start, bars) = (sections[si].start_bar as f64 * 4.0, sections[si].bars);
             // the section's drums stop at its end, or at the gap before the next; a build's roll ends it
             let end = start + bars as f64 * 4.0;
-            let last = (!(s.build && s.build_style.parts().roll)).then_some(if s.gap { end - 1.0 } else { end });
+            let last = (!(s.build && s.build_style.parts().roll)).then_some(if s.gap { end - gap_of(s) } else { end });
             drummer::endings(drummer, &lanes, start, bars, last, &mut r)
         })
         .collect();
@@ -379,11 +389,16 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let is_fill_lane = fill_lane.as_deref() == Some(lane.name.as_str());
             let (parts, how) = (s.build_style.parts(), BuildAmount::of(s.build_amount));
             let rolls = s.build && parts.roll;
-            let roll_len = if rolls {
-                ((s.bars.min(8) as f64 * 4.0 / 2.0).clamp(4.0, 16.0) * how.roll).clamp(2.0, s.bars as f64 * 4.0)
-            } else {
-                0.0
+            // the bars the build takes when it says (the kick and the drums leave no earlier), else each part its own
+            let span = build_span(s);
+            let roll_len = match (rolls, span) {
+                (false, _) => 0.0,
+                (true, Some(span)) => span,
+                (true, None) => {
+                    ((s.bars.min(8) as f64 * 4.0 / 2.0).clamp(4.0, 16.0) * how.roll).clamp(2.0, s.bars as f64 * 4.0)
+                }
             };
+            let leave = |bars: u32| (bars.min(s.bars) as f64 * 4.0).min(span.unwrap_or(f64::MAX));
             if on {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
@@ -412,11 +427,10 @@ pub fn arrange(bp: &Blueprint) -> Project {
                         seg.retain(|n| n.t < b - roll_len);
                     }
                     if s.build && parts.kick_out && is_kick {
-                        seg.retain(|n| n.t < b - how.out_bars as f64 * 4.0);
+                        seg.retain(|n| n.t < b - leave(how.out_bars));
                     }
                     if kit && s.build && parts.drums_out {
-                        let out = how.drums_out_bars.min(s.bars) as f64 * 4.0;
-                        seg.retain(|n| n.t < b - out);
+                        seg.retain(|n| n.t < b - leave(how.drums_out_bars));
                     }
                     seg.sort_by(|x, y| x.t.total_cmp(&y.t));
                     notes.extend(seg);
@@ -600,7 +614,9 @@ pub fn arrange(bp: &Blueprint) -> Project {
         }
         if s.build && s.build_style.parts().riser && tr.riser.is_some() {
             let how = BuildAmount::of(s.build_amount);
-            let len = ((tr.riser_bars.min(s.bars) as f64 * 4.0).max(4.0) * how.riser).clamp(4.0, s.bars as f64 * 4.0);
+            let len = build_span(s).unwrap_or_else(|| {
+                ((tr.riser_bars.min(s.bars) as f64 * 4.0).max(4.0) * how.riser).clamp(4.0, s.bars as f64 * 4.0)
+            });
             riser.push(Note { t: b - len, d: len, p: 60, v: how.riser_v, lock: None });
         }
         if next_impact && tr.use_reverse_crash {
@@ -636,21 +652,22 @@ pub fn arrange(bp: &Blueprint) -> Project {
         tracks.retain(|t| t.mix.solo);
     }
 
-    // gaps: a beat of silence before the next section
+    // gaps: silence before the next section, a beat or `gap_beats` long
     for (si, s) in bp.form.iter().enumerate() {
         if !s.gap {
             continue;
         }
         let info = &sections[si];
         let b = (info.start_bar + info.bars) as f64 * 4.0;
+        let g = b - gap_of(s);
         for t in tracks.iter_mut() {
             if matches!(t.role.as_str(), "riser" | "reverse") {
                 continue;
             }
-            t.notes.retain(|n| !(n.t >= b - 1.0 && n.t < b));
+            t.notes.retain(|n| !(n.t >= g && n.t < b));
             for n in t.notes.iter_mut() {
-                if n.t < b - 1.0 && n.t + n.d > b - 1.0 {
-                    n.d = b - 1.0 - n.t;
+                if n.t < g && n.t + n.d > g {
+                    n.d = g - n.t;
                 }
             }
         }
@@ -669,7 +686,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
             lp.extend([(a + (b - a) * 0.4, 20000.0), (b, 500.0)]);
         }
         if s.build && s.build_style.parts().sweep {
-            hp.extend([(a, 10.0), (b - 0.01, BuildAmount::of(s.build_amount).sweep_hz), (b, 10.0)]);
+            let from = build_span(s).map_or(a, |span| b - span);
+            hp.extend([(from, 10.0), (b - 0.01, BuildAmount::of(s.build_amount).sweep_hz), (b, 10.0)]);
         }
     }
     let mut mix = bp.mix.clone();

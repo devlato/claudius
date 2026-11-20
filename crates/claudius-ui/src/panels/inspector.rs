@@ -301,21 +301,40 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         "Build-up",
                         "How the build-up leads into the next section, and how hard. Everything rolls the snare, \
                              takes the kick out, raises a riser and sweeps the low end away; the other ways take one \
-                             or two of those. Harder makes the roll longer and louder, the sweep climb higher, the \
-                             riser longer, and the drums leave for longer.",
+                             or two of those, and Shift-click stacks them. Harder makes the roll longer and louder, \
+                             the sweep climb higher, the riser longer, and the drums leave for longer. Its last bars \
+                             put the roll, the riser and the sweep over exactly those bars.",
                         "language/form.html#build",
                     )
                 };
                 widgets::field(ui, label, |ui| {
                     let styles = claudius_api::BUILD_STYLES;
-                    let shown = styles.iter().find(|b| b.0 == s.build_style).map_or(styles[0].1, |b| b.1);
+                    // several stacked ("roll+riser") show as each in words, joined
+                    let stacked: Vec<String> = s.build_style.split('+').map(String::from).collect();
+                    let has = |n: &str| stacked.iter().any(|m| m == n);
+                    let shown = stacked
+                        .iter()
+                        .map(|n| styles.iter().find(|b| b.0 == n).map_or(n.as_str(), |b| b.1))
+                        .collect::<Vec<_>>()
+                        .join(" + ");
                     egui::ComboBox::from_id_salt("build_style").width(130.0).selected_text(shown).show_ui(ui, |ui| {
                         for (name, words, about) in styles {
-                            let r = ui.selectable_label(s.build_style == name, words).on_hover_text(about);
-                            if r.clicked() && s.build_style != name {
-                                s.build_style = name.to_string();
-                                let e = SectionEdit { build_style: Some(name.into()), ..Default::default() };
-                                cx.out.push(e.at(i));
+                            let tip = format!("{about}. Shift-click to stack it with the others, or take it out.");
+                            let r = ui.selectable_label(has(name), words).on_hover_text(tip);
+                            if !r.clicked() {
+                                continue;
+                            }
+                            let next = if ui.input(|i| i.modifiers.shift) {
+                                // the others, and this one unless it was in: in the order the styles are listed
+                                let keep = |n: &str| if n == name { !has(n) } else { has(n) };
+                                let order: Vec<&str> = styles.iter().map(|b| b.0).filter(|n| keep(n)).collect();
+                                if order.is_empty() { name.to_string() } else { order.join("+") }
+                            } else {
+                                name.to_string()
+                            };
+                            if next != s.build_style {
+                                s.build_style = next.clone();
+                                cx.out.push(SectionEdit { build_style: Some(next), ..Default::default() }.at(i));
                             }
                         }
                     });
@@ -330,6 +349,43 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             cx.out.push(e.at(i));
                         }
                     });
+                    // over its last bars, or each part as long as its style makes it
+                    let mut bars = s.build_bars.unwrap_or(0);
+                    let r = ui
+                        .add(egui::DragValue::new(&mut bars).range(0..=s.bars).custom_formatter(|v, _| {
+                            if v < 1.0 { "its own length".into() } else { format!("last {v} bars") }
+                        }))
+                        .on_hover_text(
+                            "the bars at the section's end the build-up takes: its roll, riser and sweep over them",
+                        );
+                    if commit(&r) {
+                        s.build_bars = (bars > 0).then_some(bars);
+                        cx.out.push(SectionEdit { build_bars: Some(bars), ..Default::default() }.at(i));
+                    }
+                });
+            }
+
+            if s.gap {
+                let label = |ui: &mut Ui| {
+                    widgets::label_help(
+                        ui,
+                        "Gap",
+                        "How long the silence at the section's end lasts before the next comes in, in beats.",
+                        "language/form.html#gap",
+                    )
+                };
+                widgets::field(ui, label, |ui| {
+                    let r = ui
+                        .add(
+                            egui::DragValue::new(&mut s.gap_beats)
+                                .range(0.25..=16.0)
+                                .speed(0.05)
+                                .custom_formatter(|v, _| format!("{v} beat{}", if v == 1.0 { "" } else { "s" })),
+                        )
+                        .on_hover_text("the silence before the next section, in beats");
+                    if commit(&r) {
+                        cx.out.push(SectionEdit { gap_beats: Some(s.gap_beats), ..Default::default() }.at(i));
+                    }
                 });
             }
 

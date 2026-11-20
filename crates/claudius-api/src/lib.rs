@@ -812,12 +812,18 @@ pub struct SectionView {
     pub variant: String,
     pub filter_in: bool,
     pub build: bool,
-    /// how its build-up builds (`BUILD_STYLES`), and how hard, 0 to 1
+    /// how its build-up builds (`BUILD_STYLES`, or several stacked: "roll+riser"), and how hard, 0 to 1
     #[serde(default = "classic")]
     pub build_style: String,
     #[serde(default = "half")]
     pub build_amount: f32,
+    /// the bars at its end the build-up takes, when it says
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_bars: Option<u32>,
     pub gap: bool,
+    /// how long its gap lasts, in beats
+    #[serde(default = "one_beat")]
+    pub gap_beats: f32,
     pub impact: bool,
     pub fills: bool,
     /// where the section starts in each take it plays, by the take's name, in bars from the take's start (0 its first
@@ -829,6 +835,10 @@ pub struct SectionView {
 
 fn classic() -> String {
     BUILD_STYLES[0].0.to_string()
+}
+
+fn one_beat() -> f32 {
+    1.0
 }
 
 fn half() -> f32 {
@@ -1909,14 +1919,22 @@ pub enum Command {
         filter_in: Option<bool>,
         #[serde(default)]
         build: Option<bool>,
-        /// how the build-up builds (`BUILD_STYLES`: classic, roll, sweep, riser, drop_out); naming one turns it on
+        /// how the build-up builds (`BUILD_STYLES`: classic, roll, sweep, riser, drop_out, or several stacked with +,
+        /// as roll+riser); naming one turns it on
         #[serde(default, skip_serializing_if = "Option::is_none")]
         build_style: Option<String>,
         /// how hard it builds, 0 (gently) to 1 (as hard as it goes); half by default
         #[serde(default, skip_serializing_if = "Option::is_none")]
         build_amount: Option<f32>,
+        /// the bars at the section's end the build-up takes (its roll, riser and sweep over them; 0: as long as its
+        /// style makes each); naming some turns it on
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        build_bars: Option<u32>,
         #[serde(default)]
         gap: Option<bool>,
+        /// how long the gap before the next section lasts, in beats (one by default); naming it turns the gap on
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        gap_beats: Option<f32>,
         #[serde(default)]
         impact: Option<bool>,
         #[serde(default)]

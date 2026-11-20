@@ -82,8 +82,9 @@ Each method returns a new section, so they chain: `sec("drop", 16, "*").energy(1
 | `.energy(x)` | the section's energy | number, clamped to 0..1 |
 | `.prog(name)` | which progression it plays | any progression name |
 | `.variant(name)` | which drum-lane variant it plays | `main`, `sparse`, `alt`, `half` ... |
-| `.build()` | a build into the next section | also `.build(true)`, `.build(false)`; `.build(style)` and `.build(style, amount)` choose [how it builds](#build) |
-| `.gap()` | a beat of silence at the end | also takes `true` / `false` |
+| `.build()` | a build into the next section | also `.build(true)`, `.build(false)`; `.build(style)` and `.build(style, amount)` choose [how it builds](#build), and styles stack: `.build("roll+riser")` |
+| `.build_bars(n)` | the bars at the section's end the build-up takes | a whole number; 0 for each part's own length |
+| `.gap()` | a beat of silence at the end | also takes `true` / `false`, or a number of beats: `.gap(2)` |
 | `.impact()` | a crash and an impact on the first beat | also takes `true` / `false` |
 | `.fills()` | drum fills at 8-bar phrase ends | also takes `true` / `false` |
 | `.filter_in()` | a lowpass opening across the section | also takes `true` / `false` |
@@ -105,7 +106,8 @@ first lane whose role is `kick`.
 
 A build-up leads into the next section. How it builds is its style, `.build(style)`, and how hard is its amount,
 `.build(style, amount)`, from 0 (gently) to 1 (as hard as it goes). `.build()` is `classic` at half, as every build
-was before builds had styles.
+was before builds had styles. Styles stack with `+`: `.build("roll+riser")` plays the roll, the kick out and the
+riser, all that each plays, and no sweep.
 
 | style | plays |
 |---|---|
@@ -129,12 +131,17 @@ was before builds had styles.
   back at the next one: to 900 Hz at half, 300 Hz at none, 2.7 kHz at the most.
 - **The drums out.** Every drum lane stops for the last bar at none, the last two at half, the last three at the
   most.
+- **Its bars.** `.build_bars(n)` gives the build-up the section's last `n` bars (the section at most): the roll, the
+  riser and the sweep all take exactly those bars, whatever the amount, and the kick and the drums leave no earlier
+  than they start. Without it, each part is as long as the style and the amount make it.
 
 ```js
 form([
   sec("groove", 16, "*"),
   sec("build", 8, "kick hat chords").build("sweep", 0.8),   // a house build: the lows swept away, the drums on
   sec("drop", 16, "*").impact(),
+  sec("verse", 16, "*").build("roll+riser").build_bars(4),  // a roll and a riser over the verse's last 4 bars
+  sec("hook", 16, "*"),
 ]);
 ```
 
@@ -142,7 +149,8 @@ form([
 
 In the section's last beat, every track except the riser and the reverse crash is silent: notes that start there are
 removed and notes that ring into it are cut. Audio loops keep playing. A gap before a drop makes the downbeat land
-harder.
+harder. `.gap(beats)` makes it that many beats long instead, from a sixteenth (0.25) to the whole section:
+`.gap(2)` holds two beats of silence, `.gap(0.5)` an eighth note. A drummer's fill ends where the gap starts.
 
 ### `impact`
 
@@ -197,17 +205,19 @@ Edits one section. A name picks the first section with that name.
 | `energy` | number | clamped to 0..1 |
 | `prog`, `variant`, `name` | string | as the methods above |
 | `layers` | string, array or `"*"` | replaces the layers |
-| `build`, `gap`, `impact`, `fills`, `filter_in` | bool | the flags |
-| `build_style`, `build_amount` | string, number | [how the build-up builds](#build), and how hard, 0 to 1; a style named turns the build-up on, unless `build: false` |
+| `build`, `gap`, `impact`, `fills`, `filter_in` | bool | the flags; `gap` also takes a number of beats, which turns it on |
+| `build_style`, `build_amount`, `build_bars` | string, number, number | [how the build-up builds](#build) (styles stack with `+`), how hard, 0 to 1, and the bars at the end it takes (0: each part its own length); a style or bars named turn the build-up on, unless `build: false` |
+| `gap_beats` | number | [how long the gap lasts](#gap), in beats; turns the gap on, unless `gap: false` |
 
 The section is checked as `form()` checks it: its layers must be tracks (or the genre's optional parts and loops) and
 its progression must exist. The map takes only the fields above.
 
 Errors: `no section 'nope'`; `no section 12`; `section() takes a name or an index`; `section 'drop' uses 'leed',
 which is not a track (tracks: ...)`; `section 'break' plays progression 'Z', which the song does not have
-(progressions: A B; prog() adds one)`; `no build-up 'swirl' (build-ups: classic, roll, sweep, riser, drop_out)`;
-`section() has no option 'bar' (options: bars energy prog variant name layers build build_style build_amount gap
-impact fills filter_in)`.
+(progressions: A B; prog() adds one)`; `no build-up 'swirl' (build-ups: classic, roll, sweep, riser, drop_out, or
+several with +, as roll+riser)`; `a gap lasts some beats, more than none (0)`; `section() has no option 'bar'
+(options: bars energy prog variant name layers build build_style build_amount build_bars gap gap_beats impact fills
+filter_in)`.
 
 ```js
 section("drop", #{ energy: 1.0, layers: "kick clap hat bass chords lead" });

@@ -108,7 +108,9 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 build: k == SectionKind::Build,
                 build_style: Default::default(),
                 build_amount: 0.5,
+                build_bars: None,
                 gap: false,
+                gap_beats: 1.0,
                 impact: false,
                 fills: matches!(k, SectionKind::Drop | SectionKind::Groove | SectionKind::Hook),
                 takes: Default::default(),
@@ -150,6 +152,23 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("build", move |s: &mut Sec, style: &str, amount: rhai::FLOAT| styled(s, style, Some(amount)));
     engine.register_fn("build", move |s: &mut Sec, style: &str, amount: INT| styled(s, style, Some(amount as f64)));
     flag!("gap", gap);
+    // a gap of so many beats (a beat by default)
+    let gapped = |s: &mut Sec, beats: f64| -> R<Sec> {
+        let mut t = s.clone();
+        if beats.is_nan() || beats <= 0.0 {
+            return fail(format!("a gap lasts some beats, more than none ({beats})"));
+        }
+        (t.spec.gap, t.spec.gap_beats) = (true, beats.min(64.0) as f32);
+        Ok(t)
+    };
+    engine.register_fn("gap", move |s: &mut Sec, beats: rhai::FLOAT| gapped(s, beats));
+    engine.register_fn("gap", move |s: &mut Sec, beats: INT| gapped(s, beats as f64));
+    // the bars at the section's end its build-up takes
+    engine.register_fn("build_bars", |s: &mut Sec, bars: INT| {
+        let mut t = s.clone();
+        t.spec.build_bars = (bars > 0).then(|| bars.min(256) as u32);
+        t
+    });
     flag!("impact", impact);
     flag!("fills", fills);
     flag!("filter_in", filter_in);
@@ -221,7 +240,9 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 "build",
                 "build_style",
                 "build_amount",
+                "build_bars",
                 "gap",
+                "gap_beats",
                 "impact",
                 "fills",
                 "filter_in",
@@ -267,13 +288,26 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     *field = v;
                 }
             }
-            // a style named turns the build-up on, as `.build(style)` does, unless the map turns it off
+            // a style named turns the build-up on, as `.build(style)` does, unless the map turns it off; so do its bars
             if let Some(v) = map_str(&m, "build_style") {
                 s.build_style = BuildStyle::parse(&v)?;
                 s.build |= !m.contains_key("build");
             }
             if let Some(v) = map_f32(&m, "build_amount") {
                 s.build_amount = v.clamp(0.0, 1.0);
+            }
+            if let Some(v) = m.get("build_bars").and_then(num) {
+                s.build_bars = (v >= 1.0).then(|| (v as u32).min(256));
+                s.build |= s.build_bars.is_some() && !m.contains_key("build");
+            }
+            // a gap of so many beats, `gap: 2` or `gap_beats: 2`, turns the gap on, unless the map turns it off
+            let beats = m.get("gap").and_then(num).or_else(|| m.get("gap_beats").and_then(num));
+            if let Some(v) = beats {
+                if v.is_nan() || v <= 0.0 {
+                    return fail(format!("a gap lasts some beats, more than none ({v})"));
+                }
+                s.gap_beats = v.min(64.0) as f32;
+                s.gap |= m.get("gap").is_none_or(|d| d.as_bool().is_err());
             }
             let s = s.clone();
             check_section(bp, &s, &optional)
