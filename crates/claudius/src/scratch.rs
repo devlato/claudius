@@ -293,8 +293,10 @@ fn cut(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<crate::model:
     Ok(p.slice(bar, bar + bars))
 }
 
-/// The record read along `moves` (in time order) through the crossfader: what the scratch sounds like. The record goes
-/// round: past its end it plays from its start, and before its start from its end; held still, it is silent.
+/// The record read along `moves` (in time order) through the crossfader: what the scratch sounds like. Past its end the
+/// record goes round to its start (a record cut from the song is whole bars, so its end leads into its start); before
+/// its start the needle is in its lead-in groove, which is silent, so a record pulled back past its first sound plays
+/// nothing there, as a vinyl record does, rather than a blip of its end; held still, it is silent.
 pub fn render(record: &Stereo, moves: &[Move]) -> Result<Stereo, String> {
     let mut x = read(record, moves)?;
     // a still record holds a sample, which is no sound: a high-pass at about 10 Hz takes it out
@@ -322,11 +324,23 @@ pub fn opening(f: f32) -> f32 {
     x * x * (3.0 - 2.0 * x)
 }
 
+/// how long the record's first sound takes to come in out of the lead-in groove's silence, in seconds: a record cut
+/// on a bar line can start on a sample far from nothing, which the needle crossing into it would click on
+pub const LEAD_IN: f64 = 0.002;
+
 /// The record at the bandwidths a needle reads it at: the whole of it, and low-passed under a quarter, an eighth and a
 /// sixteenth of the rate (at 9.6, 4.8 and 2.4 kHz), so that a record moved at two, four or eight times its speed does
-/// not alias, its highs carried past half the rate and folded back as a scratch's whistle.
+/// not alias, its highs carried past half the rate and folded back as a scratch's whistle. Its first `LEAD_IN` comes
+/// in out of silence.
 fn levels(record: &Stereo) -> Vec<Stereo> {
-    let mut out = vec![record.clone()];
+    let mut first = record.clone();
+    let fade = ((LEAD_IN * SRF) as usize).min(first.len());
+    for i in 0..fade {
+        let g = i as f32 / fade as f32;
+        first.l[i] *= g;
+        first.r[i] *= g;
+    }
+    let mut out = vec![first];
     for k in 2..=4 {
         let mut x = out[out.len() - 1].clone();
         for side in [&mut x.l, &mut x.r] {
@@ -364,8 +378,11 @@ fn place(moves: &[Move], k: usize, t: f64) -> (f64, f64) {
 }
 
 /// the record under the needle at `pos` seconds of it, read at `speed` times its own speed: from the bandwidth that
-/// leaves it unaliased (`levels`), between the two nearest
+/// leaves it unaliased (`levels`), between the two nearest; nothing before its start, in the lead-in groove
 fn needle(levels: &[Stereo], pos: f64, speed: f64) -> (f32, f32) {
+    if pos < 0.0 {
+        return (0.0, 0.0);
+    }
     let len = levels[0].len();
     let at = (pos * SRF).rem_euclid(len as f64);
     let (j, f) = ((at as usize).min(len - 1), (at - at.floor()) as f32);
@@ -481,6 +498,41 @@ mod tests {
     }
 
     #[test]
+    fn a_take_of_moves_a_few_milliseconds_apart_plays_the_scratch_as_it_was_played() {
+        // a baby scratch: the record pushed forward and pulled back eight times a second over a tenth of a second of it
+        let n = (2.0 * SRF) as usize;
+        let mut rec = Stereo::zeros(n);
+        for i in 0..n {
+            let t = i as f64 / SRF;
+            let v = (0.4 * (t * 180.0 * std::f64::consts::TAU).sin() + 0.2 * (t * 530.0 * std::f64::consts::TAU).sin())
+                as f32;
+            (rec.l[i], rec.r[i]) = (v, v);
+        }
+        let path = |t: f64| 0.5 + 0.08 * (t * 8.0 * std::f64::consts::TAU).sin();
+        let speed = |t: f64| (0.08 * 8.0 * std::f64::consts::TAU * (t * 8.0 * std::f64::consts::TAU).cos()).abs();
+        let secs = 1.0;
+        let moves = |every: usize| -> Vec<Move> {
+            let k = (secs * SRF) as usize / every;
+            (0..=k).map(|j| (j * every) as f64 / SRF).map(|t| Move { t, at: path(t), fader: 1.0 }).collect()
+        };
+        // the record under the needle along the path itself
+        let lv = levels(&rec);
+        let truth: Vec<f32> =
+            (0..(secs * SRF) as usize).map(|i| i as f64 / SRF).map(|t| needle(&lv, path(t), speed(t)).0).collect();
+        let snr = |every: usize| {
+            let out = read(&rec, &moves(every)).unwrap();
+            let (a, b) = (2400, truth.len() - 2400);
+            let signal: f64 = truth[a..b].iter().map(|v| (*v as f64).powi(2)).sum();
+            let noise: f64 = truth[a..b].iter().zip(&out.l[a..b]).map(|(t, o)| (*t as f64 - *o as f64).powi(2)).sum();
+            10.0 * (signal / noise.max(1e-12)).log10()
+        };
+        // a move each 128 samples, as the phone sends them, against one each audio block of 1024
+        let (dense, blocks) = (snr(128), snr(1024));
+        assert!(dense > 35.0, "a move every 2.7 ms plays it as played: {dense:.1} dB");
+        assert!(dense > blocks + 15.0, "far nearer than a move every 21 ms: {dense:.1} against {blocks:.1} dB");
+    }
+
+    #[test]
     fn a_crossfader_opens_within_a_hair_of_its_travel() {
         assert_eq!((opening(0.0), opening(CUT_IN), opening(0.5), opening(1.0)), (0.0, 1.0, 1.0, 1.0));
         assert!((opening(CUT_IN / 2.0) - 0.5).abs() < 1e-6);
@@ -510,8 +562,11 @@ mod tests {
         let out = read(&rec, &moves).unwrap();
         assert!((at(&out, 0.1) - at(&rec, 0.85)).abs() < 1e-3, "before its end");
         assert!((at(&out, 0.4) - at(&rec, 0.15)).abs() < 1e-3, "past its end, from its start");
+        // pulled back past its start, the needle is in the lead-in groove: silent there, not the record's end
         let back = [Move { t: 0.0, at: 0.25, fader: 1.0 }, Move { t: 0.5, at: -0.25, fader: 1.0 }];
-        assert!((at(&read(&rec, &back).unwrap(), 0.4) - at(&rec, 0.85)).abs() < 1e-3, "before its start, its end");
+        let pulled = read(&rec, &back).unwrap();
+        assert!((at(&pulled, 0.1) - at(&rec, 0.15)).abs() < 1e-3, "after its start, the record");
+        assert!(at(&pulled, 0.4).abs() < 1e-6, "before its start, the lead-in's silence: {}", at(&pulled, 0.4));
         assert!(render(&rec, &moves[..1]).is_err());
         assert!(render(&Stereo::zeros(0), &moves).is_err());
         let back = [Move { t: 1.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.5, fader: 1.0 }];

@@ -198,6 +198,45 @@ test.describe("playing from a phone", () => {
       await touch("pointerup");
       expect(await speed(150), "a spin back").toBeLessThan(-0.5);
       expect(await speed(1500)).toBeCloseTo(1, 1);
+      // a finger dragging the record at a steady pace, a third of a turn a second, as a screen reports it every 16 ms:
+      // the record goes with it at its pace through every audio block, rather than jumping to each place the page hears
+      // of as a block begins and resting until the next (a buzz)
+      const paced = await phone.evaluate(async () => {
+        const c = $("platter");
+        const r = c.getBoundingClientRect();
+        const rad = Math.min(r.width, r.height) * 0.4;
+        const where = (turn) => ({
+          clientX: r.left + r.width / 2 + rad * Math.cos(-Math.PI / 2 + turn),
+          clientY: r.top + r.height / 2 + rad * Math.sin(-Math.PI / 2 + turn),
+        });
+        const init = { pointerId: 9, pointerType: "touch", isPrimary: true, bubbles: true, pressure: 0.5, width: 1, height: 1 };
+        const seen = [];
+        const spun = deck.node.onaudioprocess;
+        deck.node.onaudioprocess = (e) => {
+          spun(e);
+          if (hold.grab) seen.push(deck.vel);
+        };
+        c.dispatchEvent(new PointerEvent("pointerdown", { ...init, ...where(0) }));
+        const start = performance.now();
+        await new Promise((done) => {
+          const step = () => {
+            const t = (performance.now() - start) / 1000;
+            c.dispatchEvent(new PointerEvent("pointermove", { ...init, ...where((t * 2 * Math.PI) / 3) }));
+            if (t < 1.2) setTimeout(step, 16);
+            else done();
+          };
+          step();
+        });
+        deck.node.onaudioprocess = spun;
+        c.dispatchEvent(new PointerEvent("pointerup", { ...init, ...where(0.8 * Math.PI) }));
+        return seen;
+      });
+      // once it has the record (a block or two), at a third of a turn a second: 0.6 s of the record a second
+      const held = paced.slice(6, -2);
+      expect(held.length, "blocks while the finger held it").toBeGreaterThan(20);
+      expect(Math.min(...held), "it never rests between the finger's moments").toBeGreaterThan(0.3);
+      expect(Math.max(...held), "nor races to catch up").toBeLessThan(1.2);
+      expect(await speed(1500)).toBeCloseTo(1, 1);
       // the motor off, the brake stops the platter, and the record with it, in about a third of a second
       await phone.click("#motor");
       expect(await speed(150)).toBeGreaterThan(0.2);

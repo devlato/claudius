@@ -47,7 +47,9 @@ phone's own speaker is taken off.
   [gathered](online-samples.md) for the song's genre (then those gathered for words you searched), and the Apple Loops
   and loops of your own folders of the genre's kinds, nearest the song's tempo first. A sample is a record of its own
   first bars (a vocal chop, all of it); the demo has no library, so it offers the song's own records only. The record
-  waits at its cue, its first sound, which a sticker marks as it comes round under the needle. With **motor** on it
+  waits at its cue, its first sound, which a sticker marks as it comes round under the needle. Pulled back past its
+  cue, it is silent, as the lead-in groove before a vinyl record's first sound is; past its end it goes round to its
+  start. With **motor** on it
   spins in time with the song: one cut from the song at its own speed, since it was cut at the song's tempo, and a
   sample at the speed its tempo needs, by octaves the nearest (a loop at half the song's tempo plays in time as half
   time), as a DJ sets a record's pitch. **pitch** moves it up to 16 % faster or slower, the tempo it plays at shown
@@ -68,7 +70,8 @@ phone's own speaker is taken off.
   where the screen says nothing of that either, the longer your finger rests, the harder it brakes, stopping the record
   in about half a second. Move your finger a few millimetres along the record (further than a fingertip shifts as you
   press harder) and it grabs: the record goes with it until you lift it, to scratch or to spin it by hand, and holds
-  still while your finger does. Let go while moving and the record runs on at the speed you gave it, up to four times
+  still while your finger does. It follows your finger's path as smoothly as your finger moves, a few hundredths of a
+  second behind it, since a phone tells the page where a moving finger is only 60 or 120 times a second. Let go while moving and the record runs on at the speed you gave it, up to four times
   its own, so a swipe spins it faster, and a swipe backwards spins it back a moment, until the slipmat brings it to the
   platter's speed (with the motor off, to rest). The motor, like a DJ's turntable's, brings the platter up to speed in a
   third of a second, and its brake stops it as fast. A spot under your finger shows how hard it brakes, and a ring that
@@ -77,7 +80,8 @@ phone's own speaker is taken off.
   Moved fast, the record whistles no highs folded back, as a needle reads a record, and the crossfader opens within a
   hair of its travel, as a scratch DJ's does, so a flick cuts the sound in and out. A take becomes a take of the
   scratch, `scratch1`, `scratch2` ..., that plays from the start of the section it began in, read along your moves as
-  you heard it.
+  you heard them: where the record was every few milliseconds, and the crossfader, so that fast strokes and cuts come
+  out as you played them.
 
 The pads, keys and turntable play without a take too, for practice, and while the studio is stopped.
 
