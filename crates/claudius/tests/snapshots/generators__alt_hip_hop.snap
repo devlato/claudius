@@ -8,35 +8,35 @@ prog B: Imaj9 IVsus2 Imaj9 V9
 prog C: V9 IVmaj9 Imaj9 Imaj9
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: keys pad
-section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat rim bass fuzz keys pad keys_double shaker
+section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat rim bass fuzz keys shaker
 section hook (hook) 16 bars, energy 1.00, prog C, main [fills]: kick snare clap hat ohat bass fuzz keys pad lead strings sparkle keys_double shaker perc
-section verse2 (verse) 16 bars, energy 0.76, prog A, alt [gap fills]: kick snare hat rim bass fuzz keys pad strings lead keys_double shaker
+section verse2 (verse) 16 bars, energy 0.71, prog A, alt [gap fills]: kick snare hat rim bass fuzz keys pad strings keys_double shaker
 section hook2 (hook) 8 bars, energy 1.00, prog C, main [fills]: kick snare clap hat ohat bass fuzz keys pad lead strings sparkle keys_double shaker perc
 section switch (verse) 16 bars, energy 0.83, prog B, half [build]: kick snare hat bass fuzz keys lead keys_double shaker
 section bridge (break) 16 bars, energy 0.40, prog B, main []: keys pad strings
 section hook3 (hook) 8 bars, energy 1.00, prog C, main [fills]: kick snare clap hat ohat bass fuzz keys pad lead strings sparkle keys_double shaker perc
 section outro (outro) 4 bars, energy 0.30, prog A, main []: keys strings
-drum kick alt (drum kick): X.........X.....|X......X........|X.........X.....|X......X........
-drum kick half (drum kick): X...............|......X.........|X...............|......X.........
-drum kick main (drum kick): X.........X.....|X..X......X.....|X.........X.....|X..X......X.....
+drum kick alt (drum kick): X.........X....X|X...............|X.........X....X|X...............
+drum kick half (drum kick): X...............|................|X...............|................
+drum kick main (drum kick): X.........X.....|X.X.......X..X..|X.........X.....|X.X.......X..X..
 drum snare half (drum snare): ........X.......|........X.......|........X.......|........X.......
-drum snare main (drum snare): ....X.....o.X...|....X.....o.X...|....X.....o.X...|....X.....o.X...
+drum snare main (drum snare): ....X..o..ooX...|....X..o..ooX...|....X..o..ooX...|....X..o..ooX...
 drum clap half (drum clap): ........X.......|........X.......|........X.......|........X.......
 drum clap main (drum clap): ....x.......x...|....x.......x...|....x.......x...|....x.......x...
 drum hat half (drum closed_hat): x...x...x...x...|x...x...x...x...|x...x...x...x...|x...x...x...x...
-drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x...x...x.x.x.xx
-drum ohat main (drum open_hat): ................|..............x.|................|..............x.
-drum rim main (drum rim): ......x.......x.|......x.......x.|......x.......x.|...x..x.......x.
+drum hat main (drum closed_hat): xo..x.o.x.oox...|xo..x.o.x.oox...|xo..x.o.x.oox...|xo..x.o.x.oox...
+drum ohat main (drum open_hat): ..............x.|................|..............x.|................
+drum rim main (drum rim): ......x.......x.|......x.......x.|......x.......x.|......x.......x.
 drum shaker main (drum shaker): .xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.
 drum perc main (drum perc): ..x...x.....x...|..x...x.....x...|..x...x.....x...|..x...x.....x...
-part bass (bass): glide synth sub_bass, register 26..43, density 0.59
+part bass (bass): syncopated synth sub_bass, register 26..43, density 0.59
 part fuzz (bass): boom_bap synth rubber_bass, register 38..55, density 0.53
-part keys (keys): half synth house_piano, register 50..76, density 0.53
-part pad (pad): sustain synth pad, register 48..74, density 0.55
-part lead (lead): lofi_melody synth soft_lead, register 62..84, density 0.35
-part strings (pad): pizzicato synth strings, register 55..81, density 0.55
-part sparkle (arp): random synth harp_pluck, register 72..96, density 0.37
-part keys_double (keys): half synth epiano, register 62..88, density 0.53
+part keys (keys): rnb_keys synth house_piano, register 53..79, density 0.53
+part pad (pad): pizzicato synth air_pad, register 44..70, density 0.54
+part lead (lead): horn_riff synth vox_lead, register 58..80, density 0.26
+part strings (pad): legato synth glass_pad, register 55..81, density 0.53
+part sparkle (arp): random synth harp_pluck, register 71..95, density 0.37
+part keys_double (keys): rnb_keys synth keys, register 66..92, density 0.53
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix clap: -4.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums

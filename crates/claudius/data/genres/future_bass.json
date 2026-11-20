@@ -125,7 +125,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "supersaw", "stab", "pwm_pad"],
+      "presets": ["supersaw"],
       "styles": ["syncopated", "pump", "sustain", "syncopated", "pump", "sustain", "stabs", "offbeat"],
       "register": [52, 79],
       "voices": 5,
@@ -163,7 +163,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "pluck", "chip", "bell"],
+      "presets": ["pluck"],
       "styles": ["up", "updown", "random", "up", "updown", "random", "pinky"],
       "rates": [0.25],
       "register": [64, 88],

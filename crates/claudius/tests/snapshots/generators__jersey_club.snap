@@ -8,9 +8,9 @@ prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: chords chop hat
-section lift (build) 4 bars, energy 0.45, prog A, main [build]: chords chop hat
+section lift (build) 4 bars, energy 0.40, prog A, main [build]: chords hat
 section hook (hook) 16 bars, energy 0.95, prog C, main [impact fills]: kick snare hat squeak bass chords chop
-section verse (verse) 8 bars, energy 0.71, prog A, alt [fills]: kick snare hat squeak bass chords
+section verse (verse) 8 bars, energy 0.76, prog A, alt [fills]: kick snare hat squeak bass chords chop
 section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat squeak bass chords chop pad
 section break (break) 8 bars, energy 0.48, prog B, main []: chords chop pad
 section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat squeak bass chords chop pad
@@ -18,12 +18,11 @@ section outro (outro) 16 bars, energy 0.36, prog A, main []: chords hat
 drum kick alt (drum kick): X...X...X..X....|X...X...X..X....|X...X...X..X....|X...X...X..X....
 drum kick main (drum kick): X...X...X..X..X.|X...X...X..X..X.|X...X...X..X..X.|X...X...X..X..X.
 drum snare main (drum snare): ........X..X....|........X.XX....|........X..X....|........X.XX....
-drum hat main (drum closed_hat): ........x...........x...oxxxxxxX|........x...........x...x.......|........x...........x...x.......|........x...........x...x.......
-drum squeak main (drum perc): ..x..........x..|..x..........x..|..x..........x..|..x..........x..
-part bass (bass): glide synth sub_bass, register 24..40, density 0.59
-part chords (chords): syncopated synth keys, register 55..76, density 0.59
-part chop (lead): riff synth vox_lead, register 62..79, density 0.56
-part pad (pad): sustain synth warm_pad, register 48..72, density 0.56
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.x.x.x.x.oxxxxxxX
+drum squeak main (drum perc): ..x...x......x..|..x...x......x..|..x...x......x..|..x...x......x..
+part bass (bass): sustain synth 808, register 22..38, density 0.47
+part chords (chords): syncopated synth stab, register 51..72, density 0.57
+part chop (lead): disco_hook synth pluck, register 62..79, density 0.52
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
@@ -31,4 +30,3 @@ mix squeak: +0.0 dB, pan +0.25, reverb 0.00, delay 0.10, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
 mix chords: +0.0 dB, pan +0.00, reverb 0.34, delay 0.12, duck 0.30, bus music
 mix chop: +0.0 dB, pan +0.00, reverb 0.17, delay 0.17, duck 0.00, bus music
-mix pad: -4.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.00, bus music

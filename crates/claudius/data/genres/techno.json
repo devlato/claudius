@@ -156,7 +156,7 @@
       "name": "acid",
       "core": 1.0,
       "role": "bass",
-      "presets": ["acid", "acid", "sub_bass", "saw_bass"],
+      "presets": ["acid"],
       "styles": ["acid", "acid", "pulse", "rolling", "offbeat"],
       "register": [36, 55],
       "optional": 0.45,

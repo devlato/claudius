@@ -8,24 +8,24 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: pad arp
-section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass arp pad
+section verse (verse) 16 bars, energy 0.55, prog A, main [fills]: kick snare hat bass arp
 section lift (build) 4 bars, energy 0.60, prog A, main [build]: snare hat bass arp pad
 section chorus (hook) 8 bars, energy 0.81, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
-section verse2 (verse) 16 bars, energy 0.69, prog A, main [fills]: kick snare hat bass arp pad chords
+section verse2 (verse) 16 bars, energy 0.64, prog A, alt [fills]: kick snare hat bass arp pad
 section chorus2 (hook) 16 bars, energy 0.93, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
 section bridge (break) 16 bars, energy 0.50, prog B, main [build]: pad lead
 section chorus3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
 section outro (outro) 8 bars, energy 0.40, prog A, main []: pad arp
 drum kick alt (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
-drum kick main (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
+drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum hat alt (drum closed_hat): x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx
 drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
-part bass (bass): root8 synth saw_bass, register 33..48, density 0.51
-part arp (arp): updown synth pluck, register 60..84, density 0.60
-part pad (pad): sustain synth solina, register 50..76, density 0.43
+part bass (bass): root8 synth saw_bass, register 32..47, density 0.51
+part arp (arp): updown synth pluck, register 62..86, density 0.60
+part pad (pad): sustain synth solina, register 52..78, density 0.43
 part lead (lead): synth_lead synth saw_lead, register 64..86, density 0.51
-part chords (chords): sustain synth supersaw, register 55..76, density 0.52
+part chords (chords): sustain synth supersaw, register 54..75, density 0.52
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.50, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

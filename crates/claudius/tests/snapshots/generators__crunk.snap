@@ -10,19 +10,19 @@ section intro (intro) 4 bars, energy 0.44, prog A, main [filter_in]: lead hat
 section hook (hook) 8 bars, energy 0.95, prog A, main [impact]: kick snare clap hat bass lead stabs
 section verse (verse) 8 bars, energy 0.70, prog A, main [gap fills]: kick snare clap hat bass lead
 section hook2 (hook) 8 bars, energy 0.91, prog A, main [impact]: kick snare clap hat ohat bass lead stabs
-section verse2 (verse) 16 bars, energy 0.81, prog A, alt [fills]: kick snare clap hat bass lead pad stabs
+section verse2 (verse) 16 bars, energy 0.76, prog A, alt [fills]: kick snare clap hat bass pad stabs
 section breakdown (break) 8 bars, energy 0.43, prog A, main [gap]: lead pad
 section hook3 (hook) 16 bars, energy 1.00, prog A, main [impact]: kick snare clap hat ohat bass lead stabs pad
 section outro (outro) 4 bars, energy 0.41, prog A, main []: lead hat
 drum kick alt (drum kick): X.....X.X.......|X.......X.X.....|X.....X.X.......|X.......X.X.....
-drum kick main (drum kick): X.......X.......|X.....X.X.......|X.......X.......|X.....X.X.......
+drum kick main (drum kick): X.......X..X....|X.....X.X.......|X.......X..X....|X.....X.X.......
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x..x..|x.....x.....x.....x.....x.....x.....x.....x..x..|x.....x.....X.X.x.x.x.x.x.....x.....x.....x..x..|x.....x.....x.....x.....x.....x.....x.....x..x..
-drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-part bass (bass): kick_follow synth 808, register 24..40, density 0.47
-part lead (lead): riff synth saw_lead, register 60..82, density 0.57
-part stabs (chords): brass_stabs synth brass_stab, register 52..72, density 0.52
+drum hat main (drum closed_hat): x...x...x...x...x...x...x...x...|x...x...x...x...x...x...x...x...|x...x...x...x...x...x...x...x...|x...x...x...x...x...x...oxxxxxxX
+drum ohat main (drum open_hat): ................|................|................|................
+part bass (bass): sustain synth 808, register 22..38, density 0.47
+part lead (lead): trap_bells synth saw_lead, register 61..83, density 0.57
+part stabs (chords): brass_stabs synth brass_stab, register 49..69, density 0.52
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix clap: -1.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums

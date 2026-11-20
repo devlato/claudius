@@ -116,7 +116,7 @@
     {
       "name": "sub",
       "role": "bass",
-      "presets": ["sub_bass", "sub_bass", "wobble", "dist_bass"],
+      "presets": ["sub_bass"],
       "styles": ["sustain", "sustain", "syncopated", "halftime"],
       "register": [24, 38],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": -3.0}

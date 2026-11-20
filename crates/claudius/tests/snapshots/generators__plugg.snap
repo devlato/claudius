@@ -11,20 +11,20 @@ section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: keys pad le
 section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: kick clap hat ohat bass keys pad lead
 section verse (verse) 8 bars, energy 0.65, prog A, alt [gap fills]: kick clap hat bass keys pad
 section hook2 (hook) 16 bars, energy 0.86, prog C, main [fills]: kick clap hat ohat bass keys pad lead
-section verse2 (verse) 16 bars, energy 0.77, prog A, alt [gap fills]: kick clap hat bass keys lead pad
+section verse2 (verse) 16 bars, energy 0.72, prog A, alt [gap fills]: kick clap hat bass lead pad
 section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys lead
 section hook3 (hook) 8 bars, energy 0.97, prog C, main [fills]: kick clap hat ohat bass keys pad lead
 section outro (outro) 16 bars, energy 0.31, prog A, main []: keys lead
-drum kick alt (drum kick): X...............|X...............|X...............|X...............
-drum kick main (drum kick): X.........X.....|X.....X.........|X.........X.....|X.....X.........
+drum kick alt (drum kick): X...............|X.........X.....|X...............|X.........X.....
+drum kick main (drum kick): X.......X..X....|X.....X.X.......|X.......X..X....|X.....X.X.......
 drum clap main (drum clap): ........X.......|........X.......|........X.......|........X.......
-drum hat alt (drum closed_hat): x.......x.......x.......x.......|x.......x.......x.......oxxxxxxX|x.......x.......oxxxxxxXoxxxxxxX|x.......x.......x.......x.......
-drum hat main (drum closed_hat): x...........XXXxxxxxxxxxx...........XXXxxxxxxxxx|ooxxxxxxxxXXx...........x...........o.xx.xx.xx.X|x.................X.xx.xo.xx.xx.xx.Xx.....x.....|XXXxxxxxxxxxXXXxxxxxxxxx......o.xx.xo.xx.xx.xx.X
-drum ohat main (drum open_hat): ................|................|................|................
-part bass (bass): glide synth 808, register 24..42, density 0.47
-part keys (keys): trap_keys synth epiano, register 52..76, density 0.57
-part pad (pad): sustain synth strings, register 52..76, density 0.59
-part lead (lead): ambient_line synth pluck, register 67..88, density 0.38
+drum hat alt (drum closed_hat): x.......x.......x.......oxxxxxxX|x.......x.......x.......x.......|x.......x.......x.......x.......|x.......x.......x.......x.......
+drum hat main (drum closed_hat): x........x........x...........o.xx.xXXXxxxxxxxxx|x........x..XXXxxxxxxxxxooxxxxxxxxXX......x.....|x........x..o.xx.xx.xx.Xx........x........X.xx.x|x........x........x.....o.xx.xx.xx.XXXXxxxxxxxxx
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+part bass (bass): kick_follow synth 808, register 22..40, density 0.47
+part keys (keys): arpeggio synth epiano, register 55..79, density 0.57
+part pad (pad): sustain synth strings, register 48..72, density 0.59
+part lead (lead): rock_lead synth pluck, register 67..88, density 0.38
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums

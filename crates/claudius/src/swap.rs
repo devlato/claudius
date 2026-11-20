@@ -382,7 +382,7 @@ mod tests {
         let bass = bp.parts.iter().find(|p| p.name == "bass").unwrap();
         let list = choices(&bp, "bass").unwrap();
         let g = genres::get("house").unwrap();
-        let own: Vec<&str> = g
+        let mut own: Vec<&str> = g
             .parts
             .iter()
             .find(|s| s.name == "bass")
@@ -392,6 +392,9 @@ mod tests {
             .flat_map(|e| e.split('|'))
             .filter(|a| presets::get(a).is_some())
             .collect();
+        // a preset the genre lists twice, to draw it twice as often, is one choice
+        let mut seen = BTreeSet::new();
+        own.retain(|a| seen.insert(*a));
         assert!(!own.is_empty());
         let groups: Vec<&str> = list.iter().map(|c| c.group).collect();
         assert!(groups.windows(2).all(|w| rank(w[0]) <= rank(w[1])), "the genre's own first, then nearer: {groups:?}");

@@ -8,10 +8,10 @@ prog B: I IVsus2 I V
 prog C: V IV I I
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.44, prog A, sparse [filter_in]: chords pad hat
-section verse (verse) 16 bars, energy 0.60, prog A, pop []: kick clap hat bass chords hook
+section verse (verse) 16 bars, energy 0.55, prog A, pop []: kick clap hat bass chords
 section pre (build) 4 bars, energy 0.70, prog B, main [build gap]: clap hat bass chords pad hook
 section chorus (hook) 16 bars, energy 0.91, prog C, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
-section verse2 (verse) 16 bars, energy 0.74, prog A, pop []: kick clap hat shaker bass chords hook lead
+section verse2 (verse) 16 bars, energy 0.69, prog A, pop []: kick clap hat shaker bass hook lead
 section pre2 (build) 4 bars, energy 0.73, prog B, main [build gap]: clap hat bass chords pad hook
 section chorus2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
 section bridge (break) 8 bars, energy 0.41, prog B, main []: pad hook chords
@@ -20,16 +20,16 @@ section outro (outro) 8 bars, energy 0.32, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick pop (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): xxxx.xx.xxx...x.|xxxx.xx.xxx...x.|xxxx.xx.xxx...x.|xxxx.xx.xxx...x.
-drum hat pop (drum closed_hat): x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx
+drum hat main (drum closed_hat): x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx
+drum hat pop (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): ....o....oo.....|....o....oo.....|....o....oo.....|....o....oo.....
-part bass (bass): pulse a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 33..52, density 0.51
-part chords (chords): offbeat synth keys, register 55..76, density 0.60
-part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
-part hook (lead): disco_hook synth vox_lead, register 60..77, density 0.45
-part lead (lead): synth_lead synth supersaw, register 67..88, density 0.42
+drum shaker main (drum shaker): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
+part bass (bass): pulse synth saw_bass, register 32..51, density 0.51
+part chords (chords): offbeat synth stab, register 54..75, density 0.60
+part pad (pad): sustain synth strings, register 50..76, density 0.52
+part hook (lead): riff synth pluck, register 63..80, density 0.51
+part lead (lead): riff synth house_piano, register 63..84, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

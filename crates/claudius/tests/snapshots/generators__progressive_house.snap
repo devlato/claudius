@@ -7,9 +7,9 @@ prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 1
 section intro (intro) 16 bars, energy 0.39, prog A, sparse [filter_in]: kick hat shaker bass
-section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat shaker bass chords arp
+section groove (groove) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat ohat shaker bass chords
 section break (break) 8 bars, energy 0.35, prog B, main []: piano pad lead
-section build (build) 8 bars, energy 0.61, prog B, main [build gap]: clap hat piano pad lead arp
+section build (build) 8 bars, energy 0.56, prog B, main [build gap]: clap hat piano pad lead
 section drop (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords lead arp pad
 section break2 (break) 8 bars, energy 0.43, prog A, main []: piano pad arp
 section build2 (build) 4 bars, energy 0.75, prog A, main [build gap]: clap hat piano pad lead arp
@@ -17,15 +17,16 @@ section drop2 (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick cla
 section outro (outro) 4 bars, energy 0.30, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): ..x...x..xx..xx.|..x...x..xx..xx.|..x...x..xx..xx.|..x...x..xx..xx.
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): ooooo.oo..o.oo..|ooooo.oo..o.oo..|ooooo.oo..o.oo..|ooooo.oo..o.oo..
-part bass (bass): syncopated synth saw_bass, register 33..50, density 0.51
-part chords (chords): stabs synth stab, register 55..79, density 0.60
-part piano (keys): half synth keys, register 52..78, density 0.43
-part lead (lead): synth_lead synth saw_lead, register 64..81, density 0.51
-part arp (arp): up synth harp_pluck, register 60..86, density 0.53
+drum ohat main (drum open_hat): ................|................|................|................
+drum shaker main (drum shaker): ooo.o.o.ooo...oo|ooo.o.o.ooo...oo|ooo.o.o.ooo...oo|ooo.o.o.ooo...oo
+part bass (bass): deep a rack of synth patch 'sub_bass', register 33..50, density 0.59
+part chords (chords): stabs synth organ, register 55..79, density 0.59
+part piano (keys): stabs synth keys, register 50..76, density 0.56
+part lead (lead): organ_riff synth saw_lead, register 63..80, density 0.40
+part pad (pad): sustain synth vowel_pad, register 49..77, density 0.59
+part arp (arp): updown synth fm_lead, register 57..83, density 0.47
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
@@ -35,4 +36,5 @@ mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.70, bus bass
 mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.12, duck 0.55, bus music
 mix piano: +0.0 dB, pan +0.00, reverb 0.29, delay 0.08, duck 0.35, bus music
 mix lead: +0.0 dB, pan +0.00, reverb 0.32, delay 0.35, duck 0.35, bus music
-mix arp: +0.0 dB, pan +0.15, reverb 0.41, delay 0.24, duck 0.40, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.68, delay 0.00, duck 0.45, bus music
+mix arp: +0.0 dB, pan +0.15, reverb 0.37, delay 0.30, duck 0.40, bus music

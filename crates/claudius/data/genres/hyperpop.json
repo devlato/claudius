@@ -102,7 +102,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["808", "808", "sub_bass", "saw_bass"],
+      "presets": ["808"],
       "styles": ["kick_follow", "glide", "kick_follow", "glide", "sustain"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 12, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 6000, "res": 0.1}]}

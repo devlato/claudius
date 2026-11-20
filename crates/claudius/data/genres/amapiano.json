@@ -87,7 +87,7 @@
     {
       "name": "logdrum",
       "role": "bass",
-      "presets": ["log_drum", "log_drum", "sub_bass", "rubber_bass"],
+      "presets": ["log_drum"],
       "styles": ["log_drum", "kick_follow", "log_drum", "kick_follow", "syncopated", "afro"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}

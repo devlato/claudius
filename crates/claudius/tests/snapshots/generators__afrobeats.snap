@@ -8,9 +8,9 @@ prog B: Imaj7 IVsus2 Imaj7 V7
 prog C: V7 IVmaj7 Imaj7 Imaj7
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: shaker conga guitar
-section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick clap rim shaker conga bass guitar keys
+section verse (verse) 16 bars, energy 0.75, prog A, main [fills]: kick clap rim shaker conga bass guitar keys lead
 section hook (hook) 8 bars, energy 0.90, prog C, main [impact fills]: kick clap rim hat shaker conga bass guitar keys lead pad
-section verse2 (verse) 16 bars, energy 0.76, prog A, main [gap fills]: kick clap rim shaker conga bass guitar keys pad lead
+section verse2 (verse) 16 bars, energy 0.71, prog A, main [gap fills]: kick clap rim shaker conga bass guitar keys pad
 section hook2 (hook) 16 bars, energy 0.99, prog C, main [impact fills]: kick clap rim hat shaker conga bass guitar keys lead pad
 section break (break) 16 bars, energy 0.43, prog B, main [build]: shaker guitar lead
 section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap rim hat shaker conga bass guitar keys lead pad
@@ -18,14 +18,13 @@ section outro (outro) 8 bars, energy 0.36, prog A, main []: shaker guitar
 drum kick main (drum kick): X.......X.....X.|X.......X.....X.|X.......X.....X.|X.......X.....X.
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum rim main (drum rim): x..x..x...x.x...|x..x..x...x.x...|x..x..x...x.x...|x..x..x...x.x...
-drum hat main (drum closed_hat): ..x...x...x.ooxx|..x...x...x.ooxx|..x...x...x.ooxx|..x...x...x.ooxx
-drum shaker main (drum shaker): ..o.o.oo..ooo.oo|..o.o.oo..ooo.oo|..o.o.oo..ooo.oo|..o.o.oo..ooo.oo
-drum conga main (drum perc): ..x..x....x..x..|..x..x....x..x..|..x..x....x..x..|..x..x....x..x..
-part bass (bass): afro synth rubber_bass, register 31..48, density 0.47
-part guitar (chords): highlife synth pluck, register 55..76, density 0.57
-part keys (keys): half synth tine_piano, register 50..74, density 0.59
-part lead (lead): afro_flute synth fm_marimba, register 62..84, density 0.46
-part pad (pad): sustain synth vowel_pad, register 50..74, density 0.59
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
+drum shaker main (drum shaker): oo..o.o.oo..ooo.|oo..o.o.oo..ooo.|oo..o.o.oo..ooo.|oo..o.o.oo..ooo.
+drum conga main (drum perc): ..x.......x.....|..x.......x.....|..x.......x.....|..x..x....x..x..
+part bass (bass): afro a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 30..47, density 0.51
+part guitar (chords): highlife synth pluck, register 54..75, density 0.60
+part keys (keys): gospel synth mallet, register 52..76, density 0.53
+part lead (lead): afro_flute synth vox_lead, register 63..85, density 0.41
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix rim: +0.0 dB, pan +0.30, reverb 0.10, delay 0.00, duck 0.00, bus drums
@@ -36,4 +35,3 @@ mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.30, bus bass
 mix guitar: +0.0 dB, pan +0.20, reverb 0.27, delay 0.12, duck 0.00, bus music
 mix keys: +0.0 dB, pan -0.20, reverb 0.21, delay 0.00, duck 0.00, bus music
 mix lead: +0.0 dB, pan +0.00, reverb 0.27, delay 0.28, duck 0.00, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.54, delay 0.00, duck 0.00, bus music

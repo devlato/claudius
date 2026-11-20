@@ -87,7 +87,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["808", "808", "sub_bass", "deep_bass"],
+      "presets": ["808"],
       "styles": ["kick_follow"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.9}]}

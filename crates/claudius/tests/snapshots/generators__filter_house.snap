@@ -7,23 +7,23 @@ prog A: i7 IV7 IIImaj7 viø7
 prog B: i7 IVsus4 IIImaj7 viø7
 bars per chord: 1
 section intro (intro) 16 bars, energy 0.44, prog A, sparse []: kick hat loop
-section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat shaker loop bass
+section groove (groove) 16 bars, energy 0.75, prog A, main [fills]: kick clap hat ohat shaker loop bass perc
 section break (break) 16 bars, energy 0.35, prog B, main [gap]: loop keys
 section drop (drop) 32 bars, energy 0.96, prog A, main [impact fills]: kick clap hat ohat shaker perc loop bass keys
-section break2 (break) 8 bars, energy 0.39, prog B, main []: loop
+section break2 (break) 8 bars, energy 0.44, prog B, main []: loop clap
 section drop2 (drop) 24 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker perc loop bass keys
 section outro (outro) 8 bars, energy 0.45, prog A, sparse []: kick loop
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x.x...x.x.x.x.xx|x.x...x.x.x.x.xx|x.x...x.x.x.x.xx|x.x...x.x.x.x.xx
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
-drum perc main (drum rim): ....x...x.....x.|....x...x.....x.|....x...x.....x.|....x...x.....x.
-drum perc sparse (drum rim): ........x.......|........x.......|........x.......|........x.......
-part loop (chords): house_piano synth organ, register 52..74, density 0.52
-part bass (bass): disco a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'organ_bass' above 90 Hz, register 33..50, density 0.58
-part keys (keys): offbeat synth rock_organ, register 55..76, density 0.45
+drum ohat main (drum open_hat): ................|................|................|................
+drum shaker main (drum shaker): ooo.o.o.o.o....o|ooo.o.o.o.o....o|ooo.o.o.o.o....o|ooo.o.o.o.o....o
+drum perc main (drum rim): x...x.....x.....|x...x.....x.....|x...x.....x.....|x...x.....x.....
+drum perc sparse (drum rim): ....x...........|....x...........|....x...........|....x...........
+part loop (chords): pump synth pluck, register 48..70, density 0.51
+part bass (bass): house_organ a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 33..50, density 0.60
+part keys (keys): stabs synth epiano, register 54..75, density 0.43
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

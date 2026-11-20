@@ -8,24 +8,24 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 4 bars, energy 0.39, prog A, main [filter_in]: keys hat
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick snare hat bass keys
+section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat bass keys clap
 section hook (hook) 16 bars, energy 0.90, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
-section verse2 (verse) 16 bars, energy 0.71, prog A, alt [gap fills]: kick snare hat perc bass keys pad lead
+section verse2 (verse) 16 bars, energy 0.76, prog A, alt [gap fills]: kick snare hat perc bass keys pad lead ohat
 section hook2 (hook) 8 bars, energy 0.99, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
 section verse3 (verse) 8 bars, energy 0.73, prog A, alt [fills]: kick snare hat perc bass keys
 section hook3 (hook) 16 bars, energy 1.00, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
 section outro (outro) 8 bars, energy 0.31, prog A, main []: keys lead
-drum kick alt (drum kick): X.........X.....|X......X........|X.........X.....|X......X........
-drum kick main (drum kick): X.........X.....|X..X......X.....|X.........X.....|X..X......X.....
-drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum kick alt (drum kick): X.........X.....|X......X..X.....|X.........X.....|X......X..X.....
+drum kick main (drum kick): X.........X.....|X.X.......X..X..|X.........X.....|X.X.......X..X..
+drum snare main (drum snare): ....X.......Xo..|....X.......Xo..|....X.......Xo..|....X.......Xo..
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum hat alt (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
-drum hat main (drum closed_hat): ooxxxxxxxxXXx.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....
-drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-drum perc main (drum rim): ...x..x.......x.|...x..x.......x.|...x..x.......x.|...x..x.......x.
-part bass (bass): glide a rack of synth patch 'sub_bass' + synth patch 'sub_bass', register 26..43, density 0.59
-part keys (keys): lofi_comp synth keys, register 45..69, density 0.59
-part lead (lead): piano_riff synth epiano, register 60..79, density 0.29
+drum hat main (drum closed_hat): x...........x...........ooxxxxxxxxXXx...........|x...........x...........x...........x...........|x...........x...........x...........x...........|x...........x...........x...........x...........
+drum ohat main (drum open_hat): ................|..............x.|................|..............x.
+drum perc main (drum rim): ......x.........|......x.........|......x.........|......x.........
+part bass (bass): syncopated a rack of synth patch 'sub_bass' + synth patch 'sub_bass', register 26..43, density 0.59
+part keys (keys): lofi_comp synth keys, register 49..73, density 0.59
+part lead (lead): lofi_melody synth epiano, register 58..77, density 0.29
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix clap: -4.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, bus drums

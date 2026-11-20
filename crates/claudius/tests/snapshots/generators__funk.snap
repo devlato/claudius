@@ -8,23 +8,23 @@ prog B: i7 IVsus4 IIImaj7 viø7
 prog C: viø7 IV7 IIImaj7 i7
 bars per chord: 2
 section intro (intro) 4 bars, energy 0.49, prog A, main []: kick snare hat guitar
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick snare hat perc bass guitar keys
+section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat perc bass guitar
 section hook (hook) 8 bars, energy 0.85, prog C, main [fills]: kick snare hat ohat perc shaker bass guitar keys horns
-section break (break) 8 bars, energy 0.41, prog B, main []: bass guitar perc
-section verse2 (verse) 16 bars, energy 0.79, prog A, main [gap fills]: kick snare hat perc bass guitar keys horns
+section break (break) 8 bars, energy 0.46, prog B, main []: bass guitar perc keys
+section verse2 (verse) 16 bars, energy 0.74, prog A, main [gap fills]: kick snare hat perc bass keys horns
 section hook2 (hook) 8 bars, energy 0.93, prog C, main [fills]: kick snare hat ohat perc shaker bass guitar keys horns
 section outro (outro) 16 bars, energy 0.25, prog A, main []: snare hat guitar
-drum kick main (drum kick): X.........X.....|X.....X...X.....|X..X......X.....|X.........X.....
-drum snare main (drum snare): o...Xoo..o..X.o.|o...Xoo..o..X.o.|o...Xoo..o..X.o.|o...Xoo..o..X.o.
-drum hat main (drum closed_hat): xxx.xxx.xxx.xxx.|xxx.xxx.xxx.xxx.|xxx.xxx.xxx.xxx.|xxx.xxx.xxx.xxx.
-drum ohat main (drum open_hat): ................|................|................|................
-drum perc main (drum cowbell): x.....x.....x...|x.....x.....x...|x.....x.....x...|x.....x.....x...
-drum perc sparse (drum cowbell): x...............|x...............|x...............|x...............
-drum shaker main (drum shaker): o.o.o.ooooo.o.o.|o.o.o.ooooo.o.o.|o.o.o.ooooo.o.o.|o.o.o.ooooo.o.o.
-part bass (bass): funk a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 31..52, density 0.51
-part guitar (chords): scratch synth pluck, register 52..76, density 0.60
-part keys (keys): scratch synth organ, register 50..74, density 0.53
-part horns (lead): horn_riff synth brass_lead, register 60..82, density 0.31
+drum kick main (drum kick): X..X..X...X.....|X..X..X...X.....|X..X..X...X.....|X..X..X...X.....
+drum snare main (drum snare): ....X....o.oX...|....X....o.oX...|....X....o.oX...|....X....o.oX...
+drum hat main (drum closed_hat): xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+drum perc main (drum cowbell): x...x.....x.....|x...x.....x.....|x...x.....x.....|x...x.....x.....
+drum perc sparse (drum cowbell): ....x...........|....x...........|....x...........|....x...........
+drum shaker main (drum shaker): ..o.o....oo.....|..o.o....oo.....|..o.o....oo.....|..o.o....oo.....
+part bass (bass): sustain a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 30..51, density 0.51
+part guitar (chords): strum synth clav, register 51..75, density 0.60
+part keys (keys): lofi_comp synth epiano, register 48..72, density 0.59
+part horns (lead): horn_riff synth brass_lead, register 64..86, density 0.46
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

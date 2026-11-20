@@ -8,26 +8,26 @@ prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.44, prog A, sparse [filter_in]: kick hat shaker bass
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys
+section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick clap hat ohat shaker bass guitar
 section lift (build) 4 bars, energy 0.65, prog A, main [build]: clap hat ohat shaker bass guitar keys
 section hook (hook) 8 bars, energy 0.86, prog C, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
-section break (break) 8 bars, energy 0.44, prog B, main []: strings keys perc
+section break (break) 8 bars, energy 0.39, prog B, main []: keys perc
 section verse2 (verse) 16 bars, energy 0.78, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys strings lead
 section hook2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
 section outro (outro) 16 bars, energy 0.21, prog A, sparse []: hat shaker guitar
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
 drum hat sparse (drum closed_hat): x...x...x...x...|x...x...x...x...|x...x...x...x...|x...x...x...x...
-drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): o.o.ooo...oo..o.|o.o.ooo...oo..o.|o.o.ooo...oo..o.|o.o.ooo...oo..o.
+drum ohat main (drum open_hat): ................|................|................|................
+drum shaker main (drum shaker): ooo.o.o.ooo...oo|ooo.o.o.ooo...oo|ooo.o.o.ooo...oo|ooo.o.o.ooo...oo
 drum perc main (drum cowbell): ....x...x.....x.|....x...x.....x.|....x...x.....x.|....x...x.....x.
 drum perc sparse (drum cowbell): ........x.......|........x.......|........x.......|........x.......
-part bass (bass): funk a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 33..52, density 0.51
-part guitar (chords): scratch synth pluck, register 52..76, density 0.60
-part keys (keys): offbeat synth epiano, register 52..74, density 0.59
-part strings (pad): disco_strings synth strings, register 55..82, density 0.56
-part lead (lead): organ_riff synth square_lead, register 62..82, density 0.48
+part bass (bass): house_organ a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 32..51, density 0.51
+part guitar (chords): strum synth pluck, register 51..75, density 0.60
+part keys (keys): house_piano synth epiano, register 50..72, density 0.59
+part strings (pad): disco_strings synth strings, register 52..79, density 0.56
+part lead (lead): riff synth square_lead, register 58..78, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
