@@ -169,16 +169,16 @@ Under the arrangement, the tabs hold the editors: **Drums**, **Instruments**, **
 
 The switcher over the arrangement opens the song's other two views in its place:
 
-- **Signal flow** (8 or G). With the window to itself but for the toolbars, it opens with all of it in view: the
-  song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
-  the sections it plays in) runs through a node for each of its effects into its bus; each bus runs through its
-  effects into the master, and the master through its chain out at its loudness. Curves show the sends into the
-  reverb and delay returns, and the kick ducking the tracks it ducks. Click a node to change it beside the canvas:
-  a track's level, pan, sends, duck, drive, bus, mute and solo, the sections it plays in and its sound; an effect's
-  settings (numbers to drag, switches, modes, and everything else as the JSON the song keeps it as), its place in its
-  chain; a bus's or the master's chain; the master's loudness. Right-click a node to add an effect after it, move
-  it or take it out. Every change undoes. The arranger's own filter moves, width and saturation are added at render
-  and are not on the graph.
+- **Signal flow** (8 or G). The song as its sound flows, as a board to work on, fitted to the window and read left
+  to right. Each track is a row: its name and sound, its level and pan to drag, mute and solo, its sends into the
+  reverb and delay returns to drag, its effects as chips in order, a meter, and along its foot the sections it plays
+  in. Its wire runs into its bus, and its sends into the returns, as thick as they are. The buses, with their chips,
+  and the returns, whose setting is a chip too, run into the master: its chain and its loudness to drag, then the
+  finished song with its loudness, true peak and meter. Click a chip to change the effect beside it (numbers to drag,
+  switches, modes, and everything else as the JSON the song keeps it as), drag it along its chain, or add one with +.
+  Click a row to change everything about it in the inspector beside the board (duck, drive, bus, the sections it plays
+  in, its sound), and right-click anything for what can be done to it. Every change undoes. The arranger's own filter
+  moves, width and saturation are added at render and are not on the board.
 - **Script** (7). The whole song as a script, beside the inspector and the verdict. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
   The sound browser lists every drum, synth and instrument name. At the end of each line, faint words say what its
   numbers set ("118 BPM · swing 56%", "16 bars", "-4 dB", "4.5 kHz"), and pointing at a number says it too (**Hints**

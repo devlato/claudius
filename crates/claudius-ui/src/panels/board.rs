@@ -34,6 +34,8 @@ const CHIP_GAP: f32 = 4.0;
 const CHIP_MAX: f32 = 160.0;
 /// the strip of sections along a track's foot
 const FOOT_H: f32 = 3.0;
+/// the room a track's sends take at the right of its line of chips
+const SENDS_W: f32 = 128.0;
 
 /// what a row of the board is
 #[derive(Clone)]
@@ -94,7 +96,7 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
         let Some(i) = song.tracks.iter().position(|t| &t.name == name) else { continue };
         let t = &song.tracks[i];
         let fx = chain_of(song, &Chain::Track(name.clone()));
-        let h = height_of(lines_of(ui, &fx, TRACK_W - 24.0), true);
+        let h = height_of(lines_of(ui, &fx, TRACK_W - 24.0 - SENDS_W), true);
         let sound = words::name_in_words(&t.sound);
         let about = if t.duck > 0.01 { format!("{sound} · ducks {:.0}%", t.duck * 100.0) } else { sound };
         rows.push(Row {
@@ -145,14 +147,16 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
     for (name, setting, color) in
         [("reverb", &song.mix.reverb, Color32::from(theme::INFO)), ("delay", &song.mix.delay, Color32::from(ACCENT))]
     {
-        let h = TITLE_H + 14.0;
+        // its setting a chip to open and change where it is; the tracks that send to it, said beside its name
+        let h = height_of(1, false);
+        let senders = song.tracks.iter().filter(|t| if name == "reverb" { t.reverb } else { t.delay } > 0.005).count();
         rows.push(Row {
             kind: Kind::Return(name.to_string()),
             node: format!("return:{name}"),
             title: format!("{name} return"),
-            about: effect_summary(setting),
-            chain: None,
-            fx: Vec::new(),
+            about: format!("from {senders} track{}", if senders == 1 { "" } else { "s" }),
+            chain: Some(Chain::Send(name.to_string())),
+            fx: vec![setting.clone()],
             card: Rect::from_min_size(pos2(x_bus, y + ROW_GAP), vec2(BUS_W, h)),
             color,
         });
@@ -297,13 +301,14 @@ fn row(ui: &mut Ui, cx: &mut Cx, song: &SongView, r: &Row) {
         sections_foot(ui, song, r, i);
     }
     if let Some(c) = &r.chain {
+        let sends = if matches!(r.kind, Kind::Track(_)) { SENDS_W } else { 0.0 };
         chips(
             ui,
             cx,
             song,
             c,
             &r.fx,
-            Rect::from_min_max(r.card.min + vec2(12.0, TITLE_H), r.card.max - vec2(10.0, 4.0)),
+            Rect::from_min_max(r.card.min + vec2(12.0, TITLE_H), r.card.max - vec2(10.0 + sends, 4.0)),
         );
     }
 }
@@ -354,6 +359,35 @@ fn track_controls(ui: &mut Ui, cx: &mut Cx, song: &SongView, r: &Row, i: usize) 
     let muted = on(ui, right - 40.0, "M", t.muted, theme::BAD.into(), "mute it");
     let solo = on(ui, right - 20.0, "S", t.solo, theme::SOLO.into(), "solo it: only the soloed tracks play");
 
+    // its sends, beside its chips: how much of it goes into the reverb and the delay returns, as thick as its wires
+    let line = r.card.top() + TITLE_H;
+    let send = |ui: &mut Ui, x: f32, value: &mut f32, word: &'static str, tip: &str| {
+        ui.put(
+            Rect::from_min_size(pos2(x, line), vec2(60.0, 18.0)),
+            egui::DragValue::new(value)
+                .speed(0.005)
+                .range(0.0..=1.0)
+                .custom_formatter(move |v, _| format!("{word} {:.0}%", v * 100.0))
+                .custom_parser(move |s| super::percent(s.trim().trim_start_matches(word))),
+        )
+        .on_hover_text(tip.to_string())
+    };
+    let (mut reverb, mut delay) = (t.reverb, t.delay);
+    let rv = send(
+        ui,
+        right - 124.0,
+        &mut reverb,
+        "rev",
+        "how much of it goes into the reverb return: drag, or double-click to type",
+    );
+    let dv = send(
+        ui,
+        right - 62.0,
+        &mut delay,
+        "dly",
+        "how much of it goes into the delay return: drag, or double-click to type",
+    );
+
     if let Some(st) = cx.state.song.as_mut().and_then(|s| s.tracks.get_mut(i)) {
         if lr.changed() {
             st.level_db = level;
@@ -374,6 +408,18 @@ fn track_controls(ui: &mut Ui, cx: &mut Cx, song: &SongView, r: &Row, i: usize) 
         if solo {
             st.solo = !st.solo;
             sent.push(MixEdit { solo: Some(st.solo), ..Default::default() });
+        }
+        if rv.changed() {
+            st.reverb = reverb;
+        }
+        if commit(&rv) {
+            sent.push(MixEdit { reverb: Some(reverb), ..Default::default() });
+        }
+        if dv.changed() {
+            st.delay = delay;
+        }
+        if commit(&dv) {
+            sent.push(MixEdit { delay: Some(delay), ..Default::default() });
         }
     }
     cx.out.extend(sent.into_iter().map(|e| e.on(&name)));
@@ -433,15 +479,19 @@ fn chips(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, fx: &[Value], roo
         rect
     };
     let rects: Vec<Rect> = galleys.iter().map(|g| place((g.size().x + 16.0).clamp(36.0, CHIP_MAX))).collect();
+    // a return's chain is its one setting, changed where it is, neither moved along nor added to
+    let fixed = matches!(c, Chain::Send(_));
     let plus = place(24.0);
     let mut moved: Option<(usize, usize)> = None;
     for (i, (v, galley)) in fx.iter().zip(galleys).enumerate() {
         let rect = rects[i];
-        let resp = ui.interact(rect, ui.scope_id().with(("flow-chip", c.target(), i)), Sense::click_and_drag());
+        let sense = if fixed { Sense::click() } else { Sense::click_and_drag() };
+        let resp = ui.interact(rect, ui.scope_id().with(("flow-chip", c.target(), i)), sense);
         // a chip is pressed to open it, and grabbed to move it along its chain
-        let resp = match resp.dragged() {
-            true => resp.on_hover_and_drag_cursor(egui::CursorIcon::Grabbing),
-            false => resp.on_hover_cursor(egui::CursorIcon::Grab),
+        let resp = match (fixed, resp.dragged()) {
+            (true, _) => resp.on_hover_cursor(egui::CursorIcon::PointingHand),
+            (false, true) => resp.on_hover_and_drag_cursor(egui::CursorIcon::Grabbing),
+            (false, false) => resp.on_hover_cursor(egui::CursorIcon::Grab),
         };
         let fill = if resp.hovered() || resp.dragged() { theme::mix(WELL, ACCENT, 0.18) } else { WELL.into() };
         ui.painter().rect(rect, CornerRadius::same(10), fill, Stroke::new(1.0, LINE), StrokeKind::Inside);
@@ -468,8 +518,10 @@ fn chips(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, fx: &[Value], roo
             moved = Some((i, to));
         }
         let (shown, about) = words::effect_in_words(v.get("fx").and_then(Value::as_str).unwrap_or_default());
-        let resp =
-            resp.on_hover_text(format!("{shown}: {about}. Click to change it, drag to move it, right-click for more"));
+        let resp = resp.on_hover_text(match fixed {
+            true => format!("{shown}: {about}. Click to change it"),
+            false => format!("{shown}: {about}. Click to change it, drag to move it, right-click for more"),
+        });
         let node = format!("{}#{i}", c.target());
         egui::Popup::from_toggle_button_response(&resp)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
@@ -477,7 +529,12 @@ fn chips(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, fx: &[Value], roo
                 ui.set_min_width(300.0);
                 effect(ui, cx, song, &node, c, i);
             });
-        resp.context_menu(|ui| node_menu(ui, cx, song, &NodeKind::Effect(c.clone(), i)));
+        if !fixed {
+            resp.context_menu(|ui| node_menu(ui, cx, song, &NodeKind::Effect(c.clone(), i)));
+        }
+    }
+    if fixed {
+        return;
     }
     // + at the end, for an effect to add
     let resp = ui.interact(plus, ui.scope_id().with(("flow-add", c.target())), Sense::click());
