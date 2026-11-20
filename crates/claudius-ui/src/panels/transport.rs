@@ -885,8 +885,9 @@ fn export_menu(ui: &mut Ui, cx: &mut Cx) {
         ui.add_space(4.0);
         ui.separator();
         ui.label(RichText::new("The project").strong());
-        let project = ui.button("claudius project (.zip)").on_hover_text(
-            "the song itself, the samples it plays and where each came from: open it in claudius to carry on with it",
+        let project = ui.button("Project file (.claudius)").on_hover_text(
+            "the song itself, the samples it plays and where each came from, in one file: open it in claudius to carry \
+             on with it",
         );
         if project.clicked() {
             asked = Some(crate::mock::PROJECT.to_string());

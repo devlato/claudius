@@ -456,13 +456,15 @@ one candidate a turn (`evolve::Stepwise`, `Host::step`), with the messages that 
 state's `busy` says how many it has judged. A stop keeps the best judged so far; an edit meanwhile ends it. The
 download button hands over the render as a file its engine writes in its Web Worker, where the
 seconds a song takes to encode do not stop the page: FLAC at 16 bits, or the format the export menu asks for (`State`'s
-`exports`, which lists for the demo what its engine can write). The menu's **claudius project (.zip)** is the song
-itself (`Host::project`): its blueprint and script, and the files it plays, which only the engine's memory holds, at
+`exports`, which lists for the demo what its engine can write). The menu's **Project file (.claudius)** is the song
+itself (`Host::project`), a zip named `.claudius` (`PROJECT_EXTENSION`) so that a browser keeps it whole (Safari unpacks
+a `.zip` it downloads): its blueprint and script, and the files it plays, which only the engine's memory holds, at
 the paths the blueprint names them by (`samples/<role>/<whose>/<recording>/break.flac`, `takes/...`), each cut with
 the recording it came from (`Found`) in the `.json` beside it, a scratch's take with what its record was cut from
 (`take::Sources`) in the `.sources.json` beside it, and `credits.txt`. A cut is kept as 24-bit FLAC, and a
-drum hit, cut as floats, as a 32-bit WAV. claudius opens the zip (`song::unpack_project`, from `load` or
-`POST /api/project`, which the studio sends a chosen `.zip` to) into a song folder of its own; a song's paths that
+drum hit, cut as floats, as a 32-bit WAV. claudius opens the project (`song::unpack_project`, from `load` or
+`POST /api/project`, which the studio sends a chosen `.claudius` or `.zip` to, `claudius_api::is_project`) into a song
+folder of its own; a song's paths that
 name no file of its own (`find_moved`) are read in its folder, so the samples play from there. A `blueprint.json` the
 app's dialog chose beside the files it plays, as an unpacked project's is, goes as a project too (`Picked::as_project`):
 the studio reads those files, which claudius on another computer could not. A recording chosen to listen to goes to

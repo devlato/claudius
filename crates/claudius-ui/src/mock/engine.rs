@@ -418,10 +418,12 @@ mod native {
                         }
                         Some(Ask::Encode(id, spec, title, samples)) => say(encode(id, &spec, &title, &samples)),
                         Some(Ask::Project(id)) => {
+                            // a zip by a name of its own (`song::PROJECT_EXTENSION`), which a browser keeps whole:
+                            // Safari unpacks a `.zip` it downloads, and the person is left with a folder
                             let file = host.project().map(|bytes| super::Encoded {
                                 bytes,
-                                extension: "zip".into(),
-                                mime: "application/zip".into(),
+                                extension: claudius::song::PROJECT_EXTENSION.into(),
+                                mime: "application/octet-stream".into(),
                             });
                             say(Heard::Encoded { id, file });
                         }

@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A song saved from the demo is a project file of its own, `Song.claudius`, in place of a `.zip`: Safari unpacked the zip
+it downloaded into a folder, which **Open** could not take. claudius opens a `.claudius` file wherever it opened a
+project (Open, the MCP tool `open`, the command `load`), and still opens the `.zip` projects earlier demos saved.
+
 ## [0.13.0] - 2026-11-19
 
 `analyze` hears a song's own sections: each found to the bar and at any length (a verse of 17 bars stays 17), named

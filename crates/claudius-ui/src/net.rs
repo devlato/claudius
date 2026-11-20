@@ -1013,7 +1013,8 @@ mod tests {
         assert!(bytes.starts_with(b"ID3") || (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0), "an MP3");
         let project = delivered(&mut backend, &render, &exports, Some(crate::mock::PROJECT));
         let Delivery::Bytes { name, mime, bytes } = project else { panic!("the demo hands over bytes") };
-        assert_eq!((name.as_str(), mime.as_str()), ("glass-garden.zip", "application/zip"));
+        // a zip by a name of its own, which a browser keeps whole (Safari unpacks a `.zip`)
+        assert_eq!((name.as_str(), mime.as_str()), ("glass-garden.claudius", "application/octet-stream"));
         let songs = std::env::temp_dir().join(format!("claudius-ui-project-{}", std::process::id()));
         let dir = claudius::song::unpack_project(&bytes, &name, &songs).expect("a project claudius opens");
         assert!(claudius::song::read_blueprint(&dir.join("blueprint.json")).is_ok() && dir.join("song.rhai").is_file());

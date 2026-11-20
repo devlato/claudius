@@ -2457,11 +2457,16 @@ async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
         opened.drums[0].sound
     );
 
-    // a project's path opens it as well, in a folder of its own
+    // a project's path opens it as well, in a folder of its own: a project file, or the zip an earlier demo saved
     let file = songs.join("Faded Engine.zip");
     std::fs::write(&file, &zip).unwrap();
     let r = app.command(Command::Load { path: file.display().to_string() });
     assert!(r.ok && r.message.contains("faded-engine-2"), "{}", r.message);
+    assert_eq!(claudius::song::PROJECT_EXTENSION, claudius_api::PROJECT_EXTENSION, "one name for a project file");
+    let named = songs.join(format!("Faded Engine.{}", claudius_api::PROJECT_EXTENSION));
+    std::fs::write(&named, &zip).unwrap();
+    let r = app.command(Command::Load { path: named.display().to_string() });
+    assert!(r.ok && r.message.contains("faded-engine-3"), "{}", r.message);
     std::fs::write(&file, b"not a zip").unwrap();
     let r = app.command(Command::Load { path: file.display().to_string() });
     assert!(!r.ok && r.message.contains("is not a zip"), "{}", r.message);

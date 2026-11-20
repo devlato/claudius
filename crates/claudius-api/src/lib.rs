@@ -36,6 +36,19 @@ pub mod words;
 pub const ACCENT: f32 = 0.85;
 pub const GHOST: f32 = 0.5;
 
+/// A project's file extension: a project is a zip of the song, its samples and their credits (`song::pack_project` in
+/// the engine, which keeps the same name), by a name of its own, so that a browser keeps it whole rather than unpacking
+/// it as Safari does a `.zip`, and a system can open it with claudius. A `.zip` of the same (what earlier demos saved,
+/// or a song folder zipped by hand) opens as well.
+pub const PROJECT_EXTENSION: &str = "claudius";
+
+/// whether `name` names a project file: a `.claudius`, or a `.zip` as earlier demos saved them
+pub fn is_project(name: &str) -> bool {
+    std::path::Path::new(name)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(PROJECT_EXTENSION) || e.eq_ignore_ascii_case("zip"))
+}
+
 /// `n` bars, said: `1 bar`, `4 bars`
 pub fn bars_said(n: u32) -> String {
     if n == 1 { "1 bar".into() } else { format!("{n} bars") }

@@ -70,6 +70,9 @@ fn a_project_opens_as_a_song_folder_that_plays_the_samples_it_holds() {
 
     let dir = song::unpack_project(&zip, "My Song.zip", &songs).unwrap();
     assert_eq!(dir, songs.join("my-song"));
+    // a project file is named after the song as the zip is, and both are projects
+    assert!(["My Song.claudius", "My Song.CLAUDIUS", "My Song.zip"].iter().all(|n| song::is_project(n)));
+    assert!(!song::is_project("blueprint.json") && !song::is_project("song.rhai") && !song::is_project("claudius"));
     for file in ["blueprint.json", "song.rhai", "credits.txt", "samples/drums/kick.flac.json"] {
         assert!(dir.join(file).is_file(), "{file} is in the folder");
     }
