@@ -13,12 +13,16 @@ use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
 
 use crate::crew::{self, Crew, Said};
+use crate::due::Due;
 
 struct Engine {
     host: Host,
     scope: DedicatedWorkerGlobalScope,
-    /// a render is on its way: the commands that come before it are made first, and it renders them all at once
-    scheduled: bool,
+    /// when the render on its way comes (`due`): the commands that come before it are made first, and it renders them
+    /// all at once
+    due: Due,
+    /// the timer of the render on its way, cleared when a render due sooner takes its place
+    timer: Option<i32>,
     /// the crew making the tracks of the next render, which waits for it
     crew: Option<Crew>,
     /// how many workers a crew has (none after one failed: the engine makes the tracks itself)
@@ -44,7 +48,8 @@ pub fn start() {
     let engine = Rc::new(RefCell::new(Engine {
         host: Host::new(js_sys::Date::now() as u64),
         scope: scope.clone(),
-        scheduled: false,
+        due: Due::default(),
+        timer: None,
         crew: None,
         crew_size: crew::size(&scope),
         fetching: false,
@@ -328,23 +333,33 @@ fn encode(scope: &DedicatedWorkerGlobalScope, ask: &serde_json::Value, samples: 
 /// hold up.
 fn schedule(engine: &Shared) {
     let mut e = engine.borrow_mut();
-    if e.scheduled || !(e.host.stale() || e.host.breeding() || e.host.remaking().is_some()) {
+    if !(e.host.stale() || e.host.breeding() || e.host.remaking().is_some()) {
         return;
     }
+    // a change only to the mix waits; any other renders at once, in place of a mix's wait set before it
     let ms = e.host.waits().map_or(30, |w| w.as_millis() as i32 + 1);
     in_a_while(engine, &mut e, ms);
 }
 
-/// `render` in `ms` milliseconds
+/// `render` in `ms` milliseconds, unless the render on its way comes as soon or sooner; one due later gives way
 fn in_a_while(engine: &Shared, e: &mut Engine, ms: i32) {
-    e.scheduled = true;
+    if !e.due.want(js_sys::Date::now(), f64::from(ms)) {
+        return;
+    }
+    if let Some(timer) = e.timer.take() {
+        e.scope.clear_timeout_with_handle(timer);
+    }
     let later = engine.clone();
     let render = Closure::once_into_js(move || render(&later));
-    let _ = e.scope.set_timeout_with_callback_and_timeout_and_arguments_0(render.unchecked_ref(), ms);
+    e.timer = e.scope.set_timeout_with_callback_and_timeout_and_arguments_0(render.unchecked_ref(), ms).ok();
 }
 
 fn render(engine: &Shared) {
-    engine.borrow_mut().scheduled = false;
+    {
+        let mut e = engine.borrow_mut();
+        e.due.fired();
+        e.timer = None;
+    }
     // a remake a stage a turn, with the messages that came meanwhile (a stop) between them: its answer, once it is made
     // or stopped, is the one a recording listened to gives
     let remaking = engine.borrow().host.remaking().map(str::to_string);
