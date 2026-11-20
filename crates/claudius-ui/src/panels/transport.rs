@@ -912,10 +912,15 @@ fn export_menu(ui: &mut Ui, cx: &mut Cx) {
 /// the "New song" dialog
 pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !cx.view.new_song.open {
-        // closed (Cancel, its close button, Escape) while a song it asked for is being made: that stops it, and the
-        // song stays as it was
-        if std::mem::take(&mut cx.view.new_song.making) && cx.view.analyzing {
-            cx.out.push(Command::Cancel);
+        // closed (Cancel, its close button, Escape) while a song it asked for is being made: that stops it, wherever it
+        // is (begun, its file on its way, or not sent yet), and the song stays as it was
+        if std::mem::take(&mut cx.view.new_song.making) {
+            if cx.view.listen.as_ref().is_some_and(|l| l.remake.is_some()) {
+                cx.view.listen = None;
+            }
+            if let Some(ticket) = cx.view.new_song.ticket.take() {
+                cx.out.push(Command::StopRemake { ticket });
+            }
         }
         // and a recording from the microphone it was making goes, the microphone let go
         cx.view.mic = None;
@@ -1649,6 +1654,9 @@ fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::p
             .then(|| (f.genre_name(), f.seed.trim().parse().ok()));
         let sample = f.with_recording == WithRecording::Sample;
         f.making = remake.is_some();
+        // the remake's ticket, which a stop names it by: the time it was asked for, in ms, unique enough among requests
+        f.ticket = remake.is_some().then(|| super::chat::now_ms().max(1));
+        let ticket = f.ticket;
         cx.view.listen = Some(super::Listen {
             file,
             remake,
@@ -1661,6 +1669,7 @@ fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::p
             groove: f.with_recording == WithRecording::Groove,
             found: None,
             recording: false,
+            ticket,
         });
     }
 }
@@ -1818,10 +1827,35 @@ mod tests {
         };
         // a remake asked for, its answer not in yet
         (view.new_song.open, view.new_song.making, view.analyzing) = (true, true, true);
+        view.new_song.ticket = Some(42);
         assert!(frame(&mut view).is_empty(), "open, the window stops nothing");
         view.new_song.open = false;
-        assert!(matches!(frame(&mut view)[..], [Command::Cancel]), "closed, it stops the song being made");
+        assert!(
+            matches!(frame(&mut view)[..], [Command::StopRemake { ticket: 42 }]),
+            "closed, it stops the song being made, by its ticket"
+        );
         assert!(frame(&mut view).is_empty(), "once");
+        // closed before the remake began (its file still on its way, or not sent yet): stopped all the same, and a
+        // request not sent is not sent
+        (view.new_song.open, view.new_song.making, view.analyzing) = (true, true, false);
+        view.new_song.ticket = Some(43);
+        view.listen = Some(super::super::Listen {
+            file: std::sync::Arc::new(crate::pick::Picked { name: "song.mp3".into(), bytes: vec![1, 2], folder: None }),
+            remake: Some(("trip_hop".into(), None)),
+            flip: false,
+            rebuild: false,
+            sample: false,
+            how: None,
+            sections: Vec::new(),
+            every: None,
+            groove: false,
+            found: None,
+            recording: false,
+            ticket: Some(43),
+        });
+        view.new_song.open = false;
+        assert!(matches!(frame(&mut view)[..], [Command::StopRemake { ticket: 43 }]), "stopped by its ticket");
+        assert!(view.listen.is_none(), "the request not sent is not sent");
         // the answer in first: the song is made, and the window it closes has nothing to stop
         (view.new_song.open, view.new_song.making, view.analyzing) = (true, true, true);
         view.listened("remake", true, "remade it".into());

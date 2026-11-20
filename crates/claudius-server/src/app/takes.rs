@@ -64,17 +64,9 @@ impl App {
 
     /// a new song from a recording sent as a file's bytes, built on it as `how` says, as `remake` makes one from a
     /// path
-    pub(crate) fn remake_bytes(
-        self: &Arc<Self>,
-        bytes: Vec<u8>,
-        name: &str,
-        genre: Option<String>,
-        seed: Option<u64>,
-        bpm: Option<f64>,
-        how: super::Remade,
-    ) -> Reply {
+    pub(crate) fn remake_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str, ask: super::RemakeAsk) -> Reply {
         match self.decode(bytes, name) {
-            Ok(x) => self.remake_audio(&x, name, genre, seed, bpm, how),
+            Ok(x) => self.remake_audio(&x, name, ask),
             Err(e) => no(e, self.version()),
         }
     }

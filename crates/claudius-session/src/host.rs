@@ -110,6 +110,8 @@ pub struct Host {
     breeding: Option<Breeding>,
     /// a recording being remade, a stage at a time (`step_listen`), so that a stop sent meanwhile is read between them
     remaking: Option<Remaking>,
+    /// the remakes stopped by their tickets (`Command::StopRemake`) before they arrived, the latest few
+    stopped_remakes: Vec<u64>,
     /// the last pitch check asked for, as it was asked and as the studio shows it, and how many were asked for
     pitch_check: Option<(check::Check, PitchCheck)>,
     asked: u64,
@@ -168,6 +170,7 @@ impl Host {
             played: None,
             breeding: None,
             remaking: None,
+            stopped_remakes: Vec::new(),
             pitch_check: None,
             asked: 0,
             voice: None,
@@ -251,11 +254,16 @@ impl Host {
     /// once it is made or stopped (none now); anything else is listened to at once, as `listen` does.
     pub fn start_listen(&mut self, l: &crate::listen::Listen, bytes: Vec<u8>) -> Option<Reply> {
         use crate::listen::{self, Listen};
-        let Listen::Remake { genre, seed, flip, rebuild, .. } = l else { return Some(self.listen(l, bytes)) };
+        let Listen::Remake { genre, seed, flip, rebuild, ticket, .. } = l else { return Some(self.listen(l, bytes)) };
         if self.remaking.as_ref().is_some_and(|r| !r.stopped) {
             return Some(self.no("a recording is being remade already: stop it first, or wait for it"));
         }
         let name = l.name().to_string();
+        // stopped before it came (the studio's window closed while its file was on its way): the song stays as it was
+        if let Some(i) = ticket.and_then(|t| self.stopped_remakes.iter().position(|x| *x == t)) {
+            self.stopped_remakes.remove(i);
+            return Some(self.no(format!("stopped: {name} was not remade, and the song stays as it was")));
+        }
         let x = match listen::decode(bytes, &name) {
             Ok(x) => x,
             Err(e) => return Some(self.no(e)),
@@ -276,6 +284,7 @@ impl Host {
             stems: None,
             heard: None,
             stopped: false,
+            ticket: *ticket,
         });
         None
     }
@@ -883,6 +892,20 @@ impl Host {
                     r.stopped = true;
                 }
                 self.ok("stopping after the current step")
+            }
+            // the remake of this ticket stops before its next stage; one not come yet stops when it comes
+            Command::StopRemake { ticket } => {
+                match self.remaking.as_mut().filter(|r| r.ticket == Some(ticket) && !r.stopped) {
+                    Some(r) => r.stopped = true,
+                    None if !self.stopped_remakes.contains(&ticket) => {
+                        self.stopped_remakes.push(ticket);
+                        if self.stopped_remakes.len() > 32 {
+                            self.stopped_remakes.remove(0);
+                        }
+                    }
+                    None => {}
+                }
+                self.ok("stopping the remake after the current step")
             }
             Command::Cancel => match self.breeding.is_some() {
                 true => {
@@ -1565,6 +1588,8 @@ struct Remaking {
     heard: Option<Box<claudius::analysis::song::Analysis>>,
     /// a stop asked for: it ends before its next stage, the song as it was
     stopped: bool,
+    /// what a stop names it by (`Command::StopRemake`)
+    ticket: Option<u64>,
 }
 
 impl Remaking {
@@ -2585,6 +2610,7 @@ mod tests {
             seed: Some(3),
             flip,
             rebuild,
+            ticket: None,
         };
         let r = h.listen(&remake(false, false), bytes.clone());
         assert!(r.ok && r.message.starts_with("reworked my song.wav as boom_bap"), "{}", r.message);
@@ -2616,6 +2642,38 @@ mod tests {
         assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
     }
 
+    /// A stop that names a remake's ticket stops it wherever it is: before its file came (the studio's window closed
+    /// while it was on its way) or under way; a stop of another ticket stops nothing else.
+    #[test]
+    fn a_remake_stopped_by_its_ticket_before_it_came_or_under_way_leaves_the_song_as_it_was() {
+        use crate::listen::Listen;
+        let bytes = wav(&a_song());
+        let remake = |ticket| Listen::Remake {
+            name: "my song.wav".into(),
+            genre: Some("boom_bap".into()),
+            seed: Some(3),
+            flip: false,
+            rebuild: false,
+            ticket: Some(ticket),
+        };
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "lofi", "seed": 5})).ok);
+        let before = serde_json::to_string(&h.blueprint()).unwrap();
+        // the stop came first: the remake is refused when it comes, and the stop is spent on it
+        assert!(command(&mut h, json!({"cmd": "stop_remake", "ticket": 7})).ok);
+        let r = h.start_listen(&remake(7), bytes.clone()).expect("answered at once");
+        assert!(!r.ok && r.message.starts_with("stopped: my song.wav was not remade"), "{}", r.message);
+        assert_eq!(serde_json::to_string(&h.blueprint()).unwrap(), before, "the song stays as it was");
+        // under way, a stop of another ticket stops nothing; its own stops it before its next stage
+        assert!(h.start_listen(&remake(8), bytes).is_none(), "begun, a stage a turn");
+        assert!(command(&mut h, json!({"cmd": "stop_remake", "ticket": 9})).ok);
+        assert!(h.step_listen().is_none(), "the other ticket's stop is not for it");
+        assert!(command(&mut h, json!({"cmd": "stop_remake", "ticket": 8})).ok);
+        let r = h.step_listen().expect("stopped before its next stage");
+        assert!(!r.ok && r.message.starts_with("stopped: my song.wav was not remade"), "{}", r.message);
+        assert_eq!(serde_json::to_string(&h.blueprint()).unwrap(), before, "the song stays as it was");
+    }
+
     /// A remake on the page goes a stage a turn of its engine (the parts, the listening, the remake), so that a stop
     /// sent meanwhile is read between them: stopped, the song stays as it was; let be, it is the remake `listen`
     /// makes at once.
@@ -2629,6 +2687,7 @@ mod tests {
             seed: Some(3),
             flip: false,
             rebuild: false,
+            ticket: None,
         };
         let song = || {
             let mut h = Host::new(1);

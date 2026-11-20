@@ -192,7 +192,8 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
             let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
             let flip = if l.flip { "&flip=true" } else { "" };
             let rebuild = if l.rebuild { "&rebuild=true" } else { "" };
-            ("remake", "/api/remake", format!("{name}&genre={}{seed}{flip}{rebuild}", query_value(genre)))
+            let ticket = l.ticket.map_or_else(String::new, |t| format!("&ticket={t}"));
+            ("remake", "/api/remake", format!("{name}&genre={}{seed}{flip}{rebuild}{ticket}", query_value(genre)))
         }
     }
 }
@@ -215,9 +216,14 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     }
     match &l.remake {
         None => Listen::Analyze { name, recording: l.recording },
-        Some((genre, seed)) => {
-            Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip, rebuild: l.rebuild }
-        }
+        Some((genre, seed)) => Listen::Remake {
+            name,
+            genre: Some(genre.clone()),
+            seed: *seed,
+            flip: l.flip,
+            rebuild: l.rebuild,
+            ticket: l.ticket,
+        },
     }
 }
 
@@ -1078,6 +1084,7 @@ mod tests {
             groove: false,
             found: None,
             recording: false,
+            ticket: None,
         };
         let name = "name=My%20Song%20%28live%29%20%232.m4a";
         assert_eq!(listen_request(&base()), ("analyze", "/api/analyze", name.into()));

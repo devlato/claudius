@@ -398,7 +398,8 @@ mod tests {
                 genre: Some("trap".into()),
                 seed: Some(3),
                 flip: true,
-                rebuild: false
+                rebuild: false,
+                ticket: None
             }
         );
         assert_eq!((l.name(), l.what()), ("a.mp3", "remake"));

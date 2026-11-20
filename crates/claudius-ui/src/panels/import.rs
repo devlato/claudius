@@ -1092,6 +1092,7 @@ fn sample(
                 groove: false,
                 found,
                 recording: false,
+                ticket: None,
             })
         }
         (None, None) => None,
