@@ -1061,7 +1061,10 @@ pub fn judge_whole(heard: &Project, whole: &Project, r: &Rendered, ears: Option<
     }
     total *= 1.0 - NOISE_CUT * noise_checks(r, g.as_ref(), &mut measures, &mut issues);
     total *= 1.0 - DEFECT_CUT * defect_checks(r, g.as_ref(), &mut measures, &mut issues);
-    issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap());
+    // the worst first; among issues as bad, a recording out of the song's time, which cuts the whole verdict, before
+    // one that cuts a single score
+    let cuts_all = |i: &Issue| i.target.starts_with("time:");
+    issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap().then_with(|| cuts_all(b).cmp(&cuts_all(a))));
     let summary = format!(
         "{:.0}/100 ({}){}",
         total,
