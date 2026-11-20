@@ -705,9 +705,9 @@ fn shaped(
         return Ok(Some(s.clone()));
     }
     let mut spec = bp.form.get(near).cloned();
-    let genre = bp.genre.split('+').next().unwrap_or(&bp.genre);
+    // the song's genre as it plays it, a fusion's whole (whose second genre's drums its sections name)
     let written =
-        claudius::genres::get(genre).ok().and_then(|g| g.forms.iter().flatten().find(|s| s.kind == k).cloned());
+        claudius::genres::get(&bp.genre).ok().and_then(|g| g.forms.iter().flatten().find(|s| s.kind == k).cloned());
     if written.is_none() && k == SectionKind::Bridge && !bp.form.is_empty() {
         return Ok(Some(claudius::form::new_bridge(bp, near, bars)));
     }
@@ -1101,6 +1101,23 @@ mod tests {
             assert!(e.contains(says), "{bad}: {e}");
         }
         assert_eq!(bp.title, "Glass Garden");
+    }
+
+    #[test]
+    fn a_section_added_to_a_fusion_is_set_as_the_fusion_writes_it_its_drums_with_it() {
+        // a fusion of trip hop and idm, idm's drums under it, with no verse
+        let g = claudius::genres::get("trip_hop+idm").unwrap();
+        let mut bp = claudius::compose::generate(&g, 5, &claudius::compose::Options::default(), None);
+        bp.form.retain(|s| s.kind != SectionKind::Verse);
+        let written = g.forms.iter().flatten().find(|s| s.kind == SectionKind::Verse).unwrap().clone();
+        let add = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "verse", "bars": 8}));
+        change(&add, &mut bp, 1).unwrap().unwrap();
+        let new = &bp.form[1];
+        let ours = bp.layer_names();
+        let expected: Vec<String> = written.layers.iter().filter(|l| ours.contains(l)).cloned().collect();
+        assert_eq!((new.kind, &new.layers), (SectionKind::Verse, &expected), "as the fusion writes a verse");
+        let drums: Vec<&str> = bp.drums.iter().map(|d| d.name.as_str()).collect();
+        assert!(new.layers.iter().any(|l| drums.contains(&l.as_str())), "its drums in it: {:?}", new.layers);
     }
 
     #[test]
