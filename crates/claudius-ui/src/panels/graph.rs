@@ -1,23 +1,18 @@
-//! The graph: the song as its signal flows, on a canvas to pan and zoom. Each track is a node, followed by a node for
-//! each effect of its chain, into its bus, through the bus's effects into the master, through the master's into the
-//! finished song; the sends run to the reverb and delay returns, and the kick's ducking to the tracks it ducks
-//! (`SongView::graph`). A node chosen opens in the inspector beside the canvas, where everything about it changes: a
+//! The signal flow: the song as its sound flows, drawn as a board to work on (`board`): each track, with its effects,
+//! into its bus, the buses and the reverb and delay returns into the master, the master into the finished song
+//! (`SongView::graph`). A row chosen opens in the inspector beside the board, where everything about it changes: a
 //! track's level, pan, sends, duck, drive, bus, mute, solo and the sections it plays in, its sound if it is a part; an
 //! effect's settings, its place in its chain, or the effect itself, as the song keeps it; a chain's new effects; the
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
 
-use claudius_api::{Chain, Command, EFFECT_TEMPLATES, EdgeKind, Graph, NodeKind, SongView, words};
-use eframe::egui::{self, Align2, Color32, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use claudius_api::{Chain, Command, EFFECT_TEMPLATES, Graph, NodeKind, SongView, words};
+use eframe::egui::{self, Rect, RichText, Ui, pos2};
 use serde_json::Value;
 
-use super::{Cx, empty, layer_color, small};
+use super::{Cx, empty, small};
 use crate::cmds::MixEdit;
-use crate::theme::{self, ACCENT, LINE, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::theme::{self, TEXT, TEXT_FAINT};
 use crate::widgets::{self, commit};
-
-const NODE_W: f32 = 196.0;
-const COLUMN: f32 = 252.0;
-const ROW: f32 = 100.0;
 
 /// the graph's own state: the node chosen, where the canvas looks (nowhere yet: the whole graph), and the effect
 /// being edited as JSON
@@ -25,7 +20,7 @@ pub struct GraphView {
     pub selected: Option<String>,
     pub scene: Rect,
     /// the node whose JSON is being edited, and the text so far, and why it was not taken
-    json: Option<(String, String, Option<String>)>,
+    pub(super) json: Option<(String, String, Option<String>)>,
 }
 
 impl Default for GraphView {
@@ -76,141 +71,11 @@ fn flow(ui: &mut Ui, cx: &mut Cx) {
         });
     // the graph has what the panel leaves of the width: a panel inside a Ui moves its cursor's end only
     let rest = Rect::from_min_max(ui.cursor().min, pos2(panel.response.rect.left(), ui.max_rect().bottom()));
-    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| graph_view(ui, cx, &song, &graph));
-}
-
-/// the graph beside its inspector: the bar over it, and the canvas
-fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
-    let bounds = graph
-        .nodes
-        .iter()
-        .map(|n| node_rect(n.column, n.row, n.detail.len()))
-        .fold(Rect::NOTHING, |a, b| a.union(b))
-        .expand(40.0);
-    // the tracks and what follows them, big enough to read; Fit shows all of it
-    let mut fit = false;
-    let hint = "drag to move, scroll or pinch to zoom, right-click a node for its menu";
-    // the hint in words where the graph is wide enough for it, else behind a help mark
-    let spelt = ui.painter().layout_no_wrap(hint.to_string(), theme::prop(11.5), TEXT_DIM.into()).size().x;
-    let spelt_out = spelt + 180.0 <= ui.available_width();
-    widgets::row(ui, "graph_head", |ui, side| {
-        if side == widgets::Side::Left {
-            ui.add_space(10.0);
-            if spelt_out {
-                ui.label(small(hint));
-            } else {
-                widgets::help(
-                    ui,
-                    "Drag to move the graph, scroll or pinch to zoom, right-click a node for its menu.",
-                    "getting-started/studio.html#the-panels",
-                );
-            }
-            return;
-        }
-        fit = ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked();
-    });
-    // opened, all of it in view, the master too
-    if cx.view.graph.scene == Rect::ZERO {
-        cx.view.graph.scene = bounds;
-    }
-    if fit {
-        cx.view.graph.scene = bounds;
-    }
-    let mut scene = cx.view.graph.scene;
-    let mut chosen = None;
-    egui::Scene::new().zoom_range(0.15..=2.0).show(ui, &mut scene, |ui| {
-        ui.allocate_rect(bounds, Sense::hover());
-        chosen = canvas(ui, cx, song, graph);
-    });
-    cx.view.graph.scene = scene;
-    if let Some(id) = chosen {
-        if cx.view.graph.selected.as_ref() != Some(&id) {
-            cx.view.graph.json = None;
-        }
-        cx.view.graph.selected = Some(id);
-    }
-}
-
-/// where a node sits: its column and row on the canvas, as tall as its lines
-fn node_rect(column: usize, row: f32, lines: usize) -> Rect {
-    Rect::from_min_size(Pos2::new(column as f32 * COLUMN, row * ROW), vec2(NODE_W, 30.0 + 14.0 * lines as f32))
-}
-
-/// the edges, then the nodes; a node clicked is chosen, and its menu offers what can be done to it
-fn canvas(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) -> Option<String> {
-    let rect_of =
-        |id: &str| graph.nodes.iter().find(|n| n.id == id).map(|n| node_rect(n.column, n.row, n.detail.len()));
-    let painter = ui.painter().clone();
-    for e in &graph.edges {
-        let (Some(a), Some(b)) = (rect_of(&e.from), rect_of(&e.to)) else { continue };
-        let (color, width, label) = match e.kind {
-            EdgeKind::Signal => (LINE.into(), 1.6, None),
-            EdgeKind::Send(x) => (theme::alpha(ACCENT, 0.55), 1.0, Some(format!("send {:.0}%", x * 100.0))),
-            EdgeKind::Sidechain(x) => (theme::alpha(theme::BAD, 0.5), 1.0, Some(format!("duck {:.0}%", x * 100.0))),
-        };
-        // the kick's ducking runs down the tracks' left sides, the signal left to right
-        let (p0, p3, bend) = match e.kind {
-            EdgeKind::Sidechain(_) => (a.left_center(), b.left_center(), vec2(-60.0, 0.0)),
-            _ => (a.right_center(), b.left_center(), vec2(((b.left() - a.right()) * 0.5).max(40.0), 0.0)),
-        };
-        let (p1, p2) = match e.kind {
-            EdgeKind::Sidechain(_) => (p0 + bend, p3 + bend),
-            _ => (p0 + bend, p3 - bend),
-        };
-        let curve = egui::epaint::CubicBezierShape::from_points_stroke(
-            [p0, p1, p2, p3],
-            false,
-            Color32::TRANSPARENT,
-            Stroke::new(width, color),
-        );
-        let mid = curve.sample(0.5);
-        painter.add(curve);
-        if let Some(text) = label {
-            painter.text(mid, Align2::CENTER_CENTER, text, theme::prop(9.5), color);
-        }
-    }
-    let mut chosen = None;
-    for n in &graph.nodes {
-        let rect = node_rect(n.column, n.row, n.detail.len());
-        let r = ui.interact(rect, ui.scope_id().with(("graph-node", &n.id)), Sense::click());
-        let selected = cx.view.graph.selected.as_ref() == Some(&n.id);
-        let (fill, mark): (Color32, Color32) = match &n.kind {
-            NodeKind::Track(name) => (RAISED.into(), layer_color(song, name)),
-            NodeKind::Effect(..) => (WELL.into(), TEXT_FAINT.into()),
-            NodeKind::Bus(_) | NodeKind::Return(_) => (theme::mix(RAISED, ACCENT, 0.08), ACCENT.into()),
-            NodeKind::Master | NodeKind::Out => (theme::mix(RAISED, ACCENT, 0.2), ACCENT.into()),
-        };
-        let stroke = if selected {
-            Stroke::new(2.0, ACCENT)
-        } else if r.hovered() {
-            Stroke::new(1.2, TEXT_DIM)
-        } else {
-            Stroke::new(1.0, LINE)
-        };
-        painter.rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
-        painter.rect_filled(Rect::from_min_size(rect.min + vec2(0.0, 6.0), vec2(3.0, rect.height() - 12.0)), 1.0, mark);
-        let title = egui::text::LayoutJob::simple_singleline(n.title.clone(), theme::prop(12.5), TEXT.into());
-        let galley = ui.fonts_mut(|f| f.layout_job(title));
-        painter.with_clip_rect(rect.shrink(4.0)).galley(rect.min + vec2(10.0, 7.0), galley, TEXT.into());
-        for (k, line) in n.detail.iter().enumerate() {
-            painter.with_clip_rect(rect.shrink(4.0)).text(
-                rect.min + vec2(10.0, 26.0 + 14.0 * k as f32),
-                Align2::LEFT_TOP,
-                line,
-                theme::prop(10.0),
-                TEXT_DIM.into(),
-            );
-        }
-        if r.clicked() {
-            chosen = Some(n.id.clone());
-        }
-        r.context_menu(|ui| node_menu(ui, cx, song, &n.kind));
-    }
-    chosen
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| super::board::show(ui, cx, &song, &graph));
 }
 
 /// what a node's menu offers: effects to add, an effect to move or take out, a track to mute or solo
-fn node_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, kind: &NodeKind) {
+pub(super) fn node_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, kind: &NodeKind) {
     let chain = match kind {
         NodeKind::Track(name) => Some((Chain::Track(name.clone()), None)),
         NodeKind::Effect(c, i) if !matches!(c, Chain::Send(_)) => Some((c.clone(), Some(*i))),
@@ -220,19 +85,7 @@ fn node_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, kind: &NodeKind) {
     };
     if let Some((c, at)) = chain {
         let fx = chain_of(song, &c);
-        ui.menu_button("Add an effect", |ui| {
-            for (name, template) in EFFECT_TEMPLATES {
-                let (shown, about) = words::effect_in_words(name);
-                if ui.button(shown).on_hover_text(super::named(Some(about), name)).clicked() {
-                    if let Ok(e) = serde_json::from_str::<Value>(template) {
-                        let mut fx = fx.clone();
-                        fx.insert(at.map_or(fx.len(), |i| i + 1), e);
-                        set_chain(cx, &c, fx);
-                    }
-                    ui.close();
-                }
-            }
-        });
+        ui.menu_button("Add an effect", |ui| add_menu(ui, cx, song, &c, at));
         if let Some(i) = at {
             if ui.add_enabled(i > 0, egui::Button::new("Move earlier")).clicked() {
                 let mut fx = fx.clone();
@@ -269,8 +122,31 @@ fn node_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, kind: &NodeKind) {
     }
 }
 
+/// The effects there are to add to chain `c`: one chosen goes after the effect at `at`, or at the chain's end.
+pub(super) fn add_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, at: Option<usize>) {
+    for (name, template) in EFFECT_TEMPLATES {
+        let (shown, about) = words::effect_in_words(name);
+        if ui.button(shown).on_hover_text(super::named(Some(about), name)).clicked() {
+            if let Ok(e) = serde_json::from_str::<Value>(template) {
+                let mut fx = chain_of(song, c);
+                fx.insert(at.map_or(fx.len(), |i| i + 1), e);
+                set_chain(cx, c, fx);
+            }
+            ui.close();
+        }
+    }
+}
+
+/// The master's loudness target set to `lufs` (its ceiling as it is), as the master's own settings set it.
+pub(super) fn set_loudness(cx: &mut Cx, lufs: f32) {
+    let Some(s) = cx.state.song.as_mut() else { return };
+    s.mix.lufs = lufs;
+    let ceiling = s.mix.ceiling_db;
+    cx.out.push(Command::RunScript { code: format!("master(#{{ lufs: {lufs}, ceiling: {ceiling} }});") });
+}
+
 /// a chain of effects as the song has it now
-fn chain_of(song: &SongView, c: &Chain) -> Vec<Value> {
+pub(super) fn chain_of(song: &SongView, c: &Chain) -> Vec<Value> {
     match c {
         Chain::Track(n) => song.tracks.iter().find(|t| t.name == *n).map(|t| t.fx.clone()).unwrap_or_default(),
         Chain::Bus(n) => song.mix.buses.iter().find(|(b, _)| b == n).map(|(_, fx)| fx.clone()).unwrap_or_default(),
@@ -280,7 +156,7 @@ fn chain_of(song: &SongView, c: &Chain) -> Vec<Value> {
 }
 
 /// the chain changed in the song shown at once, and sent to claudius
-fn set_chain(cx: &mut Cx, c: &Chain, fx: Vec<Value>) {
+pub(super) fn set_chain(cx: &mut Cx, c: &Chain, fx: Vec<Value>) {
     if let Some(song) = cx.state.song.as_mut() {
         put_chain(song, c, fx.clone());
     }
@@ -319,8 +195,9 @@ fn inspector(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
         ui.label(RichText::new("The song as its signal flows").strong().color(TEXT));
         ui.label(small(
             "Each track runs through its effects into its bus, the buses and the reverb and delay returns into the \
-             master, and the master out. Drag to move around, scroll or pinch to zoom, click a node to change it, \
-             right-click it to add, move or take out effects.",
+             master, and the master out. Change a level, a pan or an effect where it is on the board, drag an \
+             effect along its chain, click a row to change everything about it here, and right-click it to add, \
+             move or take out effects.",
         ));
         return;
     };
@@ -556,7 +433,7 @@ fn master(ui: &mut Ui, cx: &mut Cx, song: &SongView) {
 
 /// the settings an effect has, by kind: numbers to drag, switches, modes to choose; what else it has (bands, chains,
 /// settings that move) as JSON, the way the song keeps it
-fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usize) {
+pub(super) fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usize) {
     let fx = chain_of(song, c);
     let Some(mut e) = fx.get(i).cloned() else { return };
     let name = e.get("fx").and_then(|f| f.as_str()).unwrap_or_default().to_string();
@@ -708,13 +585,5 @@ mod tests {
         assert_eq!(chain_of(&song, &Chain::Bus("glue".into())).len(), 1);
         assert_eq!(song.mix.delay["beats"], 1.5);
         assert!(EFFECT_TEMPLATES.iter().all(|(n, t)| serde_json::from_str::<Value>(t).unwrap()["fx"] == *n));
-    }
-
-    #[test]
-    fn nodes_sit_in_their_columns_and_rows() {
-        let a = node_rect(0, 0.0, 2);
-        let b = node_rect(1, 1.0, 0);
-        assert!(a.right() < b.left() && a.bottom() < b.top() + ROW);
-        assert_eq!(a.height(), 58.0);
     }
 }
