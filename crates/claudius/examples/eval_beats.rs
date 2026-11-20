@@ -19,11 +19,17 @@
 //! sliced by the song's genre family and whether claudius heard it keep one tempo (`steady`).
 //!
 //! A reference line may name its recording (`"path"`) and its family (`"family"`) itself, for a dataset other than
-//! MTG-Jamendo's; then DIR is the folder its paths are in.
+//! MTG-Jamendo's; then DIR is the folder its paths are in, and its own `"slice"` fields slice the results too.
+//!
+//! `tempo` hears only each recording's tempo, as the studio hears a whole mix's (`beats::track_with`, without stems), a
+//! short loop repeated to `--tile` seconds first (a loop well cut is made to repeat): `tempo` and `tempo_exact` alone,
+//! for a reference of people's tempos such as the Freesound Loop Dataset's.
 //!
 //! ```text
 //! cargo run --release -p claudius --example eval_beats -- run DIR --reference FILE [--stems] [--out FILE]
 //!     [--threads N] [--most N] [--primary on_beats|on_downbeats|tempo|tempo_exact]
+//! cargo run --release -p claudius --example eval_beats -- tempo DIR --reference FILE [--tile SECONDS] [--out FILE]
+//!     [--threads N] [--most N]
 //! ```
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -56,6 +62,14 @@ fn main() {
     let flag = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let threads = flag("--threads").and_then(|t| t.parse().ok()).unwrap_or(4);
     let result = match (args.first().map(String::as_str), args.get(1), flag("--reference")) {
+        (Some("tempo"), Some(dir), Some(reference)) => tempo(
+            Path::new(dir),
+            Path::new(&reference),
+            &flag("--out").map_or_else(|| PathBuf::from("tempo.jsonl"), PathBuf::from),
+            threads,
+            flag("--most").and_then(|m| m.parse().ok()).unwrap_or(usize::MAX),
+            flag("--tile").and_then(|t| t.parse().ok()).unwrap_or(30.0),
+        ),
         (Some("run"), Some(dir), Some(reference)) => run(
             Path::new(dir),
             Path::new(&reference),
@@ -84,6 +98,8 @@ struct Song {
     beats: Vec<f64>,
     downbeats: Vec<f64>,
     tempo: Option<f64>,
+    /// the reference line's own slices (`"slice"`), beside the family
+    slices: serde_json::Map<String, Value>,
 }
 
 fn songs(dir: &Path, reference: &Path, most: usize) -> Result<Vec<Song>, String> {
@@ -112,7 +128,8 @@ fn songs(dir: &Path, reference: &Path, most: usize) -> Result<Vec<Song>, String>
         if (beats.len() < 16 && tempo.is_none()) || !path.is_file() {
             continue;
         }
-        out.push(Song { id: id.to_string(), path, family, beats, downbeats: times("downbeats"), tempo });
+        let slices = v["slice"].as_object().cloned().unwrap_or_default();
+        out.push(Song { id: id.to_string(), path, family, beats, downbeats: times("downbeats"), tempo, slices });
         if out.len() == most {
             break;
         }
@@ -194,8 +211,56 @@ fn run(
                     }
                     let line = json!({
                         "item": s.id,
-                        "slice": {"family": s.family.as_str(), "steady": if a.steady { "steady" } else { "drifting" }},
+                        "slice": {
+                            let mut slice = slice_of(s);
+                            slice["steady"] = json!(if a.steady { "steady" } else { "drifting" });
+                            slice
+                        },
                         "metrics": metrics,
+                    });
+                    let _ = writeln!(file.lock().unwrap_or_else(|p| p.into_inner()), "{line}");
+                }
+            });
+        }
+    });
+    Ok(())
+}
+
+/// `songs` slice by their family, and by what their reference line says of them
+fn slice_of(s: &Song) -> Value {
+    let mut slice = s.slices.clone();
+    slice.insert("family".into(), json!(s.family));
+    Value::Object(slice)
+}
+
+fn tempo(dir: &Path, reference: &Path, out: &Path, threads: usize, most: usize, tile: f64) -> Result<(), String> {
+    let songs: Vec<Song> = songs(dir, reference, most)?.into_iter().filter(|s| s.tempo.is_some()).collect();
+    eprintln!("{} recordings with a tempo, each heard as a whole mix, repeated to {tile} s", songs.len());
+    let file = Mutex::new(std::fs::File::create(out).map_err(|e| e.to_string())?);
+    let head = json!({"better": {"tempo": "higher", "tempo_exact": "higher"}, "primary": ["tempo_exact"]});
+    writeln!(file.lock().unwrap(), "{head}").map_err(|e| e.to_string())?;
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..threads {
+            scope.spawn(|| {
+                while let Some(s) = songs.get(next.fetch_add(1, Ordering::Relaxed)) {
+                    let x = match claudius::audio::load(&s.path) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            eprintln!("{}: {e:#}", s.id);
+                            continue;
+                        }
+                    };
+                    let one = x.mono();
+                    let want = (tile * claudius::config::SRF) as usize;
+                    let mono: Vec<f32> = if one.is_empty() { one } else { one.iter().copied().cycle().take(want.max(one.len())).collect() };
+                    let g = claudius::analysis::beats::track_with(&mono, &mono, None, false);
+                    let theirs = s.tempo.unwrap_or_default();
+                    let line = json!({
+                        "item": s.id,
+                        "slice": slice_of(s),
+                        "metrics": {"tempo": same_tempo(g.bpm, theirs, true), "tempo_exact": same_tempo(g.bpm, theirs, false)},
+                        "bpm": (g.bpm * 10.0).round() / 10.0,
                     });
                     let _ = writeln!(file.lock().unwrap_or_else(|p| p.into_inner()), "{line}");
                 }
