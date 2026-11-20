@@ -2290,7 +2290,10 @@ mod tests {
         plucked(&mut x, 40.0, 0.0, 0.9, 0.6);
         audio::remember(&note.path, x);
         let p = crate::compose::arrange(&bp);
-        let r = crate::render::render(&p.slice(0, 8), &crate::render::Options::default()).unwrap();
+        // eight bars of the first section the bass plays in (an intro may go without it)
+        let at = bp.form.iter().position(|s| s.layers.contains(&BASS.to_string())).unwrap();
+        let start: u32 = bp.form[..at].iter().map(|s| s.bars).sum();
+        let r = crate::render::render(&p.slice(start, start + 8), &crate::render::Options::default()).unwrap();
         let played = r.tracks.iter().find(|t| t.name == BASS).expect("the bass renders");
         assert!(played.level_lufs.is_some_and(|l| l > -60.0), "{:?}", played.level_lufs);
     }

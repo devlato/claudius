@@ -646,7 +646,7 @@ fn theory_checks(p: &Project, g: Option<&GenreProfile>, m: &mut BTreeMap<String,
 }
 
 /// What a genre's own forms say a song of it is (`GenreProfile::forms`, at its tempos): how long it runs, how long its
-/// intro is at most, how long its longest section, and how many times its hook or drop comes.
+/// intro (the intro sections it opens with) is at most, how long its longest section, and how many times its hook or drop comes.
 struct Norms {
     secs: (f64, f64),
     intro_bars: u32,
@@ -665,9 +665,10 @@ fn norms(g: &GenreProfile) -> Option<Norms> {
             forms.iter().map(bars).reduce(f64::min)? * 240.0 / g.bpm.1.max(1.0),
             forms.iter().map(bars).reduce(f64::max)? * 240.0 / g.bpm.0.max(1.0),
         ),
+        // the intro sections a form opens with, as one: a DJ intro brings its elements in a section at a time
         intro_bars: forms
             .iter()
-            .filter_map(|f| f.first().filter(|s| s.kind == SectionKind::Intro).map(|s| s.bars))
+            .map(|f| f.iter().take_while(|s| s.kind == SectionKind::Intro).map(|s| s.bars).sum::<u32>())
             .max()
             .unwrap_or(0),
         longest_bars: forms.iter().flatten().map(|s| s.bars).max()?,
