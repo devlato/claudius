@@ -57,7 +57,7 @@ a comment in `_headers`.
   the logo at (72, 64), at its own size.
 - `_headers` and `_redirects`: what Cloudflare adds to responses and where it redirects, described below.
 - `wrangler.toml`: the Worker that serves the built site on claudius.devlato.com (not published itself).
-- `tests/`, `package.json`, `playwright.config.mjs`: the smoke test. `tools/excerpt.py`: cuts the demos. None of
+- `tests/`, `package.json`, `playwright.config.mjs`: the smoke test. None of
   these belong on the website, and the smoke test checks that the build leaves them out.
 
 The palette, the LCD, the step grid and the section colours come from the studio
@@ -142,11 +142,12 @@ Renders are deterministic, so running a script again gives the same song. `golde
 printed as a script (`claudius script - --on <song folder> --print < /dev/null`). The scripts use the sample packs
 and no Apple Loops; the page credits the packs whose licences ask for it, from each song's `credits.txt`.
 
-To cut an excerpt and its waveform from a song folder:
+To cut an excerpt and its waveform from a song folder (claudius's own decoder and encoder, an example of the engine):
 
 ```sh
-python3 site/tools/excerpt.py analyze out/lofi-paper-lanterns-1          # loudness of every bar, by section
-python3 site/tools/excerpt.py cut out/lofi-paper-lanterns-1 paper-lanterns 10 15 site/audio --key "D minor"
+cargo run --release -p claudius --example excerpt -- analyze out/lofi-paper-lanterns-1   # loudness of every bar
+cargo run --release -p claudius --example excerpt -- cut out/lofi-paper-lanterns-1 paper-lanterns 10 15 site/audio \
+  --key "D minor"
 ```
 
 The waveform JSON holds `peaks` and `rms` (600 values each, 0 to 255, read back from the MP3), the `sections` inside
