@@ -221,6 +221,21 @@ fn web(sh: &Shell, public_url: &str, out: &Path) -> Result<()> {
     web_with(sh, public_url, out, &[])
 }
 
+/// Why a trunk build that failed may pass when it builds again, if the failure was not the build's: trunk downloads
+/// its tools (wasm-bindgen, wasm-opt) from GitHub when they are not in its cache, and a download the connection cut
+/// off fails the build (20 November 2026: "Connection reset by peer" while wasm-opt came); and Windows can refuse trunk
+/// a tool it has just downloaded for a moment ("being used by another process", while the file is still held). What
+/// trunk downloaded whole stays in its cache for the next build.
+fn transient(said: &str, windows: bool) -> Option<&'static str> {
+    if said.contains("failed downloading release archive") {
+        Some("a download of trunk's tools was cut off")
+    } else if windows && said.contains("(os error 32)") {
+        Some("Windows refused trunk a tool it had just downloaded (os error 32)")
+    } else {
+        None
+    }
+}
+
 /// `web`, with more of trunk's arguments (`--features plan`)
 fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<()> {
     need(sh, "trunk")?;
@@ -231,14 +246,20 @@ fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<(
         teed(cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out} {more...}").into())
     };
     let (mut built, mut said) = build()?;
-    // Windows can refuse trunk a tool it has just downloaded for a moment (wasm-bindgen or wasm-opt, "being used by
-    // another process", while the file is still held): with its tools in place, trunk builds once more
-    if !built && cfg!(windows) && said.contains("(os error 32)") {
-        eprintln!("xtask: Windows refused trunk a tool it had just downloaded (os error 32): building once more");
-        std::thread::sleep(std::time::Duration::from_secs(10));
+    // a failure that was not the build's is built again, twice at most, after a pause (`transient`)
+    let mut tries = 1;
+    while !built && tries < 3 {
+        let Some(why) = transient(&said, cfg!(windows)) else { break };
+        eprintln!("xtask: {why}: building once more");
+        std::thread::sleep(std::time::Duration::from_secs(10 * tries));
         (built, said) = build()?;
+        tries += 1;
     }
-    ensure!(built, "trunk build failed{}", if said.contains("(os error 32)") { " (os error 32 again)" } else { "" });
+    ensure!(
+        built,
+        "trunk build failed{}",
+        transient(&said, cfg!(windows)).map(|why| format!(" ({why}, {tries} times)")).unwrap_or_default()
+    );
     let page = out.join("index.html");
     let html = std::fs::read_to_string(&page).with_context(|| format!("reading {}", page.display()))?;
     let program = program(&html).with_context(|| format!("{} loads no claudius-ui-*_bg.wasm", page.display()))?;
@@ -434,6 +455,23 @@ mod tests {
         })
         .unwrap();
         assert!(!ok && said.contains("no-such-command-here"), "{said}");
+    }
+
+    #[test]
+    fn a_trunk_build_is_built_again_only_for_a_failure_that_was_not_the_builds() {
+        // as trunk 0.21 said it on 20 November 2026, when GitHub cut off its download of wasm-opt
+        let cut = "ERROR error from build pipeline\nCaused by:\n    0: HTML build pipeline failed (1 errors), showing \
+                   first\n    2: running wasm-opt\n    3: failed downloading release archive\n    4: error reading \
+                   chunk from download\n    7: Connection reset by peer (os error 104)\n";
+        assert!(transient(cut, false).is_some() && transient(cut, true).is_some());
+        let held =
+            "error: The process cannot access the file because it is being used by another process. (os error 32)";
+        assert!(transient(held, true).is_some());
+        assert_eq!(transient(held, false), None, "only Windows holds a file so");
+        // the build's own failure is a failure
+        let broken = "error[E0425]: cannot find value `x` in this scope\nERROR error from build pipeline\n";
+        assert_eq!(transient(broken, false), None);
+        assert_eq!(transient(broken, true), None);
     }
 
     #[test]
