@@ -64,7 +64,7 @@ test.describe("landing page", () => {
     const violations = await cspViolations(page);
     const res = await page.goto("/");
     expect(res.status()).toBe(200);
-    await expect(page.locator("h1")).toHaveText(/listens to its own/);
+    await expect(page.locator("h1")).toHaveText(/Make songs from real\ssounds/);
     await scrollThrough(page);
     await page.waitForLoadState("networkidle");
 
