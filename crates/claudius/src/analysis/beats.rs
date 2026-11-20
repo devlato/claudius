@@ -149,6 +149,21 @@ fn salience(env: &[f32], p: f64) -> f64 {
     if stretches == 0 || mean <= 1e-12 { 0.0 } else { total / stretches as f64 / mean }
 }
 
+/// How a whole mix's tempo, once chosen as it always was, is moved to the octave people tap: half or twice it competes
+/// when its grid lands on the onsets nearly as well as the best grid does (`OCTAVE_NEAR` of it), and wins by the prior
+/// over the tempos songs are played at, by its backbeat, which counts six times as much here (`OCTAVE_BACKBEAT`) as in
+/// choosing the tempo, and by how well its grid lands, to the power `OCTAVE_FIT`: a slow song whose grid at its own
+/// tempo lands clearly better keeps it, however near twice it lies to the tempos songs are played at; its prior is
+/// wider below its centre than above (`OCTAVE_BELOW`). Tuned on the
+/// Freesound Loop Dataset's loops with people's tempos (`examples/eval_beats.rs`, its tuning half), confirmed on the
+/// other half.
+const OCTAVE_NEAR: f64 = 0.85;
+const OCTAVE_BACKBEAT: f64 = 3.0;
+const OCTAVE_FIT: f64 = 4.0;
+/// How wide (in octaves) the prior over the tempos songs are played at is below its centre, in the octave choice: slow
+/// songs are common, and a prior as narrow below as above pulls them up to twice their tempo
+const OCTAVE_BELOW: f64 = 0.8;
+
 /// How much the kit (`hits`) plays a backbeat at a beat of `beat` seconds: in a cycle of two beats, laid where it
 /// suits them best, the snares on its second beat and the kicks on its first, less the snares on the first and the
 /// kicks on the second, against all of both, each counted within a 32nd note of the beat, as hard as it is struck. A
@@ -246,12 +261,32 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>, kit:
     let heard: Vec<(f64, f64, f64)> =
         candidates.iter().map(|&p| (p, salience(&env, p), backbeat(&hits, p / fps))).collect();
     let most = heard.iter().map(|h| h.1).fold(0.0, f64::max);
-    let period = heard
+    let chosen = heard
         .iter()
         .filter(|h| h.1 >= near_best * most)
         .map(|&(p, _, b)| (prior(p) * (backbeat_weight * b).exp(), p))
         .max_by(|a, b| a.0.total_cmp(&b.0))
         .map_or(fps * 0.5, |(_, p)| p);
+    // a whole mix's tempo then moves to the octave people tap: to half or twice it where that one's grid lands on the
+    // onsets nearly as well, it lies nearer the tempos songs are played at, and the mix's drums play a backbeat at it.
+    // Only its octave moves: it is the same tempo at half or twice it as the one chosen.
+    let period = if kit || heard.is_empty() {
+        chosen
+    } else {
+        // the prior again, wider below its centre (`OCTAVE_BELOW`)
+        let leaning = |p: f64| {
+            let o = (60.0 * fps / p / centre).log2();
+            (-0.5 * (o / if o < 0.0 { OCTAVE_BELOW } else { 0.6 }).powi(2)).exp()
+        };
+        [chosen, chosen / 2.0, chosen * 2.0]
+            .into_iter()
+            .filter(|q| (lag_min..=lag_max).contains(q))
+            .map(|q| (q, salience(&env, q) / most.max(1e-9)))
+            .filter(|&(q, fit)| q == chosen || fit >= OCTAVE_NEAR)
+            .map(|(q, fit)| (leaning(q) * (OCTAVE_BACKBEAT * backbeat(&hits, q / fps)).exp() * fit.powf(OCTAVE_FIT), q))
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map_or(chosen, |(_, q)| q)
+    };
     if std::env::var_os("CLAUDIUS_DEBUG").is_some() {
         let mut seen: Vec<String> = heard
             .iter()
