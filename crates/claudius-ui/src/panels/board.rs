@@ -259,7 +259,9 @@ fn card(ui: &Ui, rect: Rect, color: Color32, chosen: bool, hovered: bool) {
 
 /// one row: its card, its title and what it says, its controls (a track's), and its chain's chips
 fn row(ui: &mut Ui, cx: &mut Cx, song: &SongView, r: &Row) {
-    let back = ui.interact(r.card, ui.scope_id().with(("flow-row", &r.node)), Sense::click());
+    let back = ui
+        .interact(r.card, ui.scope_id().with(("flow-row", &r.node)), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
     let chosen = cx.view.graph.selected.as_deref() == Some(r.node.as_str());
     card(ui, r.card, r.color, chosen, back.hovered());
     if back.clicked() {
@@ -436,6 +438,11 @@ fn chips(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, fx: &[Value], roo
     for (i, (v, galley)) in fx.iter().zip(galleys).enumerate() {
         let rect = rects[i];
         let resp = ui.interact(rect, ui.scope_id().with(("flow-chip", c.target(), i)), Sense::click_and_drag());
+        // a chip is pressed to open it, and grabbed to move it along its chain
+        let resp = match resp.dragged() {
+            true => resp.on_hover_and_drag_cursor(egui::CursorIcon::Grabbing),
+            false => resp.on_hover_cursor(egui::CursorIcon::Grab),
+        };
         let fill = if resp.hovered() || resp.dragged() { theme::mix(WELL, ACCENT, 0.18) } else { WELL.into() };
         ui.painter().rect(rect, CornerRadius::same(10), fill, Stroke::new(1.0, LINE), StrokeKind::Inside);
         ui.painter().with_clip_rect(rect.shrink2(vec2(7.0, 0.0))).galley(
@@ -490,7 +497,9 @@ fn chips(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain, fx: &[Value], roo
 
 /// the master: its chain as chips, one a line, + under them, and its loudness and ceiling to drag
 fn master_card(ui: &mut Ui, cx: &mut Cx, song: &SongView, rect: Rect, fx: &[Value]) {
-    let back = ui.interact(rect, ui.scope_id().with("flow-master"), Sense::click());
+    let back = ui
+        .interact(rect, ui.scope_id().with("flow-master"), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
     let chosen = cx.view.graph.selected.as_deref() == Some("master");
     card(ui, rect, ACCENT.into(), chosen, back.hovered());
     if back.clicked() {

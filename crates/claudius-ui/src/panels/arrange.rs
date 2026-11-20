@@ -468,6 +468,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let faint = TEXT_FAINT.into();
     painter.text(pos2(full.left() + 10.0, ruler.center().y), Align2::LEFT_CENTER, "Bar", theme::prop(11.0), faint);
     let ruler_resp = ui.interact(ruler, ui.scope_id().with("ruler"), Sense::click_and_drag());
+    let ruler_resp =
+        if has_audio { ruler_resp.on_hover_and_drag_cursor(egui::CursorIcon::PointingHand) } else { ruler_resp };
     if has_audio
         && (ruler_resp.clicked() || ruler_resp.dragged())
         && let Some(p) = ruler_resp.interact_pointer_pos()
@@ -491,6 +493,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, blocks.bottom()),
         );
         let resp = ui.interact(rect, ui.scope_id().with(("section", i)), Sense::click_and_drag());
+        // a section is pressed to choose it, and grabbed to move it
+        let resp = match cx.view.drag_section == Some(i) {
+            true => resp.on_hover_and_drag_cursor(egui::CursorIcon::Grabbing),
+            false => resp.on_hover_cursor(egui::CursorIcon::Grab),
+        };
         let selected = cx.view.section == i;
         let color = theme::section_color(&s.kind);
         let fill = if selected { color } else { theme::block(color, resp.hovered()) };
@@ -935,10 +942,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 cx.view.layer_paint = None;
             }
+            // the pointer says what a press does: a track's name opens it, a cell is chosen, or painted with the tool
+            if paint && cx.view.layer_paint.is_some() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+            }
             if let Some(pos) = hover {
                 if pos.x < tl.x0 {
                     let row = ((pos.y - rect.top()) / row_h) as usize;
                     if let Some(layer) = song.layers.get(row) {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         let r = Rect::from_min_size(
                             pos2(rect.left(), rect.top() + row as f32 * row_h),
                             vec2(GUTTER, row_h),
@@ -963,6 +975,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         }
                     }
                 } else if let Some((row, sec)) = cell_at(pos) {
+                    ui.ctx().set_cursor_icon(if cx.view.paint {
+                        egui::CursorIcon::Crosshair
+                    } else {
+                        egui::CursorIcon::PointingHand
+                    });
                     let s = &song.sections[sec];
                     let cell = Rect::from_min_max(
                         pos2(tl.x(s.start_bar as f64) + 1.0, rect.top() + row as f32 * row_h + 2.0),
@@ -1333,7 +1350,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 );
                 painter.galley(at, galley, TEXT_DIM.into());
             }
-            let resp = ui.interact(wave, ui.scope_id().with("wave"), Sense::click_and_drag());
+            let resp = ui
+                .interact(wave, ui.scope_id().with("wave"), Sense::click_and_drag())
+                .on_hover_and_drag_cursor(egui::CursorIcon::PointingHand);
             if (resp.clicked() || resp.dragged())
                 && let Some(p) = resp.interact_pointer_pos()
             {

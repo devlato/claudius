@@ -295,6 +295,22 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         }
         roll.drag = None;
     }
+    // the pointer says what a press does: a note's right edge makes it longer or shorter, the note moves, the empty
+    // grid gets a note
+    let cursor = match (roll.drag, resp.hover_pos()) {
+        (Some(d), _) if d.resize => Some(egui::CursorIcon::ResizeHorizontal),
+        (Some(_), _) => Some(egui::CursorIcon::Grabbing),
+        (None, Some(pos)) => match at(pos) {
+            Some(i) if pos.x >= note_rect(&notes[i]).right() - EDGE => Some(egui::CursorIcon::ResizeHorizontal),
+            Some(_) => Some(egui::CursorIcon::Grab),
+            None if pos.x >= grid_x => Some(egui::CursorIcon::Crosshair),
+            None => None,
+        },
+        (None, None) => None,
+    };
+    if let Some(c) = cursor {
+        ui.ctx().set_cursor_icon(c);
+    }
     if resp.clicked()
         && let Some(pos) = resp.interact_pointer_pos()
         && pos.x >= grid_x

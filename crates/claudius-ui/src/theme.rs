@@ -736,6 +736,8 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
     v.selection.bg_fill = alpha(p.accent, 0.32);
     v.selection.stroke = Stroke::new(1.0, p.accent);
     v.slider_trailing_fill = true;
+    // what can be pressed shows the hand, as on the web (`widgets::pointer` gives it to the rest)
+    v.interact_cursor = Some(egui::CursorIcon::PointingHand);
     v.striped = false;
     v.indent_has_left_vline = false;
 

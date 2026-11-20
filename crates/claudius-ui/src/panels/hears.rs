@@ -287,6 +287,7 @@ fn now(ui: &mut Ui, l: &Listened, at: f64) {
 fn form(ui: &mut Ui, l: &Listened, at: f64, shown: bool) -> Option<f64> {
     let total = l.secs.max(l.end).max(1e-3);
     let (rect, r) = ui.allocate_exact_size(vec2(ui.available_width(), 62.0), Sense::click_and_drag());
+    let r = r.on_hover_and_drag_cursor(egui::CursorIcon::PointingHand);
     let p = ui.painter_at(rect);
     let x = |t: f64| rect.left() + (t / total).clamp(0.0, 1.0) as f32 * rect.width();
     let start = |b: usize| l.bars.get(b).map_or(l.end, |bar| bar.start);
@@ -333,6 +334,7 @@ fn bars_near(ui: &mut Ui, l: &Listened, at: f64, shown: bool) -> Option<f64> {
     let first = playing.map_or(0, |b| b.saturating_sub(BEFORE)).min(l.bars.len().saturating_sub(NEAR));
     let last = (first + NEAR).min(l.bars.len());
     let (rect, r) = ui.allocate_exact_size(vec2(ui.available_width(), 46.0), Sense::click());
+    let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
     let p = ui.painter_at(rect);
     let w = rect.width() / NEAR as f32;
     let mut asked = None;
