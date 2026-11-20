@@ -90,7 +90,8 @@ has it controls claudius.
 ## Open the studio
 
 - `claudius studio`: the native window with the engine inside; it also serves the web studio, the API and MCP on
-  port 7878.
+  port 7878. `claudius studio FILE` opens a song in it (a `.claudius` project, a `blueprint.json` or a `.rhai`
+  script); double-clicking a `.claudius` file opens it in the installed app.
 - `claudius serve`: the engine and the web studio at `http://127.0.0.1:7878`, for a browser or a machine without a
   display.
 

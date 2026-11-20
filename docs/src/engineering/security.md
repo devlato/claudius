@@ -196,6 +196,11 @@ functions.
 
 ## Files and blueprints you open
 
+- **A project double-clicked**, or handed to `claudius studio FILE`, opens as one chosen with **Open** does, with the
+  same limits: the file is read whole only up to 300 MB, and it unpacks into a song folder of its own, refused when a
+  file in it would land outside that folder or it would unpack to more than 2 GB or 10,000 files. On a Mac the system
+  hands the app its files as an Apple Event, taken by `claudius-macos`: the one crate with `unsafe` code, for its calls
+  into the Objective-C runtime, each block saying why it holds (`clippy::undocumented_unsafe_blocks` is denied there).
 - **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself. When
   symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
   it is installed, to match the Python reference: C code, run as a separate process with the file name as an

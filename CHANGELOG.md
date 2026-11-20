@@ -10,6 +10,9 @@ A song saved from the demo is a project file of its own, `Song.claudius`, in pla
 it downloaded into a folder, which **Open** could not take. claudius opens a `.claudius` file wherever it opened a
 project (Open, the MCP tool `open`, the command `load`), and still opens the `.zip` projects earlier demos saved.
 
+Double-clicked, a `.claudius` file opens in the Claudius app: on a Mac (the Finder, the Dock, Open With), on Windows,
+and on Linux from the .deb or .rpm. `claudius studio FILE` opens a song in the studio as it starts.
+
 ## [0.13.0] - 2026-11-19
 
 `analyze` hears a song's own sections: each found to the bar and at any length (a verse of 17 bars stays 17), named

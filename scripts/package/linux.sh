@@ -54,10 +54,12 @@ desktop-file-validate "$desktop"
 stage=$tmp/stage
 mkdir -p "$stage/usr/bin" "$stage/usr/share/claudius" "$stage/usr/share/applications" \
     "$stage/usr/share/icons/hicolor/scalable/apps" "$stage/usr/share/icons/hicolor/512x512/apps" \
-    "$stage/usr/share/doc/claudius"
+    "$stage/usr/share/mime/packages" "$stage/usr/share/doc/claudius"
 cp "$unpacked/bin/claudius" "$unpacked/bin/claudius-packs" "$stage/usr/bin/"
 cp -R "$unpacked/share/claudius/web" "$stage/usr/share/claudius/web"
 cp "$desktop" "$stage/usr/share/applications/"
+# the project files' type (.claudius), which the desktop entry opens; the systems' own triggers bring it in
+cp "$root/packaging/linux/claudius-mime.xml" "$stage/usr/share/mime/packages/claudius.xml"
 cp "$root/packaging/icons/claudius.svg" "$stage/usr/share/icons/hicolor/scalable/apps/claudius.svg"
 cp "$root/packaging/icons/claudius-512.png" "$stage/usr/share/icons/hicolor/512x512/apps/claudius.png"
 for doc in README.md CHANGELOG.md LICENSE NOTICE; do
@@ -118,6 +120,7 @@ cp -a "$stage/." %{buildroot}/
 /usr/bin/claudius-packs
 /usr/share/claudius
 /usr/share/applications/claudius-studio.desktop
+/usr/share/mime/packages/claudius.xml
 /usr/share/icons/hicolor/scalable/apps/claudius.svg
 /usr/share/icons/hicolor/512x512/apps/claudius.png
 %doc /usr/share/doc/claudius
@@ -125,7 +128,8 @@ EOF
 rpmbuild -bb --quiet --define "_topdir $top" --target "$arch" "$top/SPECS/claudius.spec"
 cp "$top"/RPMS/"$arch"/claudius-*.rpm "$out/$name.rpm"
 
-# the AppImage: the same files, and AppRun, which opens the studio when it is started without arguments
+# the AppImage: the same files, and AppRun, which opens the studio when it is started without arguments or with a
+# project to open
 fetch() {
     curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$1" "$2"
     echo "$3  $1" | sha256sum --check --strict --quiet
@@ -143,7 +147,10 @@ cp "$root/packaging/icons/claudius-512.png" "$appdir/claudius.png"
 cat > "$appdir/AppRun" <<'EOF'
 #!/bin/sh
 here=$(dirname "$(readlink -f "$0")")
-if [ $# -eq 0 ]; then set -- studio; fi
+case "${1-}" in
+    "") set -- studio ;;
+    *.claudius) set -- studio "$@" ;;
+esac
 exec "$here/usr/bin/claudius" "$@"
 EOF
 chmod +x "$appdir/AppRun"

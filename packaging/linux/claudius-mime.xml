@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A Claudius project (.claudius): a song and its files in a zip by a name of its own. Installed as
+     /usr/share/mime/packages/claudius.xml, so that the desktop knows the type and opens it with the studio
+     (claudius-studio.desktop names it). Not a kind of zip here either: a project opens in Claudius. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-claudius-project">
+    <comment>Claudius project</comment>
+    <icon name="claudius"/>
+    <glob pattern="*.claudius"/>
+  </mime-type>
+</mime-info>

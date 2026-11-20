@@ -3,6 +3,52 @@
 <!-- Claudius.app's Info.plist; scripts/package/macos.sh fills in {{version}} -->
 <plist version="1.0">
 <dict>
+  <!-- a Claudius project (.claudius) opens in Claudius: double-clicked in the Finder, dropped on the Dock's icon, or
+       with Open With. The app takes the files as an Apple Event (crates/claudius-macos). A project is a zip by a name of
+       its own, and its type conforms to public.data rather than public.zip-archive, so that Safari and Archive Utility
+       keep it whole rather than unpacking it into a folder. -->
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Claudius project</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>io.github.devlato.claudius.project</string>
+      </array>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.github.devlato.claudius.project</string>
+      <key>UTTypeDescription</key>
+      <string>Claudius project</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.content</string>
+      </array>
+      <key>UTTypeIconFile</key>
+      <string>claudius</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>claudius</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/x-claudius-project</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>

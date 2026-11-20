@@ -171,7 +171,8 @@ pub fn choose(ctx: &egui::Context, want: Want) {
     });
 }
 
-/// reads the file at `path` as if it had been chosen for `want` (for a scripted run)
+/// reads the file at `path` as if it had been chosen for `want`: for a scripted run, and a song the system asks the
+/// app to open (`crate::open_file`)
 #[cfg(not(target_arch = "wasm32"))]
 pub fn take_path(want: Want, path: &std::path::Path) {
     let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
@@ -277,6 +278,31 @@ mod tests {
         arrived(Want::Song, "song.rhai".into(), Ok(b"tempo(120)".to_vec()));
         assert!(ctx.has_requested_repaint(), "woken by what arrived");
         assert!(chosen(Want::Song).is_some());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_song_the_system_asks_the_app_to_open_arrives_as_one_chosen_with_open() {
+        let _turn = alone();
+        let dir = std::env::temp_dir().join(format!("claudius-pick-opened-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("Glass Garden.claudius");
+        std::fs::write(&file, b"PK\x03\x04").unwrap();
+        crate::open_file(&file);
+        // read on a thread of its own
+        let started = std::time::Instant::now();
+        let got = loop {
+            if let Some(got) = chosen(Want::Song) {
+                break got;
+            }
+            assert!(started.elapsed().as_secs() < 10, "the file never arrived");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            got,
+            Ok(Picked { name: "Glass Garden.claudius".into(), bytes: b"PK\x03\x04".to_vec(), folder: Some(dir) })
+        );
     }
 
     #[test]

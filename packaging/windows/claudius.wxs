@@ -1,8 +1,9 @@
 <!--
   The Windows installer, made by scripts/package/windows.ps1 with WiX 5. It installs claudius for the user who runs
   it, without an administrator, in %LOCALAPPDATA%\Programs\claudius: the programs in bin (added to that user's PATH),
-  the web studio in share\claudius\web, and a Start menu entry that opens the studio. The UpgradeCode never changes,
-  so a newer installer replaces an older install.
+  the web studio in share\claudius\web, a Start menu entry that opens the studio, and Claudius projects (.claudius)
+  opening in the studio when they are double-clicked. The UpgradeCode never changes, so a newer installer replaces an
+  older install.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Claudius" Manufacturer="The claudius authors" Version="$(Version)" Scope="perUser"
@@ -32,8 +33,21 @@
       <Component>
         <File Source="$(Stage)\bin\claudius-packs.exe" />
       </Component>
+      <!-- the studio's program, and a project (.claudius) opening in it, double-clicked or with Open with:
+           claudius-studio.exe "FILE" starts `claudius studio FILE`. A per-user install writes these classes to
+           HKCU\Software\Classes; the icon is the app's, installed beside the programs, since they carry none. -->
       <Component>
-        <File Id="StudioProgram" Source="$(Stage)\bin\claudius-studio.exe" />
+        <File Id="StudioProgram" Source="$(Stage)\bin\claudius-studio.exe" KeyPath="yes" />
+        <ProgId Id="Claudius.Project" Description="Claudius project" Icon="ProjectIcon" IconIndex="0">
+          <Extension Id="claudius" ContentType="application/x-claudius-project">
+            <Verb Id="open" TargetFile="StudioProgram" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+      </Component>
+      <!-- the icon a project shows, in a component of its own: WiX makes the GUID of a component of more than one file
+           only when its keypath is a versioned file, and the studio's program carries no version -->
+      <Component>
+        <File Id="ProjectIcon" Source="$(Icons)\claudius.ico" />
       </Component>
       <!-- an entry in the user's Start menu needs a key in the user's registry to stand for it -->
       <Component Id="StartMenuEntry">

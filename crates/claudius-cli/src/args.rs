@@ -452,6 +452,9 @@ pub(crate) enum Cmd {
     Studio {
         #[command(flatten)]
         app: AppArgs,
+        /// a song to open in it: a project file (.claudius), or a song's blueprint (.json) or script (.rhai), as a
+        /// project double-clicked on Windows and Linux opens
+        file: Option<PathBuf>,
     },
     /// Run the engine as a server: the web UI at http://127.0.0.1:PORT, the HTTP API, and MCP at /mcp
     Serve {

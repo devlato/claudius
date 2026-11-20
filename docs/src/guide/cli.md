@@ -555,6 +555,10 @@ Opens the studio window. It first asks `http://127.0.0.1:<port>` what answers th
   MCP), then opens the window on it. A port taken by another program stops it with `port 7878 is taken, by another
   claudius or another program (--port picks another)`.
 
+`claudius studio FILE` opens a song in the window once it is open, as **Open** would: a project (a `.claudius` file,
+or the `.zip` an earlier demo saved), a `blueprint.json` or a `.rhai` script. A project double-clicked on Windows or
+on Linux starts the studio so; on a Mac the system hands the file to the app, starting it first if it is not running.
+
 A `claudius` built without the `studio` feature prints the address to open in a browser and keeps serving.
 
 ### `claudius serve`
