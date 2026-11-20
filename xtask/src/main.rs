@@ -227,7 +227,18 @@ fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<(
     let _dir = sh.push_dir("crates/claudius-ui");
     // trunk reads NO_COLOR as a boolean, so the usual NO_COLOR=1 is an error
     let _no_color = std::env::var_os("NO_COLOR").map(|_| sh.push_env("NO_COLOR", "true"));
-    cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out} {more...}").run()?;
+    let build = || -> Result<(bool, String)> {
+        teed(cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out} {more...}").into())
+    };
+    let (mut built, mut said) = build()?;
+    // Windows can refuse trunk a tool it has just downloaded for a moment (wasm-bindgen or wasm-opt, "being used by
+    // another process", while the file is still held): with its tools in place, trunk builds once more
+    if !built && cfg!(windows) && said.contains("(os error 32)") {
+        eprintln!("xtask: Windows refused trunk a tool it had just downloaded (os error 32): building once more");
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        (built, said) = build()?;
+    }
+    ensure!(built, "trunk build failed{}", if said.contains("(os error 32)") { " (os error 32 again)" } else { "" });
     let page = out.join("index.html");
     let html = std::fs::read_to_string(&page).with_context(|| format!("reading {}", page.display()))?;
     let program = program(&html).with_context(|| format!("{} loads no claudius-ui-*_bg.wasm", page.display()))?;
@@ -235,6 +246,33 @@ fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<(
         std::fs::metadata(out.join(program)).with_context(|| format!("{program} is not beside its page"))?.len();
     std::fs::write(&page, sized(&html, bytes)?)?;
     Ok(())
+}
+
+/// Runs `command` with what it writes passed through as it comes, and kept: whether it succeeded, and its output.
+fn teed(mut command: std::process::Command) -> Result<(bool, String)> {
+    use std::io::{BufRead, BufReader, Read};
+    use std::process::Stdio;
+    let mut child = command.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().context("starting trunk")?;
+    let pass = |from: Box<dyn Read + Send>, to_err: bool| {
+        std::thread::spawn(move || {
+            let mut kept = String::new();
+            for line in BufReader::new(from).lines().map_while(Result::ok) {
+                if to_err {
+                    eprintln!("{line}");
+                } else {
+                    println!("{line}");
+                }
+                kept.push_str(&line);
+                kept.push('\n');
+            }
+            kept
+        })
+    };
+    let out = pass(Box::new(child.stdout.take().context("trunk's output")?), false);
+    let err = pass(Box::new(child.stderr.take().context("trunk's errors")?), true);
+    let status = child.wait()?;
+    let said = out.join().unwrap_or_default() + &err.join().unwrap_or_default();
+    Ok((status.success(), said))
 }
 
 /// what the page as trunk writes it says until the studio's program is measured: `data-bytes` on its outline
@@ -378,6 +416,25 @@ impl Args {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_command_teed_says_what_it_wrote_and_whether_it_succeeded() {
+        let (ok, said) = teed({
+            let mut c = std::process::Command::new("cargo");
+            c.arg("--version");
+            c
+        })
+        .unwrap();
+        assert!(ok && said.starts_with("cargo "), "{said}");
+        // what it writes to its errors is kept too
+        let (ok, said) = teed({
+            let mut c = std::process::Command::new("cargo");
+            c.arg("no-such-command-here");
+            c
+        })
+        .unwrap();
+        assert!(!ok && said.contains("no-such-command-here"), "{said}");
+    }
 
     #[test]
     fn the_studios_page_says_how_large_the_program_it_loads_is() {
