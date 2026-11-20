@@ -284,7 +284,8 @@ impl From<Cond> for String {
 
 /// a lane's habits: probability of a hit on each 1/16 step (16 = one bar, 32 = two bars); values >= 1 always hit.
 /// `vel` is the velocity range, `ghost` the chance of soft extra hits on empty steps, `rolls` the chance per beat of a
-/// trap roll (1/32 or triplet bursts), `vary` how often the last bar of a phrase deviates
+/// trap roll (1/32 or triplet bursts), `vary` how often the last bar of a phrase deviates, `drift` how far the bars of a
+/// phrase stray from its first
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LaneTemplate {
     pub steps: Vec<f32>,
@@ -296,6 +297,11 @@ pub struct LaneTemplate {
     pub rolls: f32,
     #[serde(default)]
     pub vary: f32,
+    /// the chance each of a bar's own hits (a step whose chance is under 1, and a ghost) is drawn again in each bar of
+    /// the phrase after its first, so that a drummer's bars differ a little as they play on, as a break chopped and
+    /// played does; 0 plays the first bar over, as a loop does
+    #[serde(default)]
+    pub drift: f32,
 }
 
 fn default_vel() -> (f32, f32) {
@@ -329,8 +335,23 @@ fn sample_bar(t: &LaneTemplate, rng: &mut Rng, vary: bool) -> Vec<Hit> {
     hits
 }
 
-/// a looping pattern of `bars` bars: the template's main bar repeated, the phrase's last bar sometimes varied,
-/// rolls added on top
+/// a bar of the phrase after its first, played as a drummer plays on: each of the first bar's own hits (on a step whose
+/// chance is under 1, or a ghost) drawn again with chance `drift`, the hits it always plays kept
+fn drifted(main: &[Hit], t: &LaneTemplate, rng: &mut Rng) -> Vec<Hit> {
+    let fresh = sample_bar(t, rng, false);
+    let always = |h: &Hit| t.steps.get((h.t / 0.25).round() as usize).is_some_and(|p| *p >= 1.0);
+    let mut out: Vec<Hit> = main.iter().filter(|h| always(h)).copied().collect();
+    for k in 0..t.steps.len() {
+        let at = |h: &&Hit| ((h.t / 0.25).round() as usize) == k && !always(h);
+        let from = if rng.chance(t.drift as f64) { &fresh } else { main };
+        out.extend(from.iter().filter(at).copied());
+    }
+    out.sort_by(|a, b| a.t.total_cmp(&b.t));
+    out
+}
+
+/// a looping pattern of `bars` bars: the template's main bar repeated (each bar after the first drifting from it as
+/// far as `drift` says), the phrase's last bar sometimes varied, rolls added on top
 pub fn generate(t: &LaneTemplate, bars: u32, rng: &mut Rng) -> Vec<Hit> {
     let bar_steps = 16usize;
     let tmpl_bars = (t.steps.len().max(1) as f64 / bar_steps as f64).ceil().max(1.0) as u32;
@@ -339,8 +360,13 @@ pub fn generate(t: &LaneTemplate, bars: u32, rng: &mut Rng) -> Vec<Hit> {
     let mut b = 0;
     while b < bars {
         let last = b + tmpl_bars >= bars;
-        let part =
-            if last && t.vary > 0.0 && rng.chance(t.vary as f64) { sample_bar(t, rng, true) } else { main.clone() };
+        let part = if last && t.vary > 0.0 && rng.chance(t.vary as f64) {
+            sample_bar(t, rng, true)
+        } else if b > 0 && t.drift > 0.0 {
+            drifted(&main, t, rng)
+        } else {
+            main.clone()
+        };
         for h in &part {
             out.push(Hit { t: h.t + b as f64 * 4.0, ..*h });
         }

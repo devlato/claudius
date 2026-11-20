@@ -239,10 +239,46 @@ fn templates_keep_anchors() {
         ghost: 0.0,
         rolls: 0.0,
         vary: 0.0,
+        drift: 0.0,
     };
     let hits = rhythm::generate(&t, 4, &mut Rng::new(1));
     assert_eq!(hits.len(), 16);
     assert!(hits.iter().all(|h| (h.t % 1.0).abs() < 1e-9));
+}
+
+#[test]
+fn a_drifting_lane_keeps_its_anchors_in_every_bar_and_draws_its_other_hits_again() {
+    // a backbeat that always plays, and ghost notes around it by chance
+    let mut steps = vec![0.0; 16];
+    (steps[4], steps[12]) = (1.0, 1.0);
+    [2, 3, 7, 9, 10, 14, 15].into_iter().for_each(|k| steps[k] = 0.45);
+    let t = |drift| LaneTemplate { steps: steps.clone(), vel: (0.6, 1.0), ghost: 0.0, rolls: 0.0, vary: 0.0, drift };
+    let bars = |hits: &[rhythm::Hit]| -> Vec<Vec<usize>> {
+        (0..8)
+            .map(|b| {
+                let mut on: Vec<usize> = hits
+                    .iter()
+                    .filter(|h| (h.t / 4.0).floor() as usize == b)
+                    .map(|h| ((h.t - b as f64 * 4.0) / 0.25).round() as usize)
+                    .collect();
+                on.sort_unstable();
+                on
+            })
+            .collect()
+    };
+    // without drift, a loop: every bar as the first
+    let looped = bars(&rhythm::generate(&t(0.0), 8, &mut Rng::new(3)));
+    assert!(looped.iter().all(|b| *b == looped[0]), "{looped:?}");
+    // with it, every bar keeps the backbeat, and the bars differ in what they play around it
+    let mut differ = 0;
+    for seed in 0..16 {
+        let drifting = bars(&rhythm::generate(&t(0.5), 8, &mut Rng::new(seed)));
+        for b in &drifting {
+            assert!(b.contains(&4) && b.contains(&12), "seed {seed}: {drifting:?}");
+        }
+        differ += drifting.iter().filter(|b| **b != drifting[0]).count();
+    }
+    assert!(differ > 16 * 7 / 2, "most bars after the first differ from it: {differ} of {}", 16 * 7);
 }
 
 #[test]
