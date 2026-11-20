@@ -465,12 +465,16 @@ pub fn download_all(tasks: &[Task], threads: usize, label: &str, progress: &dyn 
     Ok(stats)
 }
 
-/// Extract an archive (zip, 7z, tar.*) with the system tools: bsdtar reads all of them; GNU systems fall back to
-/// unzip / 7z. The symbolic links an archive holds are deleted afterwards: one could point anywhere on the computer,
-/// and the files of a pack are copied out of `dir`.
+/// Extract an archive (zip, 7z, tar.*): a zip in Rust (`unzip_into`), so that a computer without unzip (GNU tar reads
+/// no zip) installs every pack; the rest, and a zip it cannot read, with the system tools: bsdtar reads all of them, and
+/// GNU systems fall back to unzip / 7z. The symbolic links an archive holds are deleted afterwards: one could point
+/// anywhere on the computer, and the files of a pack are copied out of `dir`.
 pub fn extract_archive(archive: &Path, dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dir)?;
     let name = archive.to_string_lossy().to_ascii_lowercase();
+    if name.ends_with(".zip") && unzip_into(archive, dir).is_ok() {
+        return remove_links(dir);
+    }
     let tar = Command::new("tar").arg("-xf").arg(archive).arg("-C").arg(dir).output();
     if matches!(&tar, Ok(o) if o.status.success()) {
         return remove_links(dir);
@@ -494,6 +498,27 @@ pub fn extract_archive(archive: &Path, dir: &Path) -> Result<()> {
         Err(e) => e.to_string(),
     };
     bail!("cannot extract {}: {msg}", archive.display())
+}
+
+/// A zip's files and folders written under `dir`, entry by entry: an entry whose name would leave `dir` (`..`, a root)
+/// is left out, and so is a symbolic link, which a pack has no use for.
+fn unzip_into(archive: &Path, dir: &Path) -> Result<()> {
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(archive)?)?;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i)?;
+        let Some(inside) = entry.enclosed_name() else { continue };
+        let path = dir.join(inside);
+        if entry.is_dir() {
+            std::fs::create_dir_all(&path)?;
+        } else if !entry.is_symlink() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut out = std::fs::File::create(&path).with_context(|| format!("cannot write {}", path.display()))?;
+            std::io::copy(&mut entry, &mut out).with_context(|| format!("cannot extract {}", path.display()))?;
+        }
+    }
+    Ok(())
 }
 
 /// delete every symbolic link under `dir`, without following any
@@ -675,5 +700,31 @@ mod flac_tests {
         }
         assert!(std::fs::metadata(&flac).unwrap().len() < std::fs::metadata(&wav).unwrap().len());
         std::fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod extract_tests {
+    #[test]
+    fn a_zip_is_extracted_without_any_tool_and_keeps_inside_its_folder() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("pack.zip");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        let deflated = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        zip.add_directory("Pack/", deflated).unwrap();
+        zip.start_file("Pack/BD/bd01.wav", deflated).unwrap();
+        zip.write_all(&[7u8; 4096]).unwrap();
+        zip.start_file("../outside.txt", deflated).unwrap();
+        zip.write_all(b"no").unwrap();
+        zip.finish().unwrap();
+        let into = dir.path().join("out");
+        super::extract_archive(&archive, &into).unwrap();
+        assert_eq!(std::fs::read(into.join("Pack/BD/bd01.wav")).unwrap(), vec![7u8; 4096]);
+        assert!(!dir.path().join("outside.txt").exists() && !into.join("outside.txt").exists());
+        // one it cannot read falls back to the tools, which say why it is not an archive
+        let broken = dir.path().join("broken.zip");
+        std::fs::write(&broken, b"not a zip").unwrap();
+        assert!(super::extract_archive(&broken, &dir.path().join("broken")).is_err());
     }
 }
