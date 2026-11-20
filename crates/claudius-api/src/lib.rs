@@ -799,7 +799,7 @@ pub struct SongView {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct SectionView {
     pub name: String,
-    /// intro, verse, build, drop, break, hook, groove, outro
+    /// intro, verse, build, drop, break, hook, groove, outro, bridge
     pub kind: String,
     pub start_bar: u32,
     pub bars: u32,
@@ -1931,8 +1931,9 @@ pub enum Command {
     },
     /// A section of `kind`, `bars` long, right after section `after`, set as the section named `like`, else as the
     /// song's nearest section of the kind (a new chorus as its chorus), else as the genre writes the kind (its layers
-    /// and energy), else as section `after` at the kind's energy; without the song's takes, so that the sections after
-    /// it play what they played.
+    /// and energy), else, for a bridge, as one of the song's own (under its neighbours, its drums thinned to those that
+    /// keep time, on chords of its own that lead into the section after it), else as section `after` at the kind's
+    /// energy; without the song's takes, so that the sections after it play what they played.
     AddSection {
         after: usize,
         kind: String,

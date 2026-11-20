@@ -485,7 +485,7 @@ fn role_hue(name: &str) -> Color32 {
     }
 }
 
-/// a colour for a section kind (intro, verse, build, drop, break, hook, groove, outro)
+/// a colour for a section kind (intro, verse, build, drop, break, hook, groove, outro, bridge)
 pub fn section_color(kind: &str) -> Color32 {
     ink(section_hue(kind))
 }
@@ -499,6 +499,7 @@ fn section_hue(kind: &str) -> Color32 {
         "drop" => rgb(232, 82, 78),
         "hook" => rgb(238, 120, 58),
         "break" => rgb(138, 104, 204),
+        "bridge" => rgb(206, 92, 164),
         "outro" => rgb(98, 110, 136),
         _ => rgb(122, 132, 152),
     }
@@ -695,7 +696,7 @@ mod tests {
     /// the colours the roles, the sections and the progressions are drawn in, by name
     fn named() -> Vec<(&'static str, Color32)> {
         let roles = ["kick", "clap", "ohat", "hat", "perc", "bass", "chords", "pad", "lead", "arp", "fx", "loop", "x"];
-        let kinds = ["intro", "verse", "groove", "build", "drop", "hook", "break", "outro", "other"];
+        let kinds = ["intro", "verse", "groove", "build", "drop", "hook", "break", "bridge", "outro", "other"];
         let mut all: Vec<_> = roles.iter().map(|r| (*r, super::role_hue(r))).collect();
         all.extend(kinds.iter().map(|k| (*k, super::section_hue(k))));
         all.extend(["A", "B", "C", "D", "E", "F"].iter().map(|n| (*n, super::prog_hue(n))));

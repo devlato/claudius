@@ -40,7 +40,7 @@ Everything on one page. Each name links to its full entry.
 | | |
 |---|---|
 | [`form([sec(...), ...])`](form.md#form) | the whole form; repeated names become `drop2`, `drop3` |
-| [`sec(kind, bars, layers)`](form.md#sec) | kinds `intro verse build drop break hook groove outro`; layers `"kick hat"`, `[...]`, `"*"` |
+| [`sec(kind, bars, layers)`](form.md#sec) | kinds `intro verse build drop break hook groove outro bridge`; layers `"kick hat"`, `[...]`, `"*"` |
 | [`.name() .energy() .prog() .variant()`](form.md#section-methods) | |
 | [`.build() .gap() .impact() .fills() .filter_in()`](form.md#what-the-flags-do) | each also takes `true` / `false` |
 | [`section("drop", #{ ... })`](form.md#section) | `bars energy prog variant name layers build gap impact fills filter_in`; by name or 0-based index |

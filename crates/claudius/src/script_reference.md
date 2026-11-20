@@ -72,7 +72,8 @@ section("drop", #{ energy: 0.9, layers: "kick bass lead", fills: true });   // e
 layer("break", "lead", true);                                               // switch one track on/off in a section
 ```
 
-Section kinds: `intro verse build drop break hook groove outro`. Section methods: `.name(s) .energy(0..1) .prog(name)
+Section kinds: `intro verse build drop break hook groove outro bridge` (a bridge plays chords of its own, written for
+it, that lead into the next section). Section methods: `.name(s) .energy(0..1) .prog(name)
 .variant(name) .build() .gap() .impact() .fills() .filter_in()` (each flag also takes `true`/`false`).
 
 ### Effects

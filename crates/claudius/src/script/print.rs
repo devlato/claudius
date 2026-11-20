@@ -5,7 +5,7 @@ use crate::model::*;
 use crate::pattern::quote;
 
 use super::eval_pattern;
-use super::form::default_energy;
+use super::form::{default_energy, default_prog, default_variant};
 use super::song::pattern_mix;
 use super::sounds::{drum_label, drum_name, voice_word};
 use super::steps::{hits_to_steps, shortest_steps};
@@ -417,13 +417,10 @@ pub fn to_script(bp: &Blueprint) -> String {
         if sec.energy != default_energy(sec.kind) {
             line.push_str(&format!(".energy({})", f32s(sec.energy)));
         }
-        let default_prog = if sec.kind == SectionKind::Break { "B" } else { "A" };
-        if sec.prog != default_prog {
+        if sec.prog != default_prog(sec.kind) {
             line.push_str(&format!(".prog({})", quote(&sec.prog)));
         }
-        let default_variant =
-            if matches!(sec.kind, SectionKind::Intro | SectionKind::Outro) { "sparse" } else { "main" };
-        if sec.variant != default_variant {
+        if sec.variant != default_variant(sec.kind) {
             line.push_str(&format!(".variant({})", quote(&sec.variant)));
         }
         let defaults = (

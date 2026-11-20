@@ -751,7 +751,7 @@ fn way(field: &str, up: bool) -> &'static str {
     }
 }
 
-/// the names people give a section, by its kind and by its name ("bridge" is a name, not a kind)
+/// the names people give a section, by its kind and by its name (a break named "bridge" is one too)
 fn section_words(kind: &str, name: &str) -> String {
     let by_kind = match kind {
         "intro" => "the opening",
@@ -762,10 +762,11 @@ fn section_words(kind: &str, name: &str) -> String {
         "break" => "a breakdown, a quiet break in the middle",
         "groove" => "the groove, the main beat",
         "outro" => "the ending",
+        "bridge" => "a bridge, a middle eight",
         _ => "",
     };
     let by_name = match name {
-        n if n.contains("bridge") => "a bridge, a middle eight",
+        n if n.contains("bridge") && kind != "bridge" => "a bridge, a middle eight",
         n if n.contains("chorus") => "the chorus",
         _ => "",
     };

@@ -272,6 +272,53 @@ pub fn markov(key: &Key, len: usize, ext: u8, rng: &mut Rng) -> Vec<String> {
     vec![roman_of(&diatonic(key, 0, ext), key)]
 }
 
+/// A bridge's progression of `len` chords (two at least): somewhere the song has not been, and the way back. It sets
+/// out away from the tonic, on the fourth or the sixth of a major key (a minor key's sixth, fourth or third), the one
+/// the song's other progressions (`heard`) start on least likely; walks the Markov chain from there, never a chord
+/// twice in a row and seldom the tonic; and ends on the dominant seventh of `next`, the chord the section after it
+/// starts on (of the tonic when nothing follows), so that it leads into it. Not one of `heard` when another can be
+/// found. `ext` colours its chords as `markov`'s.
+pub fn bridge(key: &Key, heard: &[Vec<String>], next: Option<&str>, len: usize, ext: u8, rng: &mut Rng) -> Vec<String> {
+    let len = len.max(2);
+    let t = transitions(key.mode.is_minor());
+    let target = next.and_then(|rn| roman(rn, key)).map_or(key.tonic, |c| c.root);
+    let home = Chord::new((target + 7) % 12, Quality::Dom7);
+    // a major or a minor chord to set out on (a mode's diminished or augmented one there is no place to start)
+    let ways: [(i32, f64); 3] =
+        if key.mode.is_minor() { [(5, 2.0), (3, 1.5), (2, 1.0)] } else { [(3, 2.0), (5, 1.5), (1, 0.5)] };
+    let mut starts: Vec<(i32, f64)> =
+        ways.into_iter().filter(|&(d, _)| matches!(diatonic(key, d, 0).quality, Quality::Maj | Quality::Min)).collect();
+    if starts.is_empty() {
+        starts.push((3, 1.0));
+    }
+    let opened: Vec<u8> =
+        heard.iter().filter_map(|p| p.first()).filter_map(|rn| roman(rn, key)).map(|c| c.root).collect();
+    let weights: Vec<f64> =
+        starts.iter().map(|&(d, w)| if opened.contains(&key.degree_pc(d)) { w * 0.2 } else { w }).collect();
+    let mut first: Option<Vec<String>> = None;
+    for _ in 0..64 {
+        let mut ds = vec![starts[rng.weighted(&weights)].0];
+        while ds.len() < len - 1 {
+            let cur = *ds.last().unwrap() as usize;
+            let mut w = t[cur];
+            w[cur] = 0.0;
+            w[0] *= 0.3;
+            ds.push(rng.weighted(&w) as i32);
+        }
+        // the dominant only where it leads: none on its root just before it
+        if ds.last().is_some_and(|&d| key.degree_pc(d) == home.root) {
+            continue;
+        }
+        let mut out: Vec<String> = ds.iter().map(|&d| roman_of(&diatonic(key, d, ext), key)).collect();
+        out.push(roman_of(&home, key));
+        if !heard.contains(&out) {
+            return out;
+        }
+        first.get_or_insert(out);
+    }
+    first.unwrap_or_else(|| vec![roman_of(&diatonic(key, starts[0].0, ext), key), roman_of(&home, key)])
+}
+
 /// one theory-aware substitution; returns the new progression and what was done
 pub fn substitute(prog: &[String], key: &Key, rng: &mut Rng) -> (Vec<String>, String) {
     let mut out = prog.to_vec();

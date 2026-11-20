@@ -59,7 +59,7 @@ The messages, as printed after `Runtime error:`.
 | `track()` with a file | `track 'x': /path/vox.wav does not exist`; `track 'x': /path/vox.wav is outside the folders this claudius may read` |
 | `track()`, dense patterns | `track 'x': this pattern is too dense to play: it makes more than 262144 events`; `track 'x': this pattern is too dense to play: it needs more than 4000000 steps of work`; `track 'x' plays 2048 notes per bar; the limit is 1024` |
 | `form()` | `form() takes sec(...) items`; `section 'drop' uses 'snare', which is not a track (tracks: ...)`; `section 'drop' plays progression 'C', which the song does not have (progressions: A B; prog() adds one)` |
-| `sec()` | `unknown section kind 'party' (intro verse build drop break hook groove outro)`; `layers are a string ("kick hats") or an array of names` |
+| `sec()` | `unknown section kind 'party' (intro verse build drop break hook groove outro bridge)`; `layers are a string ("kick hats") or an array of names` |
 | `.energy()` | `energy needs a number` |
 | `section()` | `no section 'nope'`; `no section 12`; `section() takes a name or an index`; the two `form()` checks; `section() has no option 'bar' (options: ...)` |
 | `layer()` | `no section 'nope'`; `layer() takes a section name or index`; `no track 'leed' (tracks: ...)` |

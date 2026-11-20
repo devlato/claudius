@@ -649,8 +649,15 @@ pub fn scratch(
 
 /// The section a new one of kind `k` after section `after` is set as: the one named `like`, else the song's nearest of
 /// the kind (before `after` first), else the genre's own of the kind (its layers among the song's, its energy and
-/// progression), else section `after` at the kind's energy.
-fn shaped(bp: &Blueprint, after: usize, k: SectionKind, like: Option<&str>) -> Result<Option<SectionSpec>, String> {
+/// progression), else, for a bridge, a bridge of the song's own (`claudius::form::new_bridge`: under its neighbours,
+/// its drums thinned, on chords of its own), else section `after` at the kind's energy.
+fn shaped(
+    bp: &Blueprint,
+    after: usize,
+    k: SectionKind,
+    bars: u32,
+    like: Option<&str>,
+) -> Result<Option<SectionSpec>, String> {
     if let Some(name) = like {
         return match bp.form.iter().find(|s| s.name == name) {
             Some(s) => Ok(Some(s.clone())),
@@ -666,6 +673,9 @@ fn shaped(bp: &Blueprint, after: usize, k: SectionKind, like: Option<&str>) -> R
     let genre = bp.genre.split('+').next().unwrap_or(&bp.genre);
     let written =
         claudius::genres::get(genre).ok().and_then(|g| g.forms.iter().flatten().find(|s| s.kind == k).cloned());
+    if written.is_none() && k == SectionKind::Bridge && !bp.form.is_empty() {
+        return Ok(Some(claudius::form::new_bridge(bp, near, bars)));
+    }
     if let Some(s) = spec.as_mut() {
         s.energy = kind_energy(k);
         if let Some(w) = written {
@@ -686,6 +696,7 @@ fn kind_energy(k: SectionKind) -> f32 {
     match k {
         SectionKind::Intro | SectionKind::Outro => 0.4,
         SectionKind::Break => 0.35,
+        SectionKind::Bridge => 0.5,
         SectionKind::Verse => 0.55,
         SectionKind::Build => 0.6,
         SectionKind::Groove => 0.65,
@@ -696,7 +707,7 @@ fn kind_energy(k: SectionKind) -> f32 {
 
 fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32, like: Option<&str>) -> Result<String, String> {
     let k = section_kind(kind)?;
-    let like = shaped(bp, after, k, like)?;
+    let like = shaped(bp, after, k, bars, like)?;
     let mut spec = like.unwrap_or_else(|| SectionSpec {
         name: String::new(),
         kind: k,
@@ -729,11 +740,15 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32, like: Op
     let at = (after + 1).min(bp.form.len());
     let name = spec.name.clone();
     bp.form.insert(at, spec);
+    // a bridge's chords of its own, leading into the section after it
+    let chords = claudius::form::bridge_chords(bp);
+    let own = chords.first().map(|(_, c)| format!(", on chords of its own ({})", c.join(" "))).unwrap_or_default();
     Ok(if without.is_empty() {
-        format!("added {name} ({bars} bars) at {at}")
+        format!("added {name} ({bars} bars) at {at}{own}")
     } else {
         format!(
-            "added {name} ({bars} bars) at {at}, without the takes ({}): the sections after it play what they played",
+            "added {name} ({bars} bars) at {at}{own}, without the takes ({}): the sections after it play what they \
+             played",
             without.join(", ")
         )
     })
@@ -838,7 +853,7 @@ fn set_fx(bp: &mut Blueprint, target: &str, fx: &[serde_json::Value]) -> Result<
     Ok(format!("{target}: {n} effect{}", if n == 1 { "" } else { "s" }))
 }
 
-/// a section kind by its name, or one of the names it also goes by (`breakdown`, `chorus`, `loop`)
+/// a section kind by its name, or one of the names it also goes by (`breakdown`, `chorus`, `loop`, `middle_eight`)
 pub fn section_kind(k: &str) -> Result<SectionKind, String> {
     Ok(match k {
         "intro" => SectionKind::Intro,
@@ -849,8 +864,11 @@ pub fn section_kind(k: &str) -> Result<SectionKind, String> {
         "hook" | "chorus" => SectionKind::Hook,
         "groove" | "loop" => SectionKind::Groove,
         "outro" => SectionKind::Outro,
+        "bridge" | "middle_eight" => SectionKind::Bridge,
         other => {
-            return Err(format!("unknown section kind '{other}' (intro verse build drop break hook groove outro)"));
+            return Err(format!(
+                "unknown section kind '{other}' (intro verse build drop break hook groove outro bridge)"
+            ));
         }
     })
 }
@@ -988,6 +1006,31 @@ mod tests {
         let verse = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "verse", "bars": 8}));
         change(&verse, &mut bare, 1).unwrap().unwrap();
         assert_eq!((bare.form[1].kind, bare.form[1].energy), (SectionKind::Verse, 0.55));
+    }
+
+    #[test]
+    fn a_bridge_added_plays_chords_of_its_own_under_its_neighbours_and_another_plays_as_it_does() {
+        let mut bp = song();
+        let drop_at = bp.form.iter().position(|s| s.kind == SectionKind::Drop).expect("a house song has a drop");
+        let add = cmd(&json!({"cmd": "add_section", "after": drop_at, "kind": "bridge", "bars": 8}));
+        let said = change(&add, &mut bp, 1).unwrap().unwrap();
+        let new = bp.form[drop_at + 1].clone();
+        assert_eq!((new.kind, new.name.as_str(), new.prog.as_str()), (SectionKind::Bridge, "bridge", "bridge"));
+        let chords = bp.harmony.progressions.get("bridge").expect("chords of its own").clone();
+        assert!(said.contains(&format!("on chords of its own ({})", chords.join(" "))), "{said}");
+        // 0.15 under the quieter of the sections around it
+        let around = bp.form[drop_at].energy.min(bp.form.get(drop_at + 2).map_or(1.0, |s| s.energy));
+        assert_eq!(new.energy, (around - 0.15).clamp(0.2, 0.55));
+        assert!(new.energy < bp.form[drop_at].energy, "under the drop before it");
+        // a second, by another of its names, plays as the song's bridge does, on the same chords
+        let again = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "middle_eight", "bars": 8}));
+        let said = change(&again, &mut bp, 1).unwrap().unwrap();
+        assert!(!said.contains("chords of its own"), "{said}");
+        assert_eq!(
+            (bp.form[1].kind, &bp.form[1].layers, &bp.form[1].prog),
+            (SectionKind::Bridge, &new.layers, &new.prog)
+        );
+        assert_eq!(bp.harmony.progressions["bridge"], chords);
     }
 
     #[test]

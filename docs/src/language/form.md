@@ -16,7 +16,8 @@ the second `drop` becomes `drop2`, the third `drop3`.
 Every layer must be a track of the song, or one of the genre's optional parts and loops (which may be absent from a
 song, and are silent then). `"*"` and a missing layer list mean every track that exists when `form()` runs; tracks
 added later join by the [`track()` rule](song-functions.md#track). Every section's progression must exist, except
-`B`: a section that plays `B` on a song without one plays `A`.
+`B`, which a section plays as `A` on a song without one, and a bridge's: a `bridge` that names a progression the
+song does not have gets one of its own, written as `form()` runs (see [`sec()`](#sec)).
 
 Errors: `form() takes sec(...) items`; `section 'drop' uses 'snare', which is not a track (tracks: kick clap hat ohat
 shaker perc bass chords pad lead arp)`; `section 'drop' plays progression 'C', which the song does not have
@@ -40,8 +41,9 @@ sec(kind, bars)            // every track
 sec(kind, bars, layers)    // layers: "kick hat", ["kick", "hat"] or "*"
 ```
 
-`bars` is an integer, clamped to 1..256. The kind is one of the words below; `breakdown`, `chorus` and `loop` are
-accepted for `break`, `hook` and `groove`, and the section keeps the word you wrote as its name.
+`bars` is an integer, clamped to 1..256. The kind is one of the words below; `breakdown`, `chorus`, `loop` and
+`middle_eight` are accepted for `break`, `hook`, `groove` and `bridge`, and the section keeps the word you wrote as its
+name.
 
 Each kind comes with defaults:
 
@@ -54,13 +56,21 @@ Each kind comes with defaults:
 | `drop` | 0.95 | `A` | `main` | fills |
 | `hook` | 0.95 | `A` | `main` | fills |
 | `break` | 0.35 | `B` (`A` when there is no `B`) | `main` | |
+| `bridge` | 0.5 | `bridge`, its own | `sparse` | |
 | `outro` | 0.4 | `A` | `sparse` | |
+
+A bridge is somewhere the song has not been before it comes back. When the song has no progression of the name it
+plays (`bridge` unless `.prog()` names another), `form()` writes one: it sets out away from the tonic (on the fourth or
+the sixth of a major key, a minor key's sixth, fourth or third), never plays the same chord twice in a row, and ends on
+the dominant seventh of the chord the next section starts on, so that it leads into it; as many chords as its bars
+take at the song's [`bars_per_chord`](song-functions.md#bars_per_chord), two to eight. Every part plays it with notes of
+its own, as each does every progression.
 
 The kind also matters to the arranger (drops and hooks get crashes every 8 bars, a final outro closes a filter) and to
 the critic, which compares the loudness of drops and hooks with breaks.
 
-Errors: `unknown section kind 'party' (intro verse build drop break hook groove outro)`; `layers are a string ("kick
-hats") or an array of names`.
+Errors: `unknown section kind 'party' (intro verse build drop break hook groove outro bridge)`; `layers are a string
+("kick hats") or an array of names`.
 
 ### Section methods
 

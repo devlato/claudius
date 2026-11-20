@@ -226,7 +226,8 @@ fn pad(
     let part = draw(bp, spec, r);
     let everywhere = more >= 0.8;
     for s in bp.form.iter_mut() {
-        let quiet = matches!(s.kind, SectionKind::Intro | SectionKind::Break | SectionKind::Outro);
+        let quiet =
+            matches!(s.kind, SectionKind::Intro | SectionKind::Break | SectionKind::Bridge | SectionKind::Outro);
         if (quiet || peak(s) || everywhere) && !s.layers.is_empty() {
             s.layers.push(part.name.clone());
         }

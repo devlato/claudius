@@ -221,6 +221,30 @@ fn edits_on_a_generated_song() {
 }
 
 #[test]
+fn a_bridge_in_a_form_gets_chords_of_its_own_and_prints_as_it_plays() {
+    let g = genres::get("synthwave").unwrap();
+    let bp = compose::generate(&g, 2, &Options::default(), None);
+    let code = r#"form([sec("verse", 8), sec("hook", 8), sec("bridge", 8), sec("hook", 8)]);"#;
+    let out = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+    let bridge = &out.form[2];
+    assert_eq!(
+        (bridge.kind.name(), bridge.prog.as_str(), bridge.variant.as_str(), bridge.energy),
+        ("bridge", "bridge", "sparse", 0.5)
+    );
+    let chords = &out.harmony.progressions["bridge"];
+    assert!(chords.len() >= 2 && !bp.harmony.progressions.values().any(|p| p == chords), "{chords:?}");
+    // it prints as it plays, its chords and all
+    let again = script::run(&script::to_script(&out), Some(out.clone()), None).unwrap().bp.unwrap();
+    assert!(again == out, "the printed script changed the song\n{}", script::to_script(&out));
+    // a bridge on a progression named and not written is one of its own too; another kind still needs it written
+    let named = r#"form([sec("verse", 8), sec("bridge", 8).prog("M8")]);"#;
+    let out = script::run(named, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(out.harmony.progressions.contains_key("M8"));
+    let e = script::run(r#"form([sec("verse", 8).prog("M8")]);"#, Some(bp), None).err().expect("refused");
+    assert!(e.contains("plays progression 'M8', which the song does not have"), "{e}");
+}
+
+#[test]
 fn a_mode_change_moves_the_chords_with_it() {
     let out = script::run(
         r#"blank("house"); key("E major"); prog("A", "Imaj7 vi7 ii7 V7 bVII"); key("F minor");"#,

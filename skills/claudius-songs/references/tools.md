@@ -111,7 +111,9 @@ Notes:
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}` (set as the song's own
-  break when it has one, else as the genre writes one; `"like": "drop"` sets it as a section named), `move_section`,
+  break when it has one, else as the genre writes one; `"like": "drop"` sets it as a section named; a `bridge` the song
+  has none of comes under its neighbours, its drums thinned to the kick and hats, its bass and melodic parts on chords
+  of its own that lead into the next section, which the answer names), `move_section`,
   `split_section` (`{"cmd": "split_section", "index": 1, "at": 8}`: the second part plays on as it played),
   `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part`,
   `add_track` (`{"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead", "sound": "saw_lead"}`, or

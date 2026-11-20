@@ -948,6 +948,8 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         lineage: vec![format!("generated: {} seed {seed}", g.name)],
         grooves: BTreeMap::new(),
     };
+    // a bridge a genre writes plays chords of its own
+    crate::form::bridge_chords(&mut bp);
     // the samples a sampling genre is built on
     crate::sampling::apply(&mut bp, g, opts, lib, &rng.fork("sampling"));
     layers::layer(&mut bp, g, complexity, lib, &rng.fork("layers"));
