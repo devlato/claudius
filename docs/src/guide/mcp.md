@@ -140,7 +140,8 @@ A tool that edits the song waits until the change is rendered and judged, then a
 verdict, so the assistant hears the result of every change. An assistant's link gives up on a call after a minute or
 so (the desktop app's after about 80 s), so a tool whose work takes longer than 45 s (remaking or sampling a long
 recording, rendering a long song, a mutation, an evolution, a save) answers then that it is still going, and the work
-goes on. `status` says how it goes, and gives its answer once it is done.
+goes on. `status` says how it goes, and gives its answer once it is done: each one's, in the order they were called,
+when the work of more than one call goes on.
 
 | tool | parameters | what it does |
 |---|---|---|

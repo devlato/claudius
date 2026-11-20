@@ -1061,8 +1061,9 @@ struct Pending {
 #[derive(Clone)]
 pub struct Studio {
     b: Backend,
-    /// a tool's work that went on past its call, whose answer `status` gives
-    pending: Arc<Mutex<Option<Pending>>>,
+    /// the tools' work that went on past their calls, in the order they were called, each one's answer for `status`
+    /// to give
+    pending: Arc<Mutex<Vec<Pending>>>,
 }
 
 /// a command's work in words, as its tool is called: `remake`, `sample_song`
@@ -1122,27 +1123,41 @@ impl Studio {
                      studio meanwhile.",
                     limit.as_secs()
                 );
-                *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(Pending { what, since, task });
+                self.pending.lock().unwrap_or_else(|e| e.into_inner()).push(Pending { what, since, task });
                 Ok(said)
             }
         }
     }
 
-    /// what `status` says of a tool's work that went on past its call: its answer once it has one (once), or how long
-    /// it has gone on
+    /// what `status` says of the tools' work that went on past their calls, in the order they were called: the answer
+    /// of each that has one (once), then how long each of the others has gone on. Those done are taken out of the list,
+    /// and the others left in it, under one hold of it, so that work that outlasts its call meanwhile is kept too.
     async fn pending_said(&self) -> Option<String> {
-        let p = self.pending.lock().unwrap_or_else(|e| e.into_inner()).take()?;
-        if !p.task.is_finished() {
-            let said = format!("{} is still going ({} s so far)\n", p.what, p.since.elapsed().as_secs());
-            *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(p);
-            return Some(said);
-        }
-        let answer = match p.task.await {
-            Ok(Ok(answer)) => answer,
-            Ok(Err(why)) => format!("it failed: {why}"),
-            Err(e) => format!("it failed: {e}"),
+        let (done, going) = {
+            let mut list = self.pending.lock().unwrap_or_else(|e| e.into_inner());
+            if list.is_empty() {
+                return None;
+            }
+            let (done, going): (Vec<Pending>, Vec<Pending>) =
+                std::mem::take(&mut *list).into_iter().partition(|p| p.task.is_finished());
+            let said: String = going
+                .iter()
+                .map(|p| format!("{} is still going ({} s so far)\n", p.what, p.since.elapsed().as_secs()))
+                .collect();
+            *list = going;
+            (done, said)
         };
-        Some(format!("{} is done:\n{answer}\n\n", p.what))
+        let mut out = String::new();
+        for p in done {
+            let answer = match p.task.await {
+                Ok(Ok(answer)) => answer,
+                Ok(Err(why)) => format!("it failed: {why}"),
+                Err(e) => format!("it failed: {e}"),
+            };
+            out.push_str(&format!("{} is done:\n{answer}\n\n", p.what));
+        }
+        out.push_str(&going);
+        Some(out)
     }
 
     fn describe(&self, st: &State) -> String {
@@ -1343,6 +1358,33 @@ impl Studio {
         Ok(out)
     }
 
+    /// A command that makes or opens a song, and the song rendered and judged after it, answered with the song in plain
+    /// words before what the tool says first (`about`) and the rest: all of it within a call (`bounded`), so that the
+    /// answer `status` gives once work past the call is done is in plain words as well, and an answer that says the
+    /// work goes on is never put in the words of the song open before it.
+    async fn made(&self, c: Command, about: Option<String>) -> Result<String, String> {
+        self.made_within(CALL, c, about, true).await
+    }
+
+    async fn made_within(
+        &self,
+        limit: Duration,
+        c: Command,
+        about: Option<String>,
+        listen: bool,
+    ) -> Result<String, String> {
+        let me = self.clone();
+        self.bounded_for(limit, doing(&c), async move {
+            let out = me.edit_now(c, listen).await?;
+            let out = match about {
+                Some(about) => format!("{about}\n\n{out}"),
+                None => out,
+            };
+            Ok(me.in_words(&out).await)
+        })
+        .await
+    }
+
     /// an answer with the song in plain words before it, for the person, when one is open
     async fn in_words(&self, out: &str) -> String {
         match self.b.state().await {
@@ -1371,8 +1413,7 @@ impl Studio {
             sample_search: a.sample_search,
             complexity: a.complexity,
         };
-        let out = self.edit(song, true).await?;
-        Ok(self.in_words(&out).await)
+        self.made(song, None).await
     }
 
     #[tool(
@@ -1405,8 +1446,7 @@ impl Studio {
             sample_search: None,
             complexity: b.complexity,
         };
-        let out = self.edit(song, true).await?;
-        Ok(self.in_words(&format!("read from the brief: {}\n\n{out}", b.read.join("; "))).await)
+        self.made(song, Some(format!("read from the brief: {}", b.read.join("; ")))).await
     }
 
     #[tool(
@@ -1676,9 +1716,7 @@ impl Studio {
     async fn open_example(&self, Parameters(a): Parameters<OpenExampleArgs>) -> Result<String, String> {
         let e = example(&a.name)?;
         let open = Command::OpenText { name: format!("{}.rhai", e.name), text: e.script.to_string() };
-        let out = self.edit(open, true).await?;
-        let about = format!("opened the example \"{}\": {}", e.title, e.in_words());
-        Ok(self.in_words(&format!("{about}\n\n{out}")).await)
+        self.made(open, Some(format!("opened the example \"{}\": {}", e.title, e.in_words()))).await
     }
 
     #[tool(
@@ -2345,6 +2383,61 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(400)).await;
         let failed = studio.status().await.unwrap();
         assert!(failed.starts_with("`analyze` is done:\nit failed: cannot open song.mp3"), "{failed}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn two_calls_whose_work_outlasts_them_each_keep_their_answer_for_status() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let studio = Studio::new(Backend::Local { app, base: "http://127.0.0.1:0".into() });
+        let work = |ms: u64, answer: &'static str| async move {
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+            Ok::<String, String>(answer.into())
+        };
+        let first = studio.bounded_for(Duration::from_millis(20), "`remake`".into(), work(150, "remade a.mp3"));
+        assert!(first.await.unwrap().starts_with("`remake` is still going"));
+        let second = studio.bounded_for(Duration::from_millis(20), "`sample_song`".into(), work(1500, "sampled b.mp3"));
+        assert!(second.await.unwrap().starts_with("`sample_song` is still going"));
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        // the first done, the second still going: both said, in the order they were called
+        let one = studio.status().await.unwrap();
+        assert!(
+            one.starts_with("`remake` is done:\nremade a.mp3\n\n`sample_song` is still going ("),
+            "the first answer is kept: {one}"
+        );
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let two = studio.status().await.unwrap();
+        assert!(two.starts_with("`sample_song` is done:\nsampled b.mp3\n\nidle"), "{two}");
+        assert!(!two.contains("remade"), "each answer given once: {two}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_song_made_past_its_call_comes_in_plain_words_through_status_and_never_in_the_words_of_the_one_before() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let studio = Studio::new(Backend::Local { app: app.clone(), base: "http://127.0.0.1:0".into() });
+        let song = |seed| Command::NewSong {
+            genre: "house".into(),
+            seed: Some(seed),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+            complexity: None,
+        };
+        // a song open before, whose words an answer saying the new one is still being made must not give
+        assert!(app.command(song(3)).ok);
+        let about = Some("read from the brief: house".to_string());
+        let early = studio.made_within(Duration::ZERO, song(4), about, false).await.unwrap();
+        assert!(early.starts_with("`new_song` is still going") && !early.contains("in plain words"), "{early}");
+        for _ in 0..1500 {
+            if studio.pending.lock().unwrap().iter().all(|p| p.task.is_finished()) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let done = studio.status().await.unwrap();
+        assert!(done.starts_with("`new_song` is done:\nin plain words, for the person: "), "{done}");
+        assert!(done.contains("read from the brief: house"), "{done}");
     }
 
     #[tokio::test(flavor = "multi_thread")]
