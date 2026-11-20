@@ -54,6 +54,8 @@ fs4 = { version = "1", default-features = false }
 criterion = "0.8"
 insta = "1"
 proptest = "1"
+# eval_genres: the order in which the genre benchmark takes songs from the shards it tops up from
+sha2 = "0.11"
 
 [[bench]]
 name = "engine"

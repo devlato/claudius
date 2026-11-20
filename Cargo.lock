@@ -1226,6 +1226,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "signalsmith-stretch",
  "web-time",
  "zip",
