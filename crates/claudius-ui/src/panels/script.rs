@@ -443,6 +443,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let ed = &mut cx.view.script;
     let search = &mut cx.view.search;
     let reference_open = &mut cx.view.reference_open;
+    let (main, scene) = (&mut cx.view.main, &mut cx.view.graph.scene);
     let mut run = false;
     let error = ed.result.as_ref().filter(|(ok, _)| !ok).and_then(|(_, m)| error_location(m));
     page_frame().show(ui, |ui| {
@@ -451,7 +452,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ui.label(small(format!("{} lines", ed.text.lines().count())));
                 return;
             }
-            widgets::heading(ui, "Script");
+            super::views(ui, main, scene);
             let cmd = widgets::cmd_key(ui.ctx());
             if widgets::tool_button(ui, Icon::Play, "Run", !ed.awaiting, true)
                 .on_hover_text(format!("run the script against the song ({cmd}+Enter)"))

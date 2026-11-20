@@ -92,7 +92,9 @@ impl Studio {
         // the window the dialogs' threads wake when a file is read or saved
         crate::pick::wake(&cc.egui_ctx);
         let mut view = View {
-            tab: prefs.tab,
+            // the script and the signal flow were tabs once: a setting that names one opens it as the view it is now
+            tab: if prefs.tab.as_main().is_some() { Tab::default() } else { prefs.tab },
+            main: prefs.tab.as_main().unwrap_or_default(),
             volume: prefs.volume,
             mutate_count: prefs.mutate_count,
             keep_best: prefs.keep_best,
@@ -593,6 +595,7 @@ impl Studio {
             match focused {
                 Some(id) => ctx.memory_mut(|m| m.surrender_focus(id)),
                 None if self.view.close_top() => {}
+                None if self.view.main != panels::Main::Arrangement => self.view.main = panels::Main::Arrangement,
                 None => self.view.track = None,
             }
         }
@@ -651,8 +654,19 @@ impl Studio {
         while let Some(step) = plan.next(ctx, now) {
             match step {
                 Step::Tab(t) => {
-                    if let Some(tab) = Tab::ALL.iter().find(|x| format!("{x:?}").eq_ignore_ascii_case(&t)) {
+                    // a view by its name (arrangement, flow, script), as the switcher picks it; else a tab of the dock
+                    let view = match t.to_ascii_lowercase().as_str() {
+                        "arrangement" => Some(panels::Main::Arrangement),
+                        "flow" | "graph" => Some(panels::Main::Flow),
+                        "script" => Some(panels::Main::Script),
+                        _ => None,
+                    };
+                    if let Some(m) = view {
+                        self.view.main = m;
+                        self.view.graph.scene = egui::Rect::ZERO;
+                    } else if let Some(tab) = Tab::ALL.iter().find(|x| format!("{x:?}").eq_ignore_ascii_case(&t)) {
                         self.view.tab = *tab;
+                        self.view.main = panels::Main::Arrangement;
                     }
                 }
                 Step::Section(i) => self.view.section = i,
@@ -793,6 +807,7 @@ impl Studio {
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
         plan.tell("palette", &self.view.palette.told());
         plan.tell("tab", &format!("{:?}", self.view.tab));
+        plan.tell("view", &format!("{:?}", self.view.main));
         let v = &self.view;
         let windows = [
             ("keys", v.keys.open),
@@ -1273,10 +1288,9 @@ impl Studio {
                     panels::harmony::show(ui, &mut cx);
                 });
             }
-            Tab::Script => panels::script::show(ui, &mut cx),
             Tab::Sounds => panels::library::show(ui, &mut cx),
-            Tab::Graph => panels::graph::show(ui, &mut cx),
-            Tab::Log => panels::log::show(ui, &mut cx),
+            // tabs once, views now (`Main`): never chosen in the dock (`Tab::ALL`)
+            Tab::Script | Tab::Graph | Tab::Log => panels::log::show(ui, &mut cx),
         }
     }
 }
@@ -1420,11 +1434,16 @@ impl eframe::App for Studio {
             .stroke(Stroke::new(1.0, LINE_SOFT));
         egui::Panel::bottom("status").frame(status).exact_size(24.0).show(ui, |ui| self.status_bar(ui));
 
-        // the signal flow open large has the window to itself, but for the toolbars: its own inspector beside it
-        if self.view.flow_large {
-            (self.view.anchors.side, self.view.anchors.editors) = (None, None);
+        // the arrangement between the inspector and the dock; the signal flow with the window to itself but for the
+        // toolbars (its own inspector beside it); the script beside the inspector and the verdict, without the dock
+        let main = self.view.main;
+        if main != panels::Main::Arrangement {
+            self.view.anchors.editors = None;
         }
-        if self.state.song.is_some() && !self.view.flow_large {
+        if main == panels::Main::Flow {
+            self.view.anchors.side = None;
+        }
+        if self.state.song.is_some() && main != panels::Main::Flow {
             let side = egui::Frame::new()
                 .fill(PANEL.into())
                 .inner_margin(Margin::same(10))
@@ -1454,6 +1473,8 @@ impl eframe::App for Studio {
                     });
                 });
             self.view.anchors.side = Some(shown.response.rect);
+        }
+        if self.state.song.is_some() && main == panels::Main::Arrangement {
             let dock = egui::Frame::new().fill(PANEL.into()).stroke(Stroke::new(1.0, LINE));
             let dock_size = (ui.available_height() * 0.38).clamp(200.0, 360.0);
             let shown = egui::Panel::bottom("dock")
@@ -1476,10 +1497,10 @@ impl eframe::App for Studio {
                     server: self.server_url.as_deref(),
                     now,
                 };
-                if cx.view.flow_large {
-                    panels::graph::large(ui, &mut cx);
-                } else {
-                    panels::arrange::show(ui, &mut cx);
+                match cx.view.main {
+                    panels::Main::Arrangement => panels::arrange::show(ui, &mut cx),
+                    panels::Main::Flow => panels::graph::show(ui, &mut cx),
+                    panels::Main::Script => panels::script::show(ui, &mut cx),
                 }
             } else if self.has_state {
                 ui.vertical_centered(|ui| {

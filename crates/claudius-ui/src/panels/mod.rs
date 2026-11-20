@@ -48,22 +48,22 @@ pub enum Tab {
 }
 
 impl Tab {
-    /// in the dock's order: the tabs for making the song, then the ones at its right end (`at_the_end`)
-    pub const ALL: [Tab; 9] = [
-        Tab::Sequencer,
-        Tab::Parts,
-        Tab::Notes,
-        Tab::Harmony,
-        Tab::Mixer,
-        Tab::Sounds,
-        Tab::Script,
-        Tab::Graph,
-        Tab::Log,
-    ];
+    /// in the dock's order: the tabs for making the song, then the log at its right end (`at_the_end`). The script and
+    /// the signal flow were tabs once, and are views of the song now (`Main`); a setting that names them still reads.
+    pub const ALL: [Tab; 7] = [Tab::Sequencer, Tab::Parts, Tab::Notes, Tab::Harmony, Tab::Mixer, Tab::Sounds, Tab::Log];
 
-    /// one of the tabs for looking under the song (its script, its signal flow, the log), at the dock's right end
+    /// the tab for looking at what claudius did, at the dock's right end
     pub fn at_the_end(self) -> bool {
-        matches!(self, Tab::Script | Tab::Graph | Tab::Log)
+        matches!(self, Tab::Log)
+    }
+
+    /// the view a tab of earlier studios stood for (the script and the signal flow), opened in its place
+    pub fn as_main(self) -> Option<Main> {
+        match self {
+            Tab::Script => Some(Main::Script),
+            Tab::Graph => Some(Main::Flow),
+            _ => None,
+        }
     }
 
     pub fn label(self) -> &'static str {
@@ -93,6 +93,53 @@ impl Tab {
             Tab::Log => "what claudius did and said, newest last",
         }
     }
+}
+
+/// The three views of a song, which the main area switches between: the arrangement (its sections and tracks, where
+/// the dock edits them), the signal flow (every track through its effects, its bus and the master, to the finished
+/// song) and the script (the whole song as a claudius script).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Main {
+    #[default]
+    Arrangement,
+    Flow,
+    Script,
+}
+
+impl Main {
+    pub const ALL: [Main; 3] = [Main::Arrangement, Main::Flow, Main::Script];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Main::Arrangement => "Arrangement",
+            Main::Flow => "Signal flow",
+            Main::Script => "Script",
+        }
+    }
+
+    pub fn tip(self) -> &'static str {
+        match self {
+            Main::Arrangement => {
+                "the song's sections and tracks, each cell a track playing in a section (Escape from the others)"
+            }
+            Main::Flow => {
+                "every track through its effects, its bus and the master to the finished song, to change in place (G or 8)"
+            }
+            Main::Script => "the whole song as a claudius script, to read, change and run (7)",
+        }
+    }
+}
+
+/// The switcher between the song's three views (`Main`), where a view's heading stands; true when it switched. The
+/// signal flow opens with all of it in view (its `scene` afresh).
+pub fn views(ui: &mut Ui, main: &mut Main, scene: &mut egui::Rect) -> bool {
+    let before = *main;
+    let choices: Vec<(Main, &str, &str)> = Main::ALL.iter().map(|m| (*m, m.label(), m.tip())).collect();
+    crate::widgets::segmented_small(ui, main, &choices);
+    if *main == Main::Flow && before != Main::Flow {
+        *scene = egui::Rect::ZERO;
+    }
+    *main != before
 }
 
 /// app-level requests from the panels
@@ -430,8 +477,8 @@ pub struct View {
     pub track: Option<String>,
     /// the arrangement's paint tool: a press switches a cell, and dragging along its row paints the others the same
     pub paint: bool,
-    /// the signal flow open large, in the arrangement's place, rather than in the dock's tab
-    pub flow_large: bool,
+    /// the view of the song the main area shows (`Main`)
+    pub main: Main,
     /// arrangement painting: (switch on?, row, sections touched)
     pub layer_paint: Option<(bool, usize, Vec<usize>)>,
     pub prog_text: Vec<(String, String)>,
@@ -553,7 +600,7 @@ impl Default for View {
             drag_section: None,
             track: None,
             paint: false,
-            flow_large: false,
+            main: Main::Arrangement,
             layer_paint: None,
             prog_text: Vec::new(),
             chip_edit: String::new(),
@@ -1075,6 +1122,14 @@ pub fn page_frame() -> egui::Frame {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_tab_of_earlier_studios_opens_as_the_view_it_is_now() {
+        assert_eq!(Tab::Script.as_main(), Some(Main::Script));
+        assert_eq!(Tab::Graph.as_main(), Some(Main::Flow));
+        assert!(Tab::ALL.iter().all(|t| t.as_main().is_none()), "the dock holds no view");
+    }
+
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
 
@@ -1384,7 +1439,8 @@ mod tests {
     fn the_tabs_at_the_end_of_the_dock_come_last() {
         let first = Tab::ALL.iter().position(|t| t.at_the_end()).unwrap_or(Tab::ALL.len());
         assert!(Tab::ALL[first..].iter().all(|t| t.at_the_end()), "{:?}", Tab::ALL);
-        assert_eq!(Tab::ALL.iter().filter(|t| t.at_the_end()).count(), 3);
+        // the log: the script and the signal flow are the song's views now, not tabs (`Main`)
+        assert_eq!(Tab::ALL.iter().filter(|t| t.at_the_end()).collect::<Vec<_>>(), [&Tab::Log]);
     }
 
     #[test]

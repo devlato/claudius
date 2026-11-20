@@ -34,40 +34,27 @@ impl Default for GraphView {
     }
 }
 
-/// The graph in the dock's tab: or, while it is open large in the arrangement's place, where it went
+/// The signal flow, one of the song's three views (`Main`), in the main area: the views' switcher where its heading
+/// stands, what it shows, and the graph beside its inspector.
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
-    if cx.view.flow_large {
-        ui.add_space(12.0);
-        ui.vertical_centered(|ui| {
-            ui.label(RichText::new("The signal flow is open large, in the arrangement's place.").color(TEXT_DIM));
-            if ui.button("Back to the arrangement").clicked() {
-                open_large(cx, false);
-            }
-        });
-        return;
-    }
-    flow(ui, cx, false);
-}
-
-/// The graph open large, in the arrangement's place, under a bar that says so and leads back
-pub fn large(ui: &mut Ui, cx: &mut Cx) {
     ui.add_space(4.0);
     ui.horizontal(|ui| {
         ui.add_space(10.0);
-        crate::widgets::heading(ui, "Signal flow");
+        super::views(ui, &mut cx.view.main, &mut cx.view.graph.scene);
         ui.label(small("each track through its effects, its bus and the master, to the finished song"));
     });
     ui.add_space(2.0);
-    flow(ui, cx, true);
+    flow(ui, cx);
 }
 
-/// the graph open large in the arrangement's place, or back in the dock (where its view starts afresh, to fit)
-pub fn open_large(cx: &mut Cx, large: bool) {
-    cx.view.flow_large = large;
+/// The signal flow opened in the main area, or the arrangement back in its place; opened, it starts with all of it in
+/// view.
+pub fn open(cx: &mut Cx, open: bool) {
+    cx.view.main = if open { super::Main::Flow } else { super::Main::Arrangement };
     cx.view.graph.scene = Rect::ZERO;
 }
 
-fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
+fn flow(ui: &mut Ui, cx: &mut Cx) {
     let Some(song) = cx.state.song.clone() else {
         empty(ui, "No song yet.");
         return;
@@ -89,11 +76,11 @@ fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
         });
     // the graph has what the panel leaves of the width: a panel inside a Ui moves its cursor's end only
     let rest = Rect::from_min_max(ui.cursor().min, pos2(panel.response.rect.left(), ui.max_rect().bottom()));
-    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| graph_view(ui, cx, &song, &graph, large));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| graph_view(ui, cx, &song, &graph));
 }
 
 /// the graph beside its inspector: the bar over it, and the canvas
-fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: bool) {
+fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
     let bounds = graph
         .nodes
         .iter()
@@ -108,8 +95,7 @@ fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: b
     let spelt_out = spelt + 180.0 <= ui.available_width();
     widgets::row(ui, "graph_head", |ui, side| {
         if side == widgets::Side::Left {
-            // the page's margin in the dock, as every tab's, and the bar's when open large
-            ui.add_space(if large { 10.0 } else { 12.0 });
+            ui.add_space(10.0);
             if spelt_out {
                 ui.label(small(hint));
             } else {
@@ -122,17 +108,10 @@ fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: b
             return;
         }
         fit = ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked();
-        let (label, tip) = if large {
-            ("Back to the arrangement", "the arrangement in its place again (G)")
-        } else {
-            ("Open it large", "the signal flow in the arrangement's place, as big as the window allows (G)")
-        };
-        if ui.button(small(label)).on_hover_text(tip).clicked() {
-            open_large(cx, !large);
-        }
     });
+    // opened, all of it in view, the master too
     if cx.view.graph.scene == Rect::ZERO {
-        cx.view.graph.scene = Rect::from_min_size(bounds.min, ui.available_size() / 0.85);
+        cx.view.graph.scene = bounds;
     }
     if fit {
         cx.view.graph.scene = bounds;
