@@ -379,11 +379,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # Each job has to have passed, or been left out by a condition of its own: a job no runner took ends as
+      # "abandoned", neither "failure" nor "cancelled", and a pull request once merged with its macOS jobs never run.
       - name: Every job passed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "results: $RESULTS"
-          case " $RESULTS " in
-            *" failure "* | *" cancelled "*) exit 1 ;;
-          esac
+          for result in $RESULTS; do
+            case $result in
+              success | skipped) ;;
+              *) echo "::error title=ci ok::a job ended $result, and every job has to pass"; exit 1 ;;
+            esac
+          done
