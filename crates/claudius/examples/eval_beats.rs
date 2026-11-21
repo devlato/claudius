@@ -38,24 +38,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[path = "shared/families.rs"]
+mod families;
+
 use serde_json::{Value, json};
 
 /// how near a bar line has to be to a reference beat to count as on it, in seconds (the usual tolerance of beat tracking's
 /// F-measure)
 const NEAR: f64 = 0.07;
-
-/// the genre families of the dataset's tags, as `eval_critic` slices them
-const FAMILIES: &[(&str, &[&str])] = &[
-    ("electronic", &["electronic", "techno", "house", "trance", "dubstep", "drumnbass", "edm", "electronica", "idm"]),
-    ("hip-hop", &["hiphop", "rap", "trip-hop", "triphop"]),
-    ("rock", &["rock", "punkrock", "metal", "hardrock", "alternative", "indie", "grunge", "postrock"]),
-    ("pop", &["pop", "synthpop", "dance", "popfolk"]),
-    ("soul, funk and blues", &["funk", "soul", "blues", "rnb", "disco"]),
-    ("jazz", &["jazz", "swing", "jazzfusion"]),
-    ("reggae", &["reggae", "dub", "ska"]),
-    ("folk and country", &["folk", "country", "singersongwriter", "acoustic"]),
-    ("latin and world", &["latin", "world", "bossanova", "flamenco", "african"]),
-];
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -111,7 +101,7 @@ fn songs(dir: &Path, reference: &Path, most: usize) -> Result<Vec<Song>, String>
         let (Some(id), Some(path)) = (cols.first(), cols.get(3)) else { continue };
         let Some((s, file)) = path.split_once('/') else { continue };
         let genres: BTreeSet<&str> = cols.iter().filter_map(|c| c.strip_prefix("genre---")).collect();
-        let family = FAMILIES.iter().find(|(_, t)| t.iter().any(|g| genres.contains(g))).map_or("other", |(f, _)| *f);
+        let family = families::family(&genres);
         tags.insert(id, (dir.join(s).join(file.replace(".mp3", ".low.mp3")), family));
     }
     let text = std::fs::read_to_string(reference).map_err(|e| format!("{}: {e}", reference.display()))?;
