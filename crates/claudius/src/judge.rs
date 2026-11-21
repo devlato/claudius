@@ -205,6 +205,72 @@ const DISTORTED: f64 = 0.06;
 /// makes up for
 pub const NOISE_CUT: f64 = 0.75;
 
+/// the share of its verdict a recording loses at most to a defect heard on its master (`defect_checks`): driven into
+/// clipping or cut to silence over and over, it is a broken recording whatever its mix and its genre (noise, which
+/// buries the music, takes up to `NOISE_CUT` of it)
+pub const DEFECT_CUT: f64 = 0.5;
+
+/// the share of a master's samples at its loudest (`defects::clipped_share`) from which it is heard as clipped, and at
+/// which it is wholly. Chosen on the tuning shards of the critic's benchmark of real songs (0 and 1): the songs as they
+/// are read 0.0000 (a mastered recording touches its ceiling a few samples at a time), the copies driven 15 dB into a
+/// hard ceiling 0.26 at the median; from one sample in a thousand, to that.
+const CLIPPED: (f64, f64) = (0.001, 0.26);
+
+/// the dropouts a minute (`defects::dropouts_per_minute`) from which a recording is heard as cut, and at which wholly.
+/// Chosen on the tuning shards as `CLIPPED` is: from two a minute, above every song as it is (1.2 at most, two of
+/// 1,143 reading any), so that a song's few abrupt stops cost it nothing, to the median of the copies with a quarter of
+/// a second of silence every two seconds (27.3).
+const DROPOUTS: (f64, f64) = (2.0, 27.3);
+
+/// how far `v` is from `from` towards `to`, 0..1
+fn ramp(v: f64, (from, to): (f64, f64)) -> f64 {
+    clamp01((v - from) / (to - from))
+}
+
+/// Defects heard on the master, whatever the song's mix and genre: clipping and dropouts (`defects`).
+/// Each measured; the worst decides how much of the verdict they take (`DEFECT_CUT`). A genre whose sound is clipped
+/// (its accepted flaws hold the ears' clipped recording) is not held to clipping.
+fn defect_checks(
+    r: &Rendered,
+    g: Option<&GenreProfile>,
+    m: &mut BTreeMap<String, f64>,
+    issues: &mut Vec<Issue>,
+) -> f64 {
+    let x = &r.master;
+    let mut worst = 0.0f64;
+    let mut found = |severity: f64, what: String, issues: &mut Vec<Issue>| {
+        if severity > 0.0 {
+            issues.push(Issue { severity, what, target: "production".into() });
+        }
+        worst = worst.max(severity);
+    };
+    if let Some(share) = crate::defects::clipped_share(x) {
+        m.insert("clipped_share".into(), (share * 10_000.0).round() / 10_000.0);
+        let distorted = g.is_some_and(|g| g.accepted_flaws.iter().any(|f| f == "a distorted clipped recording"));
+        let s = if distorted { 0.0 } else { ramp(share, CLIPPED) };
+        found(
+            s,
+            format!(
+                "clipped: {:.1}% of its samples sit at its loudest, where a clean master only touches it now and then: \
+                 drive the master and the parts less",
+                share * 100.0
+            ),
+            issues,
+        );
+    }
+    if let Some(rate) = crate::defects::dropouts_per_minute(x) {
+        m.insert("dropouts_per_minute".into(), (rate * 10.0).round() / 10.0);
+        found(
+            ramp(rate, DROPOUTS),
+            format!(
+                "cut: the sound drops to silence and back {rate:.0} times a minute, where a song stops now and then"
+            ),
+            issues,
+        );
+    }
+    worst
+}
+
 /// How far the master's music is buried in noise (`body_flatness` against `NOISY`), 0 for none to 1, with the issue
 /// that says so.
 fn noise_checks(r: &Rendered, g: Option<&GenreProfile>, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> f64 {
@@ -993,6 +1059,7 @@ pub fn judge_whole(heard: &Project, whole: &Project, r: &Rendered, ears: Option<
         total *= OUT_OF_TIME + (1.0 - OUT_OF_TIME) * time;
     }
     total *= 1.0 - NOISE_CUT * noise_checks(r, g.as_ref(), &mut measures, &mut issues);
+    total *= 1.0 - DEFECT_CUT * defect_checks(r, g.as_ref(), &mut measures, &mut issues);
     issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap());
     let summary = format!(
         "{:.0}/100 ({}){}",
