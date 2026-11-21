@@ -70,6 +70,12 @@ pub fn pointer(ctx: &egui::Context) {
     }
 }
 
+/// A control of the studio's own that is off senses only the pointer over it, so `pointer` cannot tell it from a label:
+/// it shows the sign that it cannot be pressed now itself, as egui's controls that are off have it from `pointer`.
+fn off_sign(response: Response, enabled: bool) -> Response {
+    if enabled { response } else { response.on_hover_cursor(egui::CursorIcon::NotAllowed) }
+}
+
 /// the largest a thing pressed may be for `pointer` to give it the hand: anything larger is a canvas, whose parts say
 /// what they do themselves
 const SMALL: Vec2 = Vec2::new(640.0, 64.0);
@@ -282,6 +288,7 @@ pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: impl I
 pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bool, tooltip: &str) -> Response {
     let (rect, response) =
         ui.allocate_exact_size(Vec2::splat(size), if enabled { Sense::click() } else { Sense::hover() });
+    let response = off_sign(response, enabled);
     let hovered = enabled && response.hovered();
     let fill = if active {
         theme::alpha(ACCENT, if hovered { 0.32 } else { 0.22 })
@@ -332,6 +339,7 @@ fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, m
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, TEXT.into());
     let size = vec2(galley.size().x + if menu { 54.0 } else { 40.0 }, 28.0);
     let (rect, response) = ui.allocate_exact_size(size, if enabled { Sense::click() } else { Sense::hover() });
+    let response = off_sign(response, enabled);
     let hovered = enabled && response.hovered();
     let accent = accent && enabled;
     let base = if accent { theme::mix(RAISED, ACCENT, 0.22) } else { RAISED.into() };
@@ -460,6 +468,7 @@ pub fn fader(
     let (lo, hi) = (*range.start(), *range.end());
     let (rect, response) =
         ui.allocate_exact_size(vec2(44.0, height), if enabled { Sense::click_and_drag() } else { Sense::hover() });
+    let response = off_sign(response, enabled);
     // moved by dragging up and down
     let mut response =
         if enabled { response.on_hover_and_drag_cursor(egui::CursorIcon::ResizeVertical) } else { response };
@@ -985,10 +994,17 @@ mod tests {
         let ctx = egui::Context::default();
         // the studio's own looks, which give a button the hand
         crate::theme::apply(&ctx, crate::theme::Look::Dark);
-        let shown: [(&str, Shows, egui::CursorIcon); 4] = [
+        let shown: [(&str, Shows, egui::CursorIcon); 7] = [
             ("a button", &|ui| ui.button("Play"), PointingHand),
             ("a box to tick", &|ui| ui.checkbox(&mut true, "Loop"), PointingHand),
             ("a button that is off", &|ui| ui.add_enabled(false, egui::Button::new("Play")), NotAllowed),
+            (
+                "the studio's icon button, off",
+                &|ui| icon_button(ui, Icon::Play, 28.0, false, false, "Play"),
+                NotAllowed,
+            ),
+            ("the studio's toolbar button, off", &|ui| tool_button(ui, Icon::Play, "Play", false, false), NotAllowed),
+            ("a fader that is off", &|ui| fader(ui, &mut -6.0, -36.0..=12.0, 120.0, ACCENT.into(), false), NotAllowed),
             ("a canvas that takes presses", &|ui| ui.allocate_exact_size(vec2(900.0, 400.0), Sense::click()).1, Arrow),
         ];
         let screen = Rect::from_min_size(Pos2::ZERO, vec2(1280.0, 900.0));

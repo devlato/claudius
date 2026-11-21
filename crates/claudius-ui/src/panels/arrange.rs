@@ -493,8 +493,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, blocks.bottom()),
         );
         let resp = ui.interact(rect, ui.scope_id().with(("section", i)), Sense::click_and_drag());
-        // a section is pressed to choose it, and grabbed to move it
-        let resp = match cx.view.drag_section == Some(i) {
+        // a section is pressed to choose it, and grabbed to move it: grabbed from the frame its drag starts, before
+        // `drag_section` names it
+        let resp = match cx.view.drag_section == Some(i) || resp.dragged() {
             true => resp.on_hover_and_drag_cursor(egui::CursorIcon::Grabbing),
             false => resp.on_hover_cursor(egui::CursorIcon::Grab),
         };
