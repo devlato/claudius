@@ -1221,8 +1221,19 @@ impl Studio {
             })
             .collect();
         let said = format!("read as: {} ({:.0}% sure)", chosen.said, chosen.score * 100.0);
-        let c = Command::Together { said: brief.to_string(), commands: chosen.commands.clone() };
-        let done = self.edit(c, listen).await?;
+        // as the palette makes a reading: its edits as one change, which undo takes back whole and calls by the brief;
+        // undo, redo and going back as they are, each a step of its own, which `together` does not take
+        let commands = chosen.commands.clone();
+        let done = if !commands.is_empty() && commands.iter().all(Command::is_edit) {
+            self.edit(Command::Together { said: brief.to_string(), commands }, listen).await?
+        } else {
+            let last = commands.len().saturating_sub(1);
+            let mut steps = Vec::new();
+            for (i, c) in commands.into_iter().enumerate() {
+                steps.push(self.edit(c, listen && i == last).await?);
+            }
+            steps.join("\n")
+        };
         let mut out = format!("{said}\n{done}");
         if !others.is_empty() {
             out.push_str(&format!("\n\nother readings (undo, then arrange with `pick`):\n{}", others.join("\n")));
@@ -2307,6 +2318,43 @@ mod tests {
         let at = crate::spawn(app, std::net::SocketAddr::from(([127, 0, 0, 1], 0)), Default::default()).unwrap();
         assert_eq!(probe(&format!("http://{at}"), &None), Probe::Claudius(env!("CARGO_PKG_VERSION").into()));
         assert!(!older_than_this(env!("CARGO_PKG_VERSION")) && older_than_this("0.2.0") && older_than_this(""));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn arrange_makes_a_reading_that_undoes_as_the_palette_does_a_step_of_its_own() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let song = Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+            complexity: None,
+        };
+        assert!(app.command(song).ok);
+        let before = app.state().song.unwrap().bpm;
+        let studio = Studio::new(Backend::Local { app: app.clone(), base: "http://127.0.0.1:0".into() });
+        let reading = |said: &str, commands: Vec<Command>| claudius_intent::Proposal {
+            said: said.into(),
+            detail: String::new(),
+            commands,
+            reading: Default::default(),
+            score: 0.9,
+        };
+        // a change, then a brief read as undo: undo is made, which `together` would refuse
+        let faster = claudius_intent::Answer {
+            proposed: vec![reading("tempo 131", vec![Command::SetTempo { bpm: 131.0 }])],
+            ..Default::default()
+        };
+        studio.arranged("faster", faster, None, false).await.unwrap();
+        assert_eq!(app.state().song.unwrap().bpm, 131.0);
+        let undo =
+            claudius_intent::Answer { proposed: vec![reading("undo", vec![Command::Undo])], ..Default::default() };
+        let said = studio.arranged("take that back", undo, None, false).await.unwrap();
+        assert!(said.starts_with("read as: undo"), "{said}");
+        assert_eq!(app.state().song.unwrap().bpm, before, "the tempo as it was");
     }
 
     #[tokio::test(flavor = "multi_thread")]
