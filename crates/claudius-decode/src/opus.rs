@@ -148,9 +148,9 @@ mod tests {
         assert_eq!((d.rate, d.channels, d.frames()), (48_000, 1, n), "the pre-skip and the padding left out");
         // and it is the same sound, in time: no pre-skip left in front of it
         let (mut sig, mut err) = (0.0f64, 0.0f64);
-        for i in 4_800..n - 4_800 {
-            sig += f64::from(x[i]).powi(2);
-            err += (f64::from(x[i]) - f64::from(d.samples[i])).powi(2);
+        for (a, b) in x.iter().zip(&d.samples).skip(4_800).take(n - 9_600) {
+            sig += f64::from(*a).powi(2);
+            err += (f64::from(*a) - f64::from(*b)).powi(2);
         }
         let snr = 10.0 * (sig / err).log10();
         assert!(snr > 15.0, "{snr:.1} dB");
