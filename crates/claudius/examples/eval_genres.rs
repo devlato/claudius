@@ -286,8 +286,11 @@ fn embed(dir: &Path, shards: &[u32], out: &Path, drop: bool, most: usize, thread
                 });
             }
         });
+        // the marker goes with the audio, so that a later run that still needs a song of the shard (one that failed to
+        // be heard, or another benchmark sharing the folder) downloads it again rather than finding nothing
         if drop {
             let _ = std::fs::remove_dir_all(dir.join(format!("{s:02}")));
+            let _ = std::fs::remove_file(dir.join(format!("{s:02}.ok")));
         }
     }
     Ok(())
