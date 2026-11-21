@@ -161,6 +161,12 @@ uses it.
 - Bogdanov, Won, Tovstogan, Porter & Serra (2019), "The MTG-Jamendo dataset for automatic music tagging", Machine
   Learning for Music Discovery Workshop, ICML 2019: [hdl:10230/42015](http://hdl.handle.net/10230/42015). Its songs,
   released on Jamendo under Creative Commons licences, measure how the critic judges real music, as it is and with a
-  flaw put into it ([Benchmarks](contributing/benchmarks.md)).
+  flaw put into it, and how claudius hears their beats and bars ([Benchmarks](contributing/benchmarks.md)).
+- Ramires, Font, Bogdanov et al. (2020), "The Freesound Loop Dataset and annotation tool", ISMIR 2020:
+  [doi:10.5281/zenodo.3967852](https://doi.org/10.5281/zenodo.3967852). Its loops, under the licences their makers chose,
+  with the tempos people annotated, measure how claudius hears a loop's tempo and where its bars fall.
+- McFee et al. (2015), "librosa: Audio and Music Signal Analysis in Python", SciPy 2015:
+  [doi:10.25080/Majora-7b98e3ed-003](https://doi.org/10.25080/Majora-7b98e3ed-003). Its beat tracker hears the songs of
+  MTG-Jamendo apart from claudius, as the reference the beat benchmark measures claudius's bars against.
 
 The [critic's page](engineering/critic.md) says what each of them does in it.

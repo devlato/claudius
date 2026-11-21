@@ -217,6 +217,101 @@ fn standardise(v: &[f32]) -> Vec<f32> {
     v.iter().map(|x| (*x as f64 / sd) as f32).collect()
 }
 
+/// The shortest and the longest a beat may last, against the tempo's beat. A band's beat strays a few percent from its
+/// tempo and comes back; one that lasts three quarters of a beat, a half or twice as long, is the tracker taking a
+/// syncopated riff or a bass line's notes for beats, and over a few bars it slips a whole beat into the song's count:
+/// its bars slide across the beat, and a piece cut from them plays a quarter fast against claudius's own parts (heard on
+/// a live band's record, Men at Work's "Down Under"). Narrower than this, a band's own drift no longer fits. These are
+/// for a whole mix, where a riff or a bass line is heard as often as a drum, and which the measurements were of.
+const GAPS: (f64, f64) = (0.9, 1.1);
+
+/// The gaps a kit heard apart from the rest (its stems) leaves its beats, as before `GAPS`: not measured with the
+/// narrower ones yet, so not changed.
+const KIT_GAPS: (f64, f64) = (0.5, 2.0);
+
+/// How much the downbeat of a whole mix heeds its kit's backbeat, beside the kick (0.5), the harmony change (1.5) and the
+/// level jumps (0.75): a song whose chords change a push ahead of the bar (pop, rock and reggae often do) has its
+/// harmony cue on the beat before it, and only the snares on two and four tell the bar's one from its four.
+const BACKBEAT_DOWNBEAT: f64 = 1.5;
+
+/// How clearly a whole mix's kit has to play a backbeat for it to count in the downbeat: the difference its phases score
+/// at least this share of its hits' whole level. A backbeat that is there, a snare on two and four over any kick, scores
+/// more than half of it; a kit striking every beat alike (four on the floor with no snare, or a kick and a hat on every
+/// beat) plays none, and the few beats a song's length leaves over on one side must not be taken for one.
+const BACKBEAT_CLEAR: f64 = 0.1;
+
+/// The backbeat as the downbeat weighs it (`backbeat_by_phase`'s scores, `level` the kit's hits' whole level): each
+/// phase from 0 to 1 when the kit plays a backbeat clearly (`BACKBEAT_CLEAR`), else nothing for any.
+fn backbeat_cue(by_phase: [f64; 4], level: f64) -> [f64; 4] {
+    let (lo, hi) = by_phase.iter().fold((f64::MAX, f64::MIN), |(a, b), x| (a.min(*x), b.max(*x)));
+    if hi - lo < BACKBEAT_CLEAR * level || hi - lo < 1e-9 { [0.0; 4] } else { by_phase.map(|x| (x - lo) / (hi - lo)) }
+}
+
+/// The kit's backbeat for each of the four beat phases a bar could start on: the kicks on the bar's first and third
+/// beats and the snares on its second and fourth, less the snares on one and three and the kicks on two and four, each
+/// hit counted on the beat it falls within an eighth of a beat of, as hard as it is struck. A phase and the one two
+/// beats on score alike: it tells a bar's one and three from its two and four, and the other cues tell one from three.
+fn backbeat_by_phase(beats: &[f64], hits: &[Hit], beat_s: f64) -> [f64; 4] {
+    let (mut kick_at, mut snare_at) = (vec![0.0f64; beats.len()], vec![0.0f64; beats.len()]);
+    for h in hits.iter().filter(|h| h.kind != Kind::Hat) {
+        let i = beats.partition_point(|&b| b < h.t);
+        let near = [i.checked_sub(1), Some(i)]
+            .into_iter()
+            .flatten()
+            .filter(|&j| j < beats.len())
+            .min_by(|&a, &b| (beats[a] - h.t).abs().total_cmp(&(beats[b] - h.t).abs()))
+            .filter(|&j| (beats[j] - h.t).abs() <= beat_s / 8.0);
+        if let Some(j) = near {
+            if h.kind == Kind::Snare {
+                snare_at[j] += h.level as f64;
+            } else {
+                kick_at[j] += h.level as f64;
+            }
+        }
+    }
+    std::array::from_fn(|ph| {
+        (0..beats.len())
+            .map(|i| if (i + ph) % 2 == 0 { kick_at[i] - snare_at[i] } else { snare_at[i] - kick_at[i] })
+            .sum()
+    })
+}
+
+/// The beats of `env` (onset strength per frame) at a beat of about `p` frames, by dynamic programming (Ellis 2007):
+/// each beat earns the onset strength under it and pays for straying from `p`, by the square of the log of how far,
+/// and a beat lasts `gaps` of `p` at the least and the most. The frames of the beats, first to last.
+fn beat_frames(env: &[f32], p: f64, gaps: (f64, f64)) -> Vec<usize> {
+    let n = env.len();
+    let mut score: Vec<f64> = env.iter().map(|v| *v as f64).collect();
+    let mut back = vec![usize::MAX; n];
+    for t in 0..n {
+        let a = (t as f64 - gaps.1 * p).max(0.0) as usize;
+        let b = (t as f64 - gaps.0 * p).max(0.0) as usize;
+        let mut bs = f64::MIN;
+        let mut bi = usize::MAX;
+        for tau in a..b.min(t) {
+            let d = ((t - tau) as f64 / p).ln();
+            let s = score[tau] - 100.0 * d * d;
+            if s > bs {
+                bs = s;
+                bi = tau;
+            }
+        }
+        if bi != usize::MAX && bs > 0.0 {
+            score[t] += bs;
+            back[t] = bi;
+        }
+    }
+    let tail = (n as f64 - p).max(0.0) as usize;
+    let mut t = (tail..n).max_by(|a, b| score[*a].total_cmp(&score[*b])).unwrap_or(0);
+    let mut frames = Vec::new();
+    while t != usize::MAX {
+        frames.push(t);
+        t = back[t];
+    }
+    frames.reverse();
+    frames
+}
+
 pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
     track_with(mono, mono, range, false)
 }
@@ -296,38 +391,9 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>, kit:
         eprintln!("beats: candidates {}", seen.join("; "));
     }
     let clarity = ac.get(period.round() as usize).copied().unwrap_or(0.0).clamp(0.0, 1.0);
-    // dynamic programming: each beat rewards onset strength and penalises deviating from the period
-    let n = env.len();
-    let mut score: Vec<f64> = env.iter().map(|v| *v as f64).collect();
-    let mut back = vec![usize::MAX; n];
     let p = period;
-    for t in 0..n {
-        let a = (t as f64 - 2.0 * p).max(0.0) as usize;
-        let b = (t as f64 - p / 2.0).max(0.0) as usize;
-        let mut bs = f64::MIN;
-        let mut bi = usize::MAX;
-        for tau in a..b.min(t) {
-            let d = ((t - tau) as f64 / p).ln();
-            let s = score[tau] - 100.0 * d * d;
-            if s > bs {
-                bs = s;
-                bi = tau;
-            }
-        }
-        if bi != usize::MAX && bs > 0.0 {
-            score[t] += bs;
-            back[t] = bi;
-        }
-    }
-    let tail = (n as f64 - p).max(0.0) as usize;
-    let mut t = (tail..n).max_by(|a, b| score[*a].partial_cmp(&score[*b]).unwrap()).unwrap_or(0);
-    let mut frames = Vec::new();
-    while t != usize::MAX {
-        frames.push(t);
-        t = back[t];
-    }
-    frames.reverse();
-    let tracked: Vec<f64> = frames.iter().map(|f| (*f * HOP + HOP / 2) as f64 / SRF).collect();
+    let gaps = if kit { KIT_GAPS } else { GAPS };
+    let tracked: Vec<f64> = beat_frames(&env, p, gaps).iter().map(|f| (*f * HOP + HOP / 2) as f64 / SRF).collect();
     // the beats as the tracker heard them, a skipped one put back and one slipped in left out
     let heard = (tracked.len() > 8).then(|| {
         let mut ibi: Vec<f64> = tracked.windows(2).map(|w| w[1] - w[0]).collect();
@@ -471,12 +537,17 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>, kit:
         let (lo, hi) = v.iter().fold((f64::MAX, f64::MIN), |(a, b), x| (a.min(*x), b.max(*x)));
         if hi - lo < 1e-9 { [0.0; 4] } else { v.map(|x| (x - lo) / (hi - lo)) }
     };
-    let (kn, cn, jn) = (norm(kick_p), norm(change_p), norm(jump_p));
+    // a whole mix's kit, heard among the chords that move ahead of the bar, says where its backbeat is; a drum stem's
+    // kick and harmony already say where the bar starts
+    let backbeat_w = if kit { 0.0 } else { BACKBEAT_DOWNBEAT };
+    let back_p = backbeat_by_phase(&beats, &hits, beat_s);
+    let kit_level: f64 = hits.iter().filter(|h| h.kind != Kind::Hat).map(|h| h.level as f64).sum();
+    let (kn, cn, jn, bn) = (norm(kick_p), norm(change_p), norm(jump_p), backbeat_cue(back_p, kit_level));
     // harmony change leads: level jumps also come from pre-drop gaps and risers, the kick from rolling basses
-    let phase_score: [f64; 4] = std::array::from_fn(|i| 0.5 * kn[i] + 1.5 * cn[i] + 0.75 * jn[i]);
+    let phase_score: [f64; 4] = std::array::from_fn(|i| 0.5 * kn[i] + 1.5 * cn[i] + 0.75 * jn[i] + backbeat_w * bn[i]);
     if std::env::var_os("CLAUDIUS_DEBUG").is_some() {
         eprintln!(
-            "beats: first {:.3} s, {} beats; per phase: kick {kn:.2?} harmony change {cn:.2?} jumps {jn:.2?} total {phase_score:.2?}",
+            "beats: first {:.3} s, {} beats; per phase: kick {kn:.2?} harmony change {cn:.2?} jumps {jn:.2?} backbeat {bn:.2?} total {phase_score:.2?}",
             beats.first().copied().unwrap_or(0.0),
             beats.len()
         );
@@ -501,5 +572,69 @@ mod tests {
         assert!(own > 3.0 && own > 0.8 * twice, "at its tempo {own:.2}, at twice it {twice:.2}");
         // a grid a third off the beat lies between the strikes
         assert!(salience(&env, 0.75 * p) < 0.6 * own);
+    }
+
+    #[test]
+    fn the_backbeat_tells_the_bars_one_and_three_from_its_two_and_four() {
+        // a kit of 16 beats of half a second: kicks on the bar's one and three, snares on two and four, played a little
+        // behind and ahead of the beat
+        let beats: Vec<f64> = (0..16).map(|k| k as f64 * 0.5).collect();
+        let hits: Vec<Hit> = beats
+            .iter()
+            .enumerate()
+            .map(|(k, &t)| Hit {
+                t: t + if k % 2 == 0 { 0.02 } else { -0.015 },
+                kind: if k % 2 == 0 { Kind::Kick } else { Kind::Snare },
+                level: 1.0,
+            })
+            .collect();
+        let back = backbeat_by_phase(&beats, &hits, 0.5);
+        assert!(back[0] > 0.0 && back[2] > 0.0, "the bar starting on a kick: {back:?}");
+        assert!(back[1] < 0.0 && back[3] < 0.0, "the bar starting on a snare: {back:?}");
+        assert_eq!(back[0], back[2]);
+        // hats say nothing of it, and a hit more than an eighth of a beat from every beat is no beat's
+        let more: Vec<Hit> = hits
+            .iter()
+            .cloned()
+            .chain([Hit { t: 0.25, kind: Kind::Hat, level: 5.0 }, Hit { t: 1.25, kind: Kind::Snare, level: 5.0 }])
+            .collect();
+        assert_eq!(backbeat_by_phase(&beats, &more, 0.5), back);
+    }
+
+    /// A kit that plays a backbeat clearly says which beats are one and three; one that strikes every beat alike says
+    /// nothing, however many beats one side has more of, so it cannot outweigh where a song's level jumps.
+    #[test]
+    fn only_a_backbeat_played_clearly_counts_in_the_downbeat() {
+        // the snare on two and four over a kick on one and three: the phases one beat apart as far apart as can be
+        assert_eq!(backbeat_cue([8.0, -8.0, 8.0, -8.0], 16.0), [1.0, 0.0, 1.0, 0.0]);
+        // a kick alike on all 33 beats: the side with one beat more is no backbeat
+        assert_eq!(backbeat_cue([1.0, -1.0, 1.0, -1.0], 33.0), [0.0; 4]);
+        assert_eq!(backbeat_cue([0.0; 4], 0.0), [0.0; 4]);
+    }
+
+    #[test]
+    fn a_riff_repeating_at_three_quarters_of_the_beat_slips_no_beat_into_the_count() {
+        // a beat of 100 frames: strikes on 20 beats, then nine beats where only a riff strikes, every three quarters of
+        // a beat (twelve strikes, as strong as the beat's), then 20 beats again. A tracker that lets a beat last three
+        // quarters of one follows the riff and counts three beats too many (53, where 50 belong).
+        let p = 100.0;
+        let mut env = vec![0.0f32; 50 * 100];
+        let strike = |env: &mut Vec<f32>, at: f64| env[at.round() as usize] = 20.0;
+        for k in 0..20 {
+            strike(&mut env, k as f64 * p + 50.0);
+        }
+        for j in 0..12 {
+            strike(&mut env, 20.0 * p + 50.0 + j as f64 * 0.75 * p);
+        }
+        for k in 29..49 {
+            strike(&mut env, k as f64 * p + 50.0);
+        }
+        let beats = beat_frames(&env, p, GAPS);
+        let on = |at: f64| beats.iter().position(|&b| (b as f64 - at).abs() <= 3.0);
+        let first = on(50.0).expect("a beat on the first strike");
+        for k in 30..48 {
+            let i = on(k as f64 * p + 50.0).unwrap_or_else(|| panic!("no beat on strike {k}: {beats:?}"));
+            assert_eq!(i - first, k, "beat {k} after the riff counted as {}", i - first);
+        }
     }
 }

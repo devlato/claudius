@@ -252,7 +252,7 @@ impl Analysis {
 /// The start of each bar, every fourth beat from the downbeat, and the end of the last whole bar in a recording `secs`
 /// long: one more than its bars, two at least. Bars before the first downbeat the beats were heard from go back, as
 /// long as the first, to the start of the recording (within 60 ms of it).
-fn bars_on(beats: &[f64], downbeat: usize, beat: f64, secs: f64) -> Vec<f64> {
+pub fn bars_on(beats: &[f64], downbeat: usize, beat: f64, secs: f64) -> Vec<f64> {
     let mut out: Vec<f64> = beats.iter().skip(downbeat).step_by(4).copied().collect();
     if out.is_empty() {
         out.push(0.0);

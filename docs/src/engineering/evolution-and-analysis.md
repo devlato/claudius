@@ -143,7 +143,11 @@ On claudius's own renders of 14 genres from R&B at 62 BPM to drum and bass at 17
 heard at its tempo 34 times in 42 where it was 21, and the drums apart 38 times; on 20 other genres, two songs each,
 31 in 40 against 26 for the mix, with three tempos a third or more off rather than seven, and 31 for the drums apart
 as before. What it still hears at twice or half are the songs listeners differ on too: R&B and reggae under 80 BPM at
-twice, the trap and drill family at 70, where their snare on the third beat is a backbeat. Beats tracked by
+twice, the trap and drill family at 70, where their snare on the third beat is a backbeat. In a whole mix the
+dynamic programming lets a beat last 0.9 to 1.1 of the tempo's: a band strays a few percent from its tempo and comes
+back, which fits, while the looser range a kit heard apart still has (half to twice) followed a syncopated riff or bass
+line struck harder than the beat for a few bars and slipped a beat into the count, sliding every bar line after it
+across the beat (five times in Men at Work's "Down Under"). Beats tracked by
 dynamic programming jitter by a frame and insert or skip beats through breakdowns, but music made in a DAW keeps one
 tempo, so the tracker then fits a constant grid around the slope of a line through the tracked beats (finer than
 the median gap between them, which is a whole number of 5.3 ms frames: 117 or 118 at 96 BPM, nearly 1 % apart),
@@ -163,10 +167,17 @@ each bar as the band played it, and every piece cut from a recording is cut on t
 Signalsmith Stretch, so that the renderer's warp to the song's tempo lands every bar on the song's. A recording that
 keeps one tempo is cut as it was.
 
-**Downbeat.** Of the four beat phases, the downbeat is the one with the best mix of three cues, each scaled to its
-best phase: a change of harmony across the beat (chroma a bar before against a bar after, weight 1.5), the biggest
-level jumps (sections start on downbeats, 0.75), and kick strength (0.5). Harmony leads because level jumps also come
-from pre-drop gaps and risers, and kick strength from rolling basses.
+**Downbeat.** Of the four beat phases, the downbeat is the one with the best mix of its cues, each scaled to its best
+phase: a change of harmony across the beat (chroma a bar before against a bar after, weight 1.5), the biggest level
+jumps (sections start on downbeats, 0.75), and kick strength (0.5); in a whole mix also the kit's backbeat (1.5), the
+kicks on the bar's first and third beats and the snares on its second and fourth, less the other way round. Harmony
+leads because level jumps also come from pre-drop gaps and risers, and kick strength from rolling basses. The backbeat
+tells a bar's one and three from its two and four where the chords change a push ahead of the bar, as pop, rock and
+reggae often do (a phase and the one two beats on score alike: the other cues tell one from three). On the beat
+benchmark's held-out half (557 songs of MTG-Jamendo against librosa's beats, 668 of people's loops from the Freesound
+Loop Dataset against their own grid), the narrower range and the backbeat together keep more of a song's bars in step
+(+0.015 of them, +0.058 when it is played drifting as a band does) and put more of a loop's bar lines on its downbeats
+(from 0.185 to 0.267), with no measure worse.
 
 **Key and chords.** Chroma comes from FFT bins close to an equal-tempered pitch, so drums and noise smear less into
 it. The key is chosen among the four best Krumhansl-Kessler fits of the loudness-weighted average chroma, by its fit
