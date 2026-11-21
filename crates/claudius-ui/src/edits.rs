@@ -147,7 +147,21 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             let Some(s) = song.sections.get_mut(*index) else {
                 return Some(Err(format!("no section {index}")));
             };
-            // as the server: a build-up of a style named is on
+            // as the server: the switches first, then a build-up's style or bars and a gap's length, which turn
+            // them on, so that one set_section that names both leaves the section as the song plays it
+            let flags = [
+                (filter_in, &mut s.filter_in),
+                (build, &mut s.build),
+                (gap, &mut s.gap),
+                (impact, &mut s.impact),
+                (fills, &mut s.fills),
+            ];
+            for (new, old) in flags {
+                if let Some(v) = new {
+                    *old = *v;
+                }
+            }
+            // a build-up of a style named is on
             if let Some(v) = build_style {
                 (s.build_style, s.build) = (v.clone(), true);
             }
@@ -181,18 +195,6 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             if let Some(v) = prog {
                 s.prog = v.clone();
-            }
-            let flags = [
-                (filter_in, &mut s.filter_in),
-                (build, &mut s.build),
-                (gap, &mut s.gap),
-                (impact, &mut s.impact),
-                (fills, &mut s.fills),
-            ];
-            for (new, old) in flags {
-                if let Some(v) = new {
-                    *old = *v;
-                }
             }
             if let Some(at) = source {
                 for t in takes {

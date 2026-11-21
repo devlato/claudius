@@ -378,7 +378,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     let r = ui
                         .add(
                             egui::DragValue::new(&mut s.gap_beats)
-                                .range(0.25..=16.0)
+                                .range(0.25..=longest_gap(s.bars))
                                 .speed(0.05)
                                 .custom_formatter(|v, _| format!("{v} beat{}", if v == 1.0 { "" } else { "s" })),
                         )
@@ -668,10 +668,24 @@ fn offered(variants: &[String], current: &str) -> Vec<String> {
     v
 }
 
+/// The longest gap a section of `bars` is offered, in beats: the whole section, as long as a song plays one
+/// (`claudius::compose::arrange`), and no longer than the 64 beats a song keeps, so that the field shows the gap that
+/// plays.
+fn longest_gap(bars: u32) -> f32 {
+    (bars as f32 * 4.0).min(64.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_gap_can_last_the_whole_section_up_to_the_beats_a_song_keeps() {
+        assert_eq!(longest_gap(2), 8.0, "a section of two bars, eight beats");
+        assert_eq!(longest_gap(8), 32.0, "longer than the four bars the field once stopped at");
+        assert_eq!(longest_gap(32), 64.0, "no longer than a song keeps");
+    }
 
     #[test]
     fn a_section_is_offered_the_pattern_it_plays_even_when_no_lane_writes_it() {

@@ -1950,6 +1950,32 @@ mod tests {
     }
 
     #[test]
+    fn a_section_set_in_the_studio_shows_as_the_session_sets_it() {
+        let g = claudius::genres::get("house").unwrap();
+        let bp = claudius::compose::generate(&g, 1, &claudius::compose::Options::default(), None);
+        // the switches and the lengths that turn them on, named together
+        for c in [
+            json!({"cmd": "set_section", "index": 0, "build_bars": 4, "build": false}),
+            json!({"cmd": "set_section", "index": 0, "gap_beats": 2.0, "gap": false}),
+            json!({"cmd": "set_section", "index": 0, "build_style": "roll", "build": false, "gap_beats": 24.0}),
+            json!({"cmd": "set_section", "index": 0, "build": true, "gap": true}),
+            json!({"cmd": "set_section", "index": 0, "build": false, "gap": false, "build_amount": 0.4}),
+        ] {
+            let cmd: Command = serde_json::from_value(c.clone()).unwrap_or_else(|e| panic!("{c}: {e}"));
+            let mut shown = claudius_session::views::song(&bp, &Default::default());
+            assert!(matches!(edits::apply(&mut shown, &cmd), Some(Ok(_))), "{c}");
+            let mut played = bp.clone();
+            assert!(matches!(claudius_session::edit::change(&cmd, &mut played, 1), Some(Ok(_))), "{c}");
+            let played = claudius_session::views::song(&played, &Default::default());
+            let section = |s: &claudius_api::SongView| {
+                let s = &s.sections[0];
+                (s.build, s.build_bars, s.build_style.clone(), s.build_amount, s.gap, s.gap_beats)
+            };
+            assert_eq!(section(&shown), section(&played), "{c}");
+        }
+    }
+
+    #[test]
     fn edits_made_together_are_each_shown_at_once() {
         let g = claudius::genres::get("house").unwrap();
         let bp = claudius::compose::generate(&g, 1, &claudius::compose::Options::default(), None);
