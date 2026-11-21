@@ -15,7 +15,7 @@
 {"item":"dance_pop","slice":{"family":"pop"},"metrics":{"kad":45.8684,"typical":0.6639,"identified":0.0,"spread":0.2044,"beat":0.0444,"beat_songs":0.4,"beat_real":0.4444}}
 {"item":"nu_disco","slice":{"family":"pop"},"metrics":{"kad":45.9816,"typical":0.6662,"identified":0.0,"spread":0.2834,"beat":0.0025,"beat_songs":0.44,"beat_real":0.4375}}
 {"item":"lofi","slice":{"family":"hip-hop"},"metrics":{"kad":41.5085,"typical":0.5676,"identified":0.05,"spread":0.1699,"beat":0.127,"beat_songs":0.4286,"beat_real":0.5556}}
-{"item":"hip_hop","slice":{"family":"hip-hop"},"metrics":{"kad":58.353,"typical":0.6409,"identified":0.0,"spread":0.18,"beat":0.0385,"beat_songs":0.5,"beat_real":0.5385}}
+{"item":"hip_hop","slice":{"family":"hip-hop"},"metrics":{"kad":54.8586,"typical":0.6331,"identified":0.0,"spread":0.2505,"beat":0.0385,"beat_songs":0.5,"beat_real":0.5385}}
 {"item":"trap","slice":{"family":"hip-hop"},"metrics":{"kad":43.1541,"typical":0.606,"identified":0.05,"spread":0.3155,"beat":0.1154,"beat_songs":0.5,"beat_real":0.6154}}
 {"item":"rnb","slice":{"family":"soul"},"metrics":{"kad":47.7695,"typical":0.5852,"identified":0.0,"spread":0.2611,"beat":0.1022,"beat_songs":0.6316,"beat_real":0.5294}}
 {"item":"funk","slice":{"family":"soul"},"metrics":{"kad":50.6832,"typical":0.5804,"identified":0.0,"spread":0.356,"beat":0.0333,"beat_songs":0.5,"beat_real":0.5333}}
