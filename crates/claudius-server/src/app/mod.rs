@@ -98,6 +98,9 @@ struct Session {
     pending_saves: Vec<(PathBuf, bool)>,
     /// the folder the song was opened from or last saved to
     folder: Option<PathBuf>,
+    /// the folders a rename moved while the running job ran, each from where to where: a save the job holds is
+    /// written where its folder went (`jobs::render_job`)
+    moved_folders: Vec<(PathBuf, PathBuf)>,
     /// the release in the making for the song
     release: Option<release::Prepared>,
     /// the last take asked of the person, and how many have been asked for
@@ -160,6 +163,9 @@ pub struct App {
     s: Mutex<Session>,
     /// edits run one at a time (scripts may take a moment: sounds get cut from the library)
     edit: Mutex<()>,
+    /// held while a render writes a save into its folder, while a save writes its score and waits its turn, and while a
+    /// rename moves the song's folder, so that none does it in another's middle
+    folders: Mutex<()>,
     tx: tokio::sync::watch::Sender<u64>,
     lib: Option<Arc<Library>>,
     /// what a genre built on samples is made with: the library, or without Apple Loops and sample folders, the
@@ -218,6 +224,12 @@ fn now_seed() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.as_nanos() as u64 % 1_000_000)
 }
 
+/// Whether `a` and `b` name one folder: the same path, or two that lead to one folder (a link, `..`); two that lead
+/// nowhere are not the same.
+fn same_folder(a: &Path, b: &Path) -> bool {
+    a == b || std::fs::canonicalize(a).ok().zip(std::fs::canonicalize(b).ok()).is_some_and(|(x, y)| x == y)
+}
+
 fn ok(message: impl Into<String>, version: u64) -> Reply {
     Reply { ok: true, message: message.into(), version }
 }
@@ -242,6 +254,7 @@ impl App {
         let app = Arc::new(App {
             s: Mutex::new(Session::default()),
             edit: Mutex::new(()),
+            folders: Mutex::new(()),
             tx,
             lib,
             samples_lib,
