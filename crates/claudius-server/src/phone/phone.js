@@ -1182,9 +1182,11 @@ function radiusOf(e, c) {
   return Math.hypot(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
 }
 
-/** the finger at `e` on the record `c`: round it by how far it turned since, at the time the screen saw it there */
+/** the finger at `e` on the record `c`: round it by how far it turned since, at the time the screen saw it there, on the
+ * page's clock as the record's turning reads it (`when`: a browser that stamps events with the time of day has it
+ * replaced by the page's) */
 function fingerAt(e, c) {
-  const now = e.timeStamp || performance.now();
+  const now = when(e);
   const a = angleOf(e, c);
   let d = a - deck.angle;
   if (d > Math.PI) d -= 2 * Math.PI;

@@ -201,7 +201,7 @@ test.describe("playing from a phone", () => {
       // a finger dragging the record at a steady pace, a third of a turn a second, as a screen reports it every 16 ms:
       // the record goes with it at its pace through every audio block, rather than jumping to each place the page hears
       // of as a block begins and resting until the next (a buzz)
-      const paced = await phone.evaluate(async () => {
+      const pace = (epoch) => phone.evaluate(async (epoch) => {
         const c = $("platter");
         const r = c.getBoundingClientRect();
         const rad = Math.min(r.width, r.height) * 0.4;
@@ -216,27 +216,37 @@ test.describe("playing from a phone", () => {
           spun(e);
           if (hold.grab) seen.push(deck.vel);
         };
-        c.dispatchEvent(new PointerEvent("pointerdown", { ...init, ...where(0) }));
+        // an event as a browser stamps it: on the page's clock, or (some web views) with the time of day
+        const send = (type, at) => {
+          const ev = new PointerEvent(type, { ...init, ...at });
+          if (epoch) Object.defineProperty(ev, "timeStamp", { value: Date.now() });
+          c.dispatchEvent(ev);
+        };
+        send("pointerdown", where(0));
         const start = performance.now();
         await new Promise((done) => {
           const step = () => {
             const t = (performance.now() - start) / 1000;
-            c.dispatchEvent(new PointerEvent("pointermove", { ...init, ...where((t * 2 * Math.PI) / 3) }));
+            send("pointermove", where((t * 2 * Math.PI) / 3));
             if (t < 1.2) setTimeout(step, 16);
             else done();
           };
           step();
         });
         deck.node.onaudioprocess = spun;
-        c.dispatchEvent(new PointerEvent("pointerup", { ...init, ...where(0.8 * Math.PI) }));
+        send("pointerup", where(0.8 * Math.PI));
         return seen;
-      });
-      // once it has the record (a block or two), at a third of a turn a second: 0.6 s of the record a second
-      const held = paced.slice(6, -2);
-      expect(held.length, "blocks while the finger held it").toBeGreaterThan(20);
-      expect(Math.min(...held), "it never rests between the finger's moments").toBeGreaterThan(0.3);
-      expect(Math.max(...held), "nor races to catch up").toBeLessThan(1.2);
-      expect(await speed(1500)).toBeCloseTo(1, 1);
+      }, epoch);
+      // once it has the record (a block or two), at a third of a turn a second: 0.6 s of the record a second, whichever
+      // clock the browser stamps the finger's moments with
+      for (const epoch of [false, true]) {
+        const held = (await pace(epoch)).slice(6, -2);
+        const stamped = epoch ? " (stamped with the time of day)" : "";
+        expect(held.length, `blocks while the finger held it${stamped}`).toBeGreaterThan(20);
+        expect(Math.min(...held), `it never rests between the finger's moments${stamped}`).toBeGreaterThan(0.3);
+        expect(Math.max(...held), `nor races to catch up${stamped}`).toBeLessThan(1.2);
+        expect(await speed(1500)).toBeCloseTo(1, 1);
+      }
       // the motor off, the brake stops the platter, and the record with it, in about a third of a second
       await phone.click("#motor");
       expect(await speed(150)).toBeGreaterThan(0.2);
