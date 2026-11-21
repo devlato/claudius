@@ -6,7 +6,9 @@
 //! its `metrics`, each `true`/`false` (right or wrong) or a number (a score). `"better": {"wrong": "lower"}`, on an
 //! item's line or a line of its own, names the metrics a lower value is better of; every other metric is better higher.
 //! `"primary": ["right"]` names the metrics a change is made to improve; the others are guards it must not make worse.
-//! Without it, every metric is primary. `"shown": ["total"]` names metrics compared and shown but never judged: a level
+//! Without it, every metric is primary; with it empty, `"primary": []`, none is, and every metric is a guard, as for a
+//! change made to improve what another test judges (a genre's kad, which `eval_genres kad` tests on the same songs).
+//! `"shown": ["total"]` names metrics compared and shown but never judged: a level
 //! of which neither more nor less is better (a critic's total for a song as it is, which a critic rating every song
 //! 100 would raise).
 //!
@@ -46,6 +48,8 @@ struct Run {
     items: HashMap<String, Item>,
     lower: BTreeSet<String>,
     primary: BTreeSet<String>,
+    /// `primary` said empty: every metric a guard
+    no_primary: bool,
     shown: BTreeSet<String>,
 }
 
@@ -64,9 +68,12 @@ fn read(path: &Path) -> Result<Run> {
                 };
             }
         }
-        for m in v.get("primary").and_then(Value::as_array).into_iter().flatten() {
-            run.primary
-                .insert(m.as_str().with_context(|| format!("{}: `primary` lists metrics by name", at()))?.into());
+        if let Some(list) = v.get("primary").and_then(Value::as_array) {
+            run.no_primary |= list.is_empty();
+            for m in list {
+                run.primary
+                    .insert(m.as_str().with_context(|| format!("{}: `primary` lists metrics by name", at()))?.into());
+            }
         }
         for m in v.get("shown").and_then(Value::as_array).into_iter().flatten() {
             run.shown.insert(m.as_str().with_context(|| format!("{}: `shown` lists metrics by name", at()))?.into());
@@ -136,6 +143,8 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
     let lower: BTreeSet<String> = b.lower.union(&n.lower).cloned().collect();
     let metrics: BTreeSet<&String> = b.items.values().flat_map(|i| i.metrics.keys()).collect();
     let primary: BTreeSet<String> = b.primary.union(&n.primary).cloned().collect();
+    // neither run names a primary metric and one says there is none: every metric a guard
+    let guards_only = primary.is_empty() && (b.no_primary || n.no_primary);
     let missing: Vec<&str> = primary.iter().filter(|m| !metrics.contains(m)).map(String::as_str).collect();
     ensure!(missing.is_empty(), "the primary metric {} is in no item", missing.join(", "));
     let shown: BTreeSet<String> = b.shown.union(&n.shown).cloned().collect();
@@ -191,7 +200,7 @@ pub fn compare(base: &Path, new: &Path, report: bool) -> Result<()> {
         let leans_better = all.p < ALPHA && all.lean > 0.0;
         let gained = leans_better && sign * (all.new - all.base) > 0.0;
         let worse: Vec<&Row> = rows.iter().filter(|r| r.adjusted < ALPHA && r.lean < 0.0).collect();
-        let aim = (primary.is_empty() && !shown.contains(metric)) || primary.contains(metric);
+        let aim = (primary.is_empty() && !guards_only && !shown.contains(metric)) || primary.contains(metric);
         if shown.contains(metric) {
             print(metric, binary, sign, &rows, "shown, not judged", &worse_items);
             continue;
@@ -452,6 +461,19 @@ mod tests {
         // a change every item is better with passes
         let new = results("all-better-new", "", &[11.0; 40]);
         compare(&base, &new, false).unwrap();
+    }
+
+    #[test]
+    fn an_empty_primary_makes_every_metric_a_guard() {
+        // a change judged elsewhere (a genre's kad): a score no better passes, so long as it is no worse
+        let base = results("guards-base", r#"{"primary": []}"#, &[10.0; 40]);
+        compare(&base, &base, false).unwrap();
+        // without the list, the same score unchanged is a primary metric not shown better
+        let plain = results("guards-plain", "", &[10.0; 40]);
+        assert!(compare(&plain, &plain, false).is_err());
+        // and a guard that got worse still fails
+        let worse = results("guards-worse", r#"{"primary": []}"#, &[9.0; 40]);
+        assert!(compare(&base, &worse, false).is_err());
     }
 
     #[test]
