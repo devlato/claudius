@@ -1037,6 +1037,9 @@ fn beat_of(path: &Path) -> Result<Option<BeatChange>, String> {
 /// there is not heard again, so a run stopped part way goes on). A shard whose audio is no longer in DIR (`embed
 /// --drop` deleted it) is downloaded again, and with `drop` deleted once its songs are heard.
 fn beats(dir: &Path, real: &Path, out: &Path, drop: bool, threads: usize) -> Result<(), String> {
+    // each song's stems separated as the studio separates them, the ears' model downloaded first when it is not there,
+    // as `remake` and `run --beats` do: without it a real song's drums would be heard from its whole mix
+    claudius::stems::may_download();
     fetch_tags(dir)?;
     let lines = std::fs::read_to_string(real).map_err(|e| format!("{}: {e}", real.display()))?;
     let listed: Vec<(String, u32, String)> = lines

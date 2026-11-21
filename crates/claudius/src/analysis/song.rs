@@ -143,7 +143,8 @@ pub struct Analysis {
 
 impl Analysis {
     /// How much its beat changes from bar to bar where its kit plays (a step hit at half the lane's usual strength or
-    /// more counts as hit, `bar_drums`); none where a kit plays in fewer than eight pairs of bars.
+    /// more counts as hit, `bar_drums`); none where its kit plays in fewer than eight pairs of bars in a row, or fewer
+    /// than eight pairs of bars four apart (a kit that plays a dozen bars or so), so that both are medians of as many.
     pub fn beat_change(&self) -> Option<BeatChange> {
         beat_change_of(&self.bar_drums)
     }
