@@ -33,6 +33,11 @@
       "late_ms": [-2, 1],
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 0, 0, 0.5, 0, 1, 0, 0.4, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3},
+      "alts": [
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.2],
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.18],
+        [{"steps": [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.12]
+      ],
       "variants": {
         "verse": {"steps": [1, 0, 0, 0, 0, 0, 0.4, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.85, 0.95]},
         "half": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0], "vel": [0.85, 0.95]},
@@ -47,6 +52,16 @@
       "late_ms": [0, 6],
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.2], "vel": [0.9, 1.0], "ghost": 0.05, "vary": 0.3},
+      "alts": [
+        [
+          {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.9, 1.0], "ghost": 0.05, "vary": 0.3},
+          0.12
+        ],
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3], "vel": [0.9, 1.0], "ghost": 0.05, "vary": 0.3},
+          0.15
+        ]
+      ],
       "variants": {
         "verse": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.85, 0.95]},
         "half": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]},
@@ -61,6 +76,10 @@
       "late_ms": [-2, 2],
       "voice": "closed_hat",
       "template": {"steps": [1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0], "vel": [0.4, 0.7]},
+      "alts": [
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.4, 0.7]}, 0.15],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.4, 0.7]}, 0.15]
+      ],
       "variants": {"half": {"steps": [1, 0, 0, 0, 0.8, 0, 0, 0, 1, 0, 0, 0, 0.8, 0, 0, 0], "vel": [0.35, 0.55]}},
       "params": {"tone": [0.5, 0.75]},
       "samples": ["Hi-hat"],
@@ -72,6 +91,10 @@
       "late_ms": [-2, 2],
       "voice": "ride",
       "template": {"steps": [1, 0, 0.85, 0, 1, 0, 0.85, 0, 1, 0, 0.85, 0, 1, 0, 0.85, 0], "vel": [0.5, 0.75]},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.5, 0.75]}, 0.2],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.5, 0.75]}, 0.15]
+      ],
       "params": {"decay": [1.4, 2.2]},
       "mix": {"bus": "drums", "pan": -0.3}
     },
@@ -86,6 +109,7 @@
       "name": "tom",
       "voice": "tom",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0.6, 0.7, 0.7, 0.8, 0.8, 1, 1], "vel": [0.7, 0.95]},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0], "vel": [0.7, 0.95]}, 0.15]],
       "params": {"tune": [75, 150], "decay": [0.25, 0.4]},
       "mix": {"bus": "drums", "pan": -0.2, "reverb": 0.25}
     }
@@ -102,7 +126,7 @@
       "name": "mute_l",
       "role": "chords",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["palm"],
+      "styles": ["palm", "palm", "half", "sustain", "pump"],
       "register": [40, 59],
       "voices": 3,
       "voicing": "power",
@@ -120,7 +144,7 @@
       "role": "chords",
       "doubles": "mute_l",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["palm"],
+      "styles": ["palm", "palm", "half", "sustain", "pump"],
       "register": [40, 59],
       "voices": 3,
       "voicing": "power",
@@ -138,7 +162,7 @@
       "name": "gtr_l",
       "role": "chords",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["pump", "pump", "pump", "half"],
+      "styles": ["pump", "half", "pump", "half", "sustain", "chug", "stabs"],
       "register": [40, 64],
       "voices": 3,
       "voicing": "power",
@@ -156,7 +180,7 @@
       "role": "chords",
       "doubles": "gtr_l",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["pump", "pump", "pump", "half"],
+      "styles": ["pump", "half", "pump", "half", "sustain", "chug", "stabs"],
       "register": [40, 64],
       "voices": 3,
       "voicing": "power",
@@ -174,7 +198,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["freepats:pick_bass|saw_bass", "growlybass:bass|saw_bass"],
-      "styles": ["root8", "root8", "drive"],
+      "styles": ["root8", "drive", "root8", "drive", "rock"],
       "register": [28, 47],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.5}]}
     },

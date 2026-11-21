@@ -73,7 +73,7 @@
       "mix": {"bus": "drums", "pan": 0.2, "reverb": 0.2, "level_db": -4}
     }
   ],
-  "kits": [],
+  "kits": [["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.5,
   "palette": {
     "bass": {"core": 0.6, "synth": 3},

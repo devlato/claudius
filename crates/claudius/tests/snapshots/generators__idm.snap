@@ -7,9 +7,9 @@ prog A: Imaj9 ivø7 Imaj9 Vmaj9 Imaj9 ivø7 bVImaj7 bVII7
 prog B: Imaj9 ivø7 Vmaj9 Imaj9
 bars per chord: 2
 section intro (intro) 8 bars, energy 0.29, prog A, sparse []: bells pad click
-section groove (groove) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat click bass bells pad
+section groove (groove) 16 bars, energy 0.55, prog A, main [fills]: kick snare hat click bass bells
 section groove2 (groove) 32 bars, energy 0.75, prog A, main [fills]: kick snare hat click tom bass bells pad arp
-section break (break) 8 bars, energy 0.26, prog B, main [gap]: pad bells click
+section break (break) 8 bars, energy 0.21, prog B, main [gap]: pad click
 section peak (drop) 16 bars, energy 0.99, prog A, main [impact fills]: kick snare hat click tom bass bells pad arp
 section outro (outro) 4 bars, energy 0.28, prog A, sparse []: bells click
 drum kick main (drum kick): X.....X..XX...X.|X.X....X....X...|X.....X...X...X.|X...........X...
@@ -21,9 +21,9 @@ drum click sparse (drum rim): ..x....x....x...|..x....x....x...|..x....x....x...
 drum tom main (drum tom): x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........
 drum tom sparse (drum tom): ....x.......x...|....x.......x...|....x.......x...|....x.......x...
 part bass (bass): acid synth deep_bass, register 28..50, density 0.59
-part bells (lead): ambient_line synth bell, register 64..91, density 0.43
-part pad (pad): sustain synth pad, register 48..79, density 0.56
-part arp (arp): updown synth pluck, register 60..88, density 0.53
+part bells (lead): ambient_line synth bell, register 60..87, density 0.43
+part pad (pad): sustain synth pad, register 49..80, density 0.56
+part arp (arp): updown synth pluck, register 62..90, density 0.53
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.05, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums

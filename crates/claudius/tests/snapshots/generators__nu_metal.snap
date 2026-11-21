@@ -8,29 +8,29 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.54, prog A, main [filter_in]: clean chug_l
-section verse (verse) 16 bars, energy 0.70, prog A, verse [fills]: kick snare hat bass chug_l chug_r clean
+section verse (verse) 16 bars, energy 0.65, prog A, verse [fills]: kick snare hat bass chug_r clean
 section chorus (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat crash bass gtr_l gtr_r pad
-section verse2 (verse) 16 bars, energy 0.76, prog A, verse [gap fills]: kick snare hat bass chug_l chug_r clean pad
+section verse2 (verse) 16 bars, energy 0.71, prog A, verse [gap fills]: kick snare hat bass chug_l chug_r clean
 section chorus2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat crash bass gtr_l gtr_r pad
 section break (break) 16 bars, energy 0.43, prog B, main [gap]: clean pad hat
 section breakdown (hook) 16 bars, energy 1.00, prog B, half [impact]: kick snare hat crash bass chug_l chug_r
 section chorus3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat crash bass gtr_l gtr_r chug_l chug_r pad
 section outro (outro) 8 bars, energy 0.55, prog A, main []: clean pad
-drum kick half (drum kick): X.....X.......X.|X.........X.....|X.....X.......X.|X.........X.....
-drum kick main (drum kick): X.....X..XX.....|X..X..X.X....X..|X.....X..XX.....|X..X..X.X....X..
-drum kick verse (drum kick): X..X..X...X.....|X..X......X.....|X..X..X...X.....|X..X......X.....
+drum kick half (drum kick): X.....X.......X.|X.......X.......|X.....X.......X.|X.......X.......
+drum kick main (drum kick): X.......X.X.X...|X.......X.X.X...|X.......X.X.X...|X.......X.X.X...
+drum kick verse (drum kick): X.....X...X.....|X.........X.....|X.....X...X.....|X.........X.....
 drum snare half (drum snare): ........X.......|........X.......|........X.......|........X.......
-drum snare main (drum snare): ...oX...o...X...|...oX...o...X...|...oX...o...X...|....X.......X...
-drum hat half (drum closed_hat): x.x.x...x...x.x.|x.x.x...x...x.x.|x.x.x...x...x.x.|x.x.x...x...x.x.
-drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
+drum snare main (drum snare): o..oXo......X...|o..oXo......X...|o..oXo......X...|o..oXo......X...
+drum hat half (drum closed_hat): x...x...x...x.x.|x...x...x...x.x.|x...x...x...x.x.|x...x...x...x.x.
+drum hat main (drum closed_hat): xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxx
 drum crash main (drum crash): X...............|................|X...............|................
-part chug_l (chords): chug synth supersaw, register 33..52, density 0.51
-part chug_r (chords): chug synth supersaw, register 33..52, density 0.60
-part gtr_l (chords): half synth supersaw, register 36..57, density 0.59
-part gtr_r (chords): half synth supersaw, register 36..57, density 0.50
-part bass (bass): kick_follow synth dist_bass, register 26..40, density 0.58
-part clean (arp): random synth pluck, register 62..81, density 0.47
-part pad (pad): sustain synth strings, register 48..72, density 0.57
+part chug_l (chords): half synth supersaw, register 35..54, density 0.51
+part chug_r (chords): chug synth supersaw, register 37..56, density 0.60
+part gtr_l (chords): stabs synth supersaw, register 35..56, density 0.59
+part gtr_r (chords): sustain synth supersaw, register 32..53, density 0.50
+part bass (bass): root8 synth dist_bass, register 25..39, density 0.58
+part clean (arp): random synth pluck, register 60..79, density 0.47
+part pad (pad): sustain synth strings, register 44..68, density 0.57
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums

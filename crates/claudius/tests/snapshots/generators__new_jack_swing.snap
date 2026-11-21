@@ -8,24 +8,25 @@ prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.44, prog A, main [filter_in]: stabs hat keys
-section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick snare clap hat perc bass keys
+section verse (verse) 16 bars, energy 0.75, prog A, main [fills]: kick snare clap hat perc bass keys stabs
 section hook (hook) 16 bars, energy 0.90, prog C, main [impact fills]: kick snare clap hat ohat perc bass keys stabs lead
-section verse2 (verse) 16 bars, energy 0.73, prog A, alt [gap fills]: kick snare clap hat perc bass keys stabs pad
+section verse2 (verse) 16 bars, energy 0.68, prog A, alt [gap fills]: kick snare clap hat perc bass keys pad
 section hook2 (hook) 8 bars, energy 0.96, prog C, main [impact fills]: kick snare clap hat ohat perc bass keys stabs lead pad
 section breakdown (break) 16 bars, energy 0.53, prog B, main []: kick clap hat bass stabs
 section hook3 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare clap hat ohat perc bass keys stabs lead pad
 section outro (outro) 8 bars, energy 0.21, prog A, main []: clap hat stabs
-drum kick alt (drum kick): X.......X.......|X......XX.......|X.......X.......|X......XX.......
-drum kick main (drum kick): X.......X.......|X......XX.X.....|X.......X.......|X......XX.X.....
+drum kick alt (drum kick): X.....X.X.......|X......XX.....X.|X.....X.X.......|X......XX.....X.
+drum kick main (drum kick): X..X......X..X..|X..X......X..X..|X..X......X..X..|X..X......X..X..
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx
-drum ohat main (drum open_hat): ................|................|................|................
-drum perc main (drum rim): ................|................|................|......o.........
-part bass (bass): new_jack synth rubber_bass, register 28..48, density 0.47
-part keys (keys): gospel synth tine_piano, register 52..76, density 0.57
-part stabs (chords): brass_stabs synth stab, register 55..76, density 0.52
-part pad (pad): sustain synth warm_pad, register 50..74, density 0.50
+drum hat main (drum closed_hat): xxxxxxxxxxxxxxx.|xxxxxxxxxxxxxxx.|xxxxxxxxxxxxxxx.|xxxxxxxxxxxxxxx.
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+drum perc main (drum rim): ......x.........|......x.........|......x.........|......x.........
+part bass (bass): slap synth fm_bass, register 28..48, density 0.59
+part keys (keys): sustain synth keys, register 56..80, density 0.59
+part stabs (chords): brass_stabs synth stab, register 53..74, density 0.56
+part lead (lead): horn_riff synth soft_lead, register 60..80, density 0.42
+part pad (pad): sustain synth warm_pad, register 51..75, density 0.59
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums
 mix clap: -2.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums
@@ -35,4 +36,5 @@ mix perc: -6.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
 mix keys: +0.0 dB, pan +0.00, reverb 0.34, delay 0.00, duck 0.00, bus music
 mix stabs: -2.0 dB, pan +0.00, reverb 0.21, delay 0.00, duck 0.00, bus music
-mix pad: -5.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.00, bus music
+mix lead: -3.0 dB, pan +0.00, reverb 0.27, delay 0.21, duck 0.00, bus music
+mix pad: -5.0 dB, pan +0.00, reverb 0.54, delay 0.00, duck 0.00, bus music

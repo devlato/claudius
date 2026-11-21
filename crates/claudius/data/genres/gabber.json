@@ -31,6 +31,10 @@
       "name": "kick",
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.98, 1.0]},
+      "alts": [
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], "vel": [0.98, 1.0]}, 0.2],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1], "vel": [0.98, 1.0]}, 0.08]
+      ],
       "params": {"decay": [0.3, 0.5], "tune": [52, 62], "tone": [0.6, 0.9], "punch": [0.6, 0.8], "snap": [0.5, 0.8], "drive": [14, 14]},
       "tune_to_key": true,
       "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 14, "mix": 0.85}, {"fx": "filter", "mode": "lp", "cutoff": 7000, "res": 0.1}]}
@@ -39,6 +43,10 @@
       "name": "clap",
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.85, 1.0]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.85, 1.0]}, 0.2],
+        [{"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0], "vel": [0.85, 1.0]}, 0.15]
+      ],
       "params": {"decay": [0.2, 0.3]},
       "mix": {"bus": "drums", "reverb": 0.2}
     },
@@ -46,6 +54,10 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.55, 0.85]},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.55, 0.85]}, 0.2],
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.55, 0.85]}, 0.1]
+      ],
       "params": {"decay": [0.03, 0.06], "tone": [0.7, 0.95]},
       "samples": ["Hi-hat"],
       "choke": "hats",
@@ -55,12 +67,16 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]}, 0.2],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1], "vel": [0.35, 0.55]}, 0.1]
+      ],
       "params": {"decay": [0.12, 0.2]},
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.1}
     }
   ],
-  "kits": [],
+  "kits": [["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.0,
   "palette": {
     "bass": {"core": 0.95, "synth": 1},
@@ -72,8 +88,8 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["saw_lead", "supersaw", "square_lead"],
-      "styles": ["riff", "techno_stab"],
+      "presets": ["saw_lead", "supersaw", "square_lead", "saw_lead", "supersaw", "square_lead", "pwm_lead"],
+      "styles": ["riff", "techno_stab", "riff", "techno_stab", "synth_lead"],
       "register": [55, 74],
       "density": [0.35, 0.55],
       "mix": {"reverb": 0.25, "delay": 0.2, "duck": 0.3, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}]}
@@ -81,8 +97,8 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "supersaw"],
-      "styles": ["stabs", "offbeat"],
+      "presets": ["stab", "supersaw", "stab", "supersaw", "brass_stab", "rock_organ"],
+      "styles": ["stabs", "offbeat", "stabs", "offbeat", "pump", "sustain"],
       "register": [52, 72],
       "voices": 3,
       "voicing": "close",
@@ -91,7 +107,16 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "choir|vowel_pad", "pad"],
+      "presets": [
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "warm_pad",
+        "swell_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 4,
@@ -102,8 +127,8 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["dist_bass", "saw_bass"],
-      "styles": ["offbeat"],
+      "presets": ["dist_bass", "saw_bass", "dist_bass", "saw_bass", "sub_bass"],
+      "styles": ["offbeat", "offbeat", "rolling", "pulse"],
       "register": [36, 50],
       "optional": 0.6,
       "mix": {"bus": "bass", "duck": 0.95, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}]}

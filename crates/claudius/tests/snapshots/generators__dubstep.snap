@@ -7,9 +7,9 @@ prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 2
 section intro (intro) 16 bars, energy 0.29, prog A, main [filter_in]: pad hat
-section build (build) 8 bars, energy 0.55, prog A, main [build gap]: pad hat snare clap lead
+section build (build) 8 bars, energy 0.60, prog A, main [build gap]: pad hat snare clap lead perc
 section drop (drop) 24 bars, energy 0.95, prog A, main [impact fills]: kick snare clap hat ohat perc sub wobble pad
-section break (break) 16 bars, energy 0.36, prog B, main [build gap]: pad lead hat
+section break (break) 16 bars, energy 0.41, prog B, main [build gap]: pad lead hat clap
 section drop2 (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick snare clap hat ohat perc sub wobble pad lead
 section outro (outro) 4 bars, energy 0.33, prog A, main []: pad hat
 drum kick main (drum kick): X.........X.....|X.....X.........|X.........X.....|X.....X.........
@@ -18,9 +18,9 @@ drum clap main (drum clap): ........X.......|........X.......|........X.......|.
 drum hat main (drum closed_hat): x.x....xx.......|x.x....xx.......|x.x....xx.......|x.x....xx.......
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 drum perc main (drum rim): ......x.........|......x.........|......x.........|......x.........
-part sub (bass): sustain synth sub_bass, register 24..38, density 0.59
-part wobble (bass): halftime synth wobble, register 38..55, density 0.59
-part pad (pad): sustain synth strings, register 48..74, density 0.56
+part sub (bass): halftime synth sub_bass, register 26..40, density 0.59
+part wobble (bass): halftime synth dist_bass, register 40..57, density 0.59
+part pad (pad): sustain synth strings, register 50..76, density 0.56
 part lead (lead): riff synth saw_lead, register 62..86, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums

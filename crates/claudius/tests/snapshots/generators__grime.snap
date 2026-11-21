@@ -8,10 +8,10 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: lead hat
-section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat perc bass lead
+section verse (verse) 16 bars, energy 0.75, prog A, main [fills]: kick snare hat perc bass lead ohat
 section hook (hook) 8 bars, energy 0.90, prog C, main [impact]: kick snare hat ohat perc bass lead stabs pad
-section verse2 (verse) 16 bars, energy 0.76, prog A, alt [fills]: kick snare hat perc bass lead stabs pad
-section break (break) 8 bars, energy 0.44, prog B, main [gap]: lead pad
+section verse2 (verse) 16 bars, energy 0.81, prog A, alt [fills]: kick snare hat perc bass lead stabs pad ohat
+section break (break) 8 bars, energy 0.49, prog B, main [gap]: lead pad hat
 section hook2 (hook) 8 bars, energy 0.98, prog C, main [impact]: kick snare hat ohat perc bass lead stabs pad
 section outro (outro) 16 bars, energy 0.45, prog A, main []: lead hat
 drum kick main (drum kick): X.............X.|..X.......X.....|X.............X.|..X.......X.....
@@ -20,9 +20,10 @@ drum hat alt (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.
 drum hat main (drum closed_hat): x...x...x...x.x.|x...x...x...x.x.|x...x...x...x.x.|x...x.x.x...x.x.
 drum ohat main (drum open_hat): ......x.........|................|......x.........|................
 drum perc main (drum rim): ......x....x....|......x....x....|......x....x....|......x....x....
-part bass (bass): kick_follow a rack of synth patch 'fm_bass' + synth patch 'fm_bass', register 26..45, density 0.59
-part lead (lead): riff synth pluck, register 60..84, density 0.54
-part stabs (chords): stabs synth brass_stab, register 50..74, density 0.52
+part bass (bass): kick_follow a rack of synth patch '808' + synth patch '808', register 24..43, density 0.47
+part lead (lead): riff synth pluck, register 61..85, density 0.51
+part stabs (chords): pizzicato synth brass_stab, register 46..70, density 0.59
+part pad (pad): sustain synth glass_pad, register 45..69, density 0.56
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
@@ -31,3 +32,4 @@ mix perc: +0.0 dB, pan -0.35, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
 mix lead: +0.0 dB, pan +0.00, reverb 0.20, delay 0.12, duck 0.00, bus music
 mix stabs: +0.0 dB, pan +0.00, reverb 0.17, delay 0.00, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.00, bus music

@@ -8,24 +8,24 @@ prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: pad keys
-section verse (verse) 16 bars, energy 0.55, prog A, main [fills]: kick snare hat bass keys pad
+section verse (verse) 16 bars, energy 0.50, prog A, main [fills]: kick snare hat bass keys
 section hook (hook) 8 bars, energy 0.80, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
-section verse2 (verse) 16 bars, energy 0.61, prog A, alt [gap fills]: kick snare hat bass keys pad lead
+section verse2 (verse) 16 bars, energy 0.56, prog A, alt [gap fills]: kick snare hat bass keys lead
 section hook2 (hook) 16 bars, energy 0.89, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
 section bridge (break) 16 bars, energy 0.43, prog B, main [gap]: pad keys lead
 section hook3 (hook) 8 bars, energy 0.95, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
 section outro (outro) 8 bars, energy 0.31, prog A, main []: pad keys
 drum kick alt (drum kick): X...............|..X.............|X...............|..X.............
-drum kick main (drum kick): X.........X.....|..X.............|X...............|..X.............
+drum kick main (drum kick): X..X......X..X..|X..X......X..X..|X..X......X..X..|X..X......X..X..
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum clap main (drum clap): ....x.......x...|....x.......x...|....x.......x...|....x.......x...
-drum hat alt (drum closed_hat): o.......o.......o.......o.......|o.......o.......o.......XXxxxxxx|o.......o.......o.......o.......|o.......o.......o.......o.......
-drum hat main (drum closed_hat): x.....o.....x.....o.....x.....o.....X.X.x.x.x.x.|x.....o.....x.....o.....x.....o.....x.....o.....|x.....o.....x.....o.....x.....o.....x.....o.....|......o.xx.xx.....o.....x.....o.....x.....o.....
-drum ohat main (drum open_hat): ................|................|................|................
-part bass (bass): neo_soul synth sub_bass, register 24..42, density 0.59
-part keys (keys): sustain synth organ, register 48..74, density 0.60
-part pad (pad): sustain synth strings, register 48..74, density 0.59
-part lead (lead): rnb_runs synth pluck, register 60..82, density 0.32
+drum hat alt (drum closed_hat): o...........o...........o...........o...........|o...........o...........o...........o...........|o...........o...........o...........ooxxxxxxxxXX|o...........o...........o.................o.xx.x
+drum hat main (drum closed_hat): x.....o.....o.....o.....x.....o.....o.....o.....|x.....o.....o.....o.....x.....o.....X.X.x.x.x.x.|x.....o.....o.....o.....x.....o.....o.....o.....|x.....o.....o.....o.....x.....o.....ooxxxxxxxxXX
+drum ohat main (drum open_hat): ................|..............o.|................|..............o.
+part bass (bass): walking synth sub_bass, register 24..42, density 0.59
+part keys (keys): sustain synth epiano, register 52..78, density 0.59
+part pad (pad): legato synth air_pad, register 50..76, density 0.56
+part lead (lead): ambient_line synth vox_lead, register 60..82, density 0.32
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.00, bus drums
 mix clap: -5.0 dB, pan +0.00, reverb 0.45, delay 0.00, duck 0.00, bus drums

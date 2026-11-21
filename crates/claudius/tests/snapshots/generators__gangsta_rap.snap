@@ -8,21 +8,21 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 4 bars, energy 0.34, prog A, main [filter_in]: strings keys
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: bass kick snare hat keys
+section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: bass ohat kick snare hat keys
 section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: ohat bass strings lead kick snare hat keys
-section verse2 (verse) 16 bars, energy 0.71, prog A, main [gap fills]: bass strings lead kick snare hat keys
+section verse2 (verse) 16 bars, energy 0.76, prog A, main [gap fills]: bass strings lead ohat kick snare hat keys
 section hook2 (hook) 8 bars, energy 0.94, prog C, main [fills]: ohat bass strings lead kick snare hat keys
 section verse3 (verse) 8 bars, energy 0.73, prog A, main [fills]: bass kick snare hat keys
 section hook3 (hook) 16 bars, energy 1.00, prog C, main [fills]: ohat bass strings lead kick snare hat keys
 section outro (outro) 8 bars, energy 0.31, prog A, main []: keys
-drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum kick main (drum kick): X.........X.....|X.X.......X..X..|X.........X.....|X.X.......X..X..
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.
+drum hat main (drum closed_hat): x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.
 drum ohat main (drum open_hat): ................|..............x.|................|..............x.
-part bass (bass): kick_follow synth sub_bass, register 28..43, density 0.59
-part keys (keys): trap_keys synth keys, register 45..70, density 0.59
-part lead (lead): gfunk_whine synth house_piano, register 72..88, density 0.20
-part strings (pad): legato synth strings, register 40..64, density 0.55
+part bass (bass): kick_follow synth deep_bass, register 27..42, density 0.51
+part keys (keys): trap_keys synth keys, register 49..74, density 0.60
+part lead (lead): piano_riff synth house_piano, register 71..87, density 0.14
+part strings (pad): legato synth strings, register 36..60, density 0.56
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

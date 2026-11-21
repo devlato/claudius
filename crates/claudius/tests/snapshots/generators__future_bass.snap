@@ -7,10 +7,10 @@ prog A: Imaj9 IVmaj9 Imaj9 V9
 prog B: Imaj9 IVsus2 Imaj9 V9
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: pad lead
-section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass pad lead
+section verse (verse) 16 bars, energy 0.50, prog A, main []: kick snare hat bass pad
 section build (build) 4 bars, energy 0.65, prog A, main [build gap]: snare hat chords lead
 section drop (drop) 16 bars, energy 0.96, prog A, main [impact fills]: kick snare hat ohat perc bass chords lead
-section break (break) 8 bars, energy 0.44, prog B, main []: pad lead arp
+section break (break) 8 bars, energy 0.39, prog B, main []: lead arp
 section build2 (build) 4 bars, energy 0.68, prog B, main [build gap]: snare chords arp
 section drop2 (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ohat perc bass chords lead arp
 section outro (outro) 8 bars, energy 0.36, prog A, main []: pad chords
@@ -20,11 +20,11 @@ drum hat main (drum closed_hat): x...x...x...x.x.x...x.x.x...x...|x...x...XXxxxx
 drum ohat main (drum open_hat): ..x.............|..x.............|..x.............|..x.............
 drum perc main (drum snap): ..x.....x...x...|..x.....x...x...|..x.....x...x...|..x.....x...x...
 drum perc sparse (drum snap): ............x...|............x...|............x...|............x...
-part chords (chords): sustain synth supersaw, register 52..79, density 0.51
-part bass (bass): glide a rack of synth patch 'sub_bass' under 90 Hz + synth patch '808' + synth patch '808', register 33..48, density 0.57
-part lead (lead): disco_hook synth harp_pluck, register 67..91, density 0.60
-part pad (pad): sustain synth warm_pad, register 50..76, density 0.56
-part arp (arp): updown synth pluck, register 64..88, density 0.58
+part chords (chords): pump synth supersaw, register 55..82, density 0.51
+part bass (bass): glide a rack of synth patch 'sub_bass' under 90 Hz + synth patch '808' + synth patch '808', register 32..47, density 0.57
+part lead (lead): riff synth vox_lead, register 65..89, density 0.60
+part pad (pad): sustain synth pad, register 49..75, density 0.56
+part arp (arp): updown synth pluck, register 65..89, density 0.58
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

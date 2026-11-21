@@ -31,6 +31,7 @@
       "name": "kick",
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.98, 1.0]},
+      "alts": [[{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.2], "vel": [0.98, 1.0]}, 0.2]],
       "params": {"decay": [0.3, 0.45], "tune": [48, 56], "tone": [0.45, 0.7], "punch": [0.5, 0.8], "drive": [4, 8]},
       "samples": ["Kick"],
       "tune_to_key": true,
@@ -40,6 +41,10 @@
       "name": "clap",
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.2], "vel": [0.9, 1.0], "vary": 0.3}, 0.25],
+        [{"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.3, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.15]
+      ],
       "params": {"decay": [0.2, 0.35]},
       "mix": {"bus": "drums", "reverb": 0.18}
     },
@@ -47,6 +52,18 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3], "vel": [0.6, 0.9]},
+      "alts": [
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.6, 0.9]}, 0.2],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.6, 0.9]}, 0.15],
+        [{"steps": [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1], "vel": [0.6, 0.9]}, 0.12],
+        [
+          {
+            "steps": [0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9],
+            "vel": [0.6, 0.9]
+          },
+          0.08
+        ]
+      ],
       "variants": {"sparse": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.5, 0.75]}},
       "params": {"decay": [0.03, 0.07], "tone": [0.75, 0.95]},
       "samples": ["Hi-hat"],
@@ -57,6 +74,11 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]}, 0.2],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3], "vel": [0.35, 0.55]}, 0.15],
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.35, 0.55]}, 0.08]
+      ],
       "params": {"decay": [0.12, 0.2]},
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.1}
@@ -68,7 +90,7 @@
       "mix": {"bus": "drums", "pan": 0.35, "delay": 0.15}
     }
   ],
-  "kits": [["tr909", 0.5]],
+  "kits": [["tr909", 0.5], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.75, "synth": 3},
@@ -81,8 +103,18 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "wobble", "reese"],
-      "styles": ["offbeat", "syncopated", "house_organ"],
+      "presets": ["saw_bass", "wobble", "reese", "saw_bass", "wobble", "reese", "sub_bass", "pluck_bass"],
+      "styles": [
+        "offbeat",
+        "syncopated",
+        "house_organ",
+        "offbeat",
+        "syncopated",
+        "house_organ",
+        "rolling",
+        "disco",
+        "deep"
+      ],
       "register": [38, 57],
       "mix": {
         "bus": "bass",
@@ -108,8 +140,8 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "supersaw"],
-      "styles": ["stabs", "pump", "offbeat"],
+      "presets": ["stab", "supersaw", "stab", "supersaw", "pluck", "organ"],
+      "styles": ["stabs", "pump", "offbeat", "stabs", "pump", "offbeat", "house_piano", "sustain", "syncopated"],
       "register": [55, 74],
       "voices": 3,
       "voicing": "close",
@@ -118,8 +150,8 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["supersaw", "square_lead"],
-      "styles": ["riff", "trance_lead"],
+      "presets": ["supersaw", "square_lead", "supersaw", "square_lead", "pluck", "vox_lead"],
+      "styles": ["riff", "trance_lead", "riff", "trance_lead", "disco_hook", "synth_lead", "garage_chop"],
       "register": [64, 84],
       "density": [0.4, 0.65],
       "mix": {
@@ -132,8 +164,8 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "warm_pad"],
-      "styles": ["sustain"],
+      "presets": ["pad", "warm_pad", "pad", "warm_pad", "string_ensemble|strings", "air_pad"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [50, 76],
       "voices": 4,
       "voicing": "open",
@@ -142,8 +174,8 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "fm_lead"],
-      "styles": ["up", "updown"],
+      "presets": ["pluck", "fm_lead", "pluck", "fm_lead", "piano|keys", "harp_pluck"],
+      "styles": ["up", "updown", "up", "updown", "pinky"],
       "rates": [0.25],
       "register": [60, 84],
       "optional": 0.4,

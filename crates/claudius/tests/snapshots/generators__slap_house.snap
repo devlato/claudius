@@ -7,24 +7,23 @@ prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: chords lead hat
-section verse (verse) 16 bars, energy 0.60, prog A, sparse []: kick hat shaker chords lead
+section verse (verse) 16 bars, energy 0.55, prog A, sparse []: kick hat shaker chords
 section build (build) 4 bars, energy 0.60, prog A, main [build gap]: clap hat chords lead
 section drop (drop) 16 bars, energy 0.96, prog A, main [impact fills]: kick clap hat ohat shaker bass chords lead
-section verse2 (verse) 16 bars, energy 0.64, prog B, sparse []: kick hat shaker chords lead pad
+section verse2 (verse) 16 bars, energy 0.59, prog B, sparse []: kick hat shaker lead pad
 section bridge (break) 8 bars, energy 0.28, prog B, sparse []: chords lead
 section build2 (build) 4 bars, energy 0.70, prog A, main [build gap]: clap hat chords lead pad
 section drop2 (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords lead pad
 section outro (outro) 8 bars, energy 0.40, prog A, main []: kick chords
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): ..x...x...x...xx|..x...x...x...xx|..x...x...x...xx|..x...x...x...xx
+drum hat main (drum closed_hat): x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): ooo.o.o.o.o....o|ooo.o.o.o.o....o|ooo.o.o.o.o....o|ooo.o.o.o.o....o
-part bass (bass): octave synth fm_bass, register 36..55, density 0.59
-part chords (chords): offbeat synth keys, register 55..74, density 0.59
-part lead (lead): garage_chop synth vox_lead, register 57..76, density 0.51
-part pad (pad): sustain synth pad, register 48..72, density 0.56
+drum ohat main (drum open_hat): ......o.......o.|......o.......o.|......o.......o.|......o.......o.
+drum shaker main (drum shaker): .o.o.o.o.o.o.o.o|.o.o.o.o.o.o.o.o|.o.o.o.o.o.o.o.o|.o.o.o.o.o.o.o.o
+part bass (bass): syncopated synth rubber_bass, register 34..53, density 0.47
+part chords (chords): offbeat synth stab, register 51..70, density 0.57
+part lead (lead): synth_lead synth soft_lead, register 55..74, density 0.47
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums
@@ -33,4 +32,3 @@ mix shaker: +0.0 dB, pan +0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.90, bus bass
 mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.12, duck 0.60, bus music
 mix lead: +0.0 dB, pan +0.00, reverb 0.25, delay 0.17, duck 0.40, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.50, bus music

@@ -8,23 +8,23 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: lead arp
-section lift (build) 4 bars, energy 0.45, prog A, main [build]: lead arp
+section lift (build) 4 bars, energy 0.40, prog A, main [build]: lead
 section hook (hook) 16 bars, energy 0.95, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
-section verse (verse) 8 bars, energy 0.71, prog A, alt [fills]: kick snare hat bass lead
+section verse (verse) 8 bars, energy 0.76, prog A, alt [fills]: kick snare hat bass lead arp
 section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
 section switch (break) 8 bars, energy 0.53, prog A, main []: arp pad
 section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
 section outro (outro) 16 bars, energy 0.41, prog A, main []: lead arp
 drum kick alt (drum kick): X.........X.....|X...............|X.........X.....|X...............
-drum kick main (drum kick): X.........X.....|X..X......X.....|X.........X.....|X..X......X.....
+drum kick main (drum kick): X.......X..X....|X.....X.X.......|X.......X..X....|X.....X.X.......
 drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
-drum hat alt (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....ooxxxxxxxxXX
-drum hat main (drum closed_hat): x..x..x.....XXXxxxxxxxxxx.....x..x..x.....x..x..|x..x..x.....x.....x...........o.xx.xo.x.x.x.x.X.|x..x..x.....X.Xx.xx.xx.x......o.xx.xooxxxxxxxxXX|x..x..x.....x.....x.....x.....x..x..x.....x..x..
+drum hat alt (drum closed_hat): ooxxxxxxxxXXx.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....
+drum hat main (drum closed_hat): x........x........x.....x........x........o.xx.x|x........x........x.....XXXxxxxxxxxx......x.....|x........x..XXXxxxxxxxxxx........x..ooxxxxxxxxXX|x........x........x.....o.xx.xx.xx.X......X.xx.x
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-part bass (bass): kick_follow synth 808, register 24..40, density 0.47
-part lead (lead): riff synth saw_lead, register 60..82, density 0.57
-part arp (arp): up synth supersaw, register 55..79, density 0.62
-part pad (pad): sustain synth swell_pad, register 48..72, density 0.56
+part bass (bass): sustain synth 808, register 22..38, density 0.47
+part lead (lead): ambient_line synth saw_lead, register 61..83, density 0.57
+part arp (arp): up synth supersaw, register 58..82, density 0.62
+part pad (pad): sustain synth swell_pad, register 45..69, density 0.56
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums

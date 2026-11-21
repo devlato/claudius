@@ -8,19 +8,19 @@ prog B: Imaj9 IVsus2 Imaj9 V9
 prog C: V9 IVmaj9 Imaj9 Imaj9
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: keys
-section a (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass keys
+section a (verse) 16 bars, energy 0.65, prog A, main [fills]: kick snare hat bass keys lead
 section b (hook) 8 bars, energy 0.75, prog C, main [fills]: kick snare hat shaker bass keys lead
-section bridge (break) 8 bars, energy 0.21, prog B, sparse []: keys lead
-section a2 (verse) 16 bars, energy 0.69, prog A, main [fills]: kick snare hat bass keys pad
+section bridge (break) 8 bars, energy 0.16, prog B, sparse []: keys
+section a2 (verse) 16 bars, energy 0.74, prog A, main [fills]: kick snare hat bass keys pad shaker
 section outro (outro) 8 bars, energy 0.28, prog A, main []: keys lead
-drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
-drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx
-drum shaker main (drum shaker): o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.
-part bass (bass): walking a rack of synth patch 'sub_bass', register 33..50, density 0.59
-part keys (keys): lofi_comp synth epiano, register 52..74, density 0.59
-part lead (lead): lofi_melody synth fm_kalimba, register 64..84, density 0.36
-part pad (pad): sustain synth solina, register 50..74, density 0.45
+drum kick main (drum kick): X.........X.....|X.X.......X..X..|X.........X.....|X.X.......X..X..
+drum snare main (drum snare): ....X.......X.oo|....X.......X.oo|....X.......X.oo|....X.......X.oo
+drum hat main (drum closed_hat): x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.
+drum shaker main (drum shaker): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
+part bass (bass): syncopated a rack of synth patch 'sub_bass', register 33..50, density 0.59
+part keys (keys): half synth epiano, register 56..78, density 0.59
+part lead (lead): lofi_melody synth fm_kalimba, register 62..82, density 0.36
+part pad (pad): legato synth solina, register 49..73, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

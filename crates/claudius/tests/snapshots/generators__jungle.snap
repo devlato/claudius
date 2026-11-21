@@ -7,19 +7,19 @@ prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 2
 section intro (intro) 16 bars, energy 0.34, prog A, main [filter_in]: pad ride chords
-section build (build) 8 bars, energy 0.55, prog A, main [build gap]: pad chords hat ride snare
+section build (build) 8 bars, energy 0.50, prog A, main [build gap]: pad hat ride snare
 section drop (drop) 24 bars, energy 0.95, prog A, main [impact fills]: kick snare hat ride bass chords pad
-section break (break) 16 bars, energy 0.31, prog B, main [build gap]: pad lead ride
+section break (break) 16 bars, energy 0.36, prog B, main [build gap]: pad lead ride snare
 section drop2 (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride bass chords pad lead
 section outro (outro) 4 bars, energy 0.23, prog A, main []: pad chords
-drum kick main (drum kick): X.X.......XX....|X.X.......X.....|X.X.......XX....|X.X.......X.....
-drum snare main (drum snare): ............X.......................X..o..o..X..|............X........X.....X........X.X.x.x.x.x.|............X........X.....X........o.xx.xx.xx.X|.........o..X........X..X.Xx.xx.xx.xX...........
-drum hat main (drum closed_hat): x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo
-drum ride main (drum ride): ....o.o.o.o.o.o.|....o.o.o.o.o.o.|....o.o.o.o.o.o.|....o.o.o.o.o.o.
-part bass (bass): jungle_dub a rack of synth patch 'reese' + synth patch 'reese', register 24..40, density 0.51
-part chords (chords): stabs synth stab, register 55..74, density 0.60
-part pad (pad): sustain synth vowel_pad, register 48..74, density 0.59
-part lead (lead): reggae_horns synth vox_lead, register 64..86, density 0.30
+drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
+drum snare main (drum snare): ............X..o.....o..o..X........X.X.x.x.x.x.|.........o..X........X.....o..o.....X.....X.....|............X..o...........X........X........X..|............X........X..............X.....X.....
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
+drum ride main (drum ride): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
+part bass (bass): rolling a rack of synth patch '808' + synth patch '808', register 22..38, density 0.47
+part chords (chords): stabs synth stab, register 51..70, density 0.57
+part pad (pad): sustain synth strings, register 50..76, density 0.56
+part lead (lead): lofi_melody synth epiano, register 64..86, density 0.36
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

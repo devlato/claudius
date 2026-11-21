@@ -11,21 +11,21 @@ section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: keys brass
 section hook (hook) 16 bars, energy 0.92, prog C, main [impact fills]: kick snare clap hat ohat bass keys brass lead strings
 section verse (verse) 8 bars, energy 0.70, prog A, alt [gap fills]: kick snare hat bass keys brass
 section hook2 (hook) 16 bars, energy 0.91, prog C, main [impact fills]: kick snare clap hat ohat bass keys brass lead strings
-section verse2 (verse) 16 bars, energy 0.81, prog A, alt [gap fills]: kick snare hat bass keys brass strings lead
+section verse2 (verse) 16 bars, energy 0.76, prog A, alt [gap fills]: kick snare hat bass brass strings lead
 section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys brass
 section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare clap hat ohat bass keys brass lead strings
 section outro (outro) 16 bars, energy 0.36, prog A, main []: keys lead
-drum kick alt (drum kick): X...............|X......X........|X...............|X......X........
-drum kick main (drum kick): X.........X.....|X.........X..X..|X...............|X..X............
+drum kick alt (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum kick main (drum kick): X.......X..X....|X.....X.X.......|X.......X..X....|X.....X.X.......
 drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
 drum clap main (drum clap): ........X.......|........X.......|........X.......|........X.......
-drum hat alt (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....o.x.x.x.x.X.o.xx.xx.xx.X
-drum hat main (drum closed_hat): x.....x.....o.xx.xx.xx.XooxxxxxxxxXXx..x..x.....|x.....x.....ooxxxxxxxxXXx..x..x..x..x..x..x.....|x.....x.....x.....x.....x..x..x..x..XXXxxxxxxxxx|o.x.x.x.x.X.x.....x.....ooxxxxxxxxXXXXXxxxxxxxxx
-drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-part bass (bass): drill synth 808, register 24..40, density 0.47
-part keys (keys): trap_keys synth bell, register 55..79, density 0.53
-part brass (chords): sustain synth brass_stab, register 48..70, density 0.53
-part lead (lead): piano_riff synth keys, register 67..88, density 0.36
+drum hat alt (drum closed_hat): x...x...x...x...x...x...x...x...|x...x...x...x.......Xxxxx...x...|x...x...x...x...x...x...x...x...|x...x...x...x...x...x...x...x...
+drum hat main (drum closed_hat): x........x........x.....x........x........X.xx.x|x........x........x...........o.xx.xooxxxxxxxxXX|x........x........x.....x........x..X.X.x.x.x.x.|x........x........x.....x........x........o.xx.x
+drum ohat main (drum open_hat): ................|................|................|................
+part bass (bass): drill synth 808, register 22..38, density 0.47
+part keys (keys): trap_keys synth air_pad, register 58..82, density 0.53
+part brass (chords): sustain synth brass_stab, register 51..73, density 0.53
+part lead (lead): piano_riff synth house_piano, register 65..86, density 0.36
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix clap: -3.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums

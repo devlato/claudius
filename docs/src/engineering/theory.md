@@ -73,11 +73,13 @@ change the rest of the song.
    mode and moved to the key like the others;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a
-   synthesized voice with parameters in the genre's ranges (or a third of the way from the voice's default towards a
-   random point), the kick tuned to the key; then a 4-bar pattern per variant from the lane's template or euclidean
-   rhythm; then, when a kit was drawn, the kit's drum for the lane;
-5. **parts**: per part, unless its `optional` chance leaves it out, a preset, a style, a density and a seed of its
-   own. A chords, keys or pad part on a single-voice synth patch, or on an instrument recorded in mono (FreePats' FM
+   synthesized voice with parameters in the genre's ranges (or half way from the voice's default towards a random
+   point), the kick tuned to the key; then a 4-bar pattern per variant from the lane's template (or one of the genre's
+   other grooves on it, `alts`) or euclidean rhythm; then, when a kit was drawn, the kit's drum for the lane (the
+   electronic genres may draw uzu's and FreePats' synthesizer percussion besides the drum machines);
+5. **parts**: per part, unless its `optional` chance leaves it out, a preset (its own, or one of the two its closest
+   genres play for the role, a preset of one sound such as an 808 or a reese kept where it belongs), a style, a density
+   and a seed of its own. A chords, keys or pad part on a single-voice synth patch, or on an instrument recorded in mono (FreePats' FM
    piano, say), gets a light chorus so it does not sit dead centre;
 6. **loops** from the library, when there is one;
 7. **transitions**: a crash (recorded or synthesized) and the genre's switches;
@@ -103,6 +105,8 @@ that songs of a genre rarely share a form (24 songs of house, lofi, trap, dance-
 | no intro (a cold start); an intro of only its drums (when they have the kick) or only its melodic parts | 0.15; 0.25 |
 | no outro (the song ends on its last section); an outro of half its tracks | 0.15; 0.25 |
 | the first verse without one melodic part (never the bass); a later verse with one more track from the next hook; the first hook without one of its melodic parts (never the bass) | 0.3; 0.35; 0.25 |
+| any other section between the peaks (not an intro or outro) without one melodic part (never the bass), or else with one more track the hooks and drops play | 0.3; 0.2 a section |
+| a verse or groove on the drums' `alt` pattern, where the genre's lanes have one | 0.25 a section |
 | fills switched in a verse, groove or drop; a gap switched before a hook or drop; the intro's filter sweep switched | 0.25; 0.3; 0.4 |
 | each section's energy moved | up to ±0.05 |
 
@@ -126,7 +130,15 @@ switched off).
   a tube, a chorus, phaser or flanger; on an arp an autopan, bitcrusher, phaser or chorus; on a bass a tube, tape or a
   little wavefolding. A phaser's or bitcrusher's mix rises in the hooks and drops;
 - three songs in ten high-pass the music bus in the breaks, at 250 to 500 Hz;
+- the drum bus's compressor ±3 dB in threshold, its ratio, attack and release each up to 1.3 to 1.6 times higher or
+  lower, and in a third of songs whose drum bus does not saturate them already, tape or a tube on it (1.5 to 4 dB, mixed
+  in at 30 to 60%);
+- a quarter of songs whose music bus does not widen it already widen it 8 to 25% above 150 Hz;
 - half the time, the master's saturation becomes tape, a tube or tanh.
+
+Each song also plays its genre's drums its own way: a lane with other grooves (`alts`) plays one of them by its chance
+instead of its template, drawn from a stream of its own; each part plays one of its styles (borrowed from the genres
+that sound most like its own, a genre's idioms kept to it), a few semitones higher or lower than the genre writes it.
 
 Both draw from forks of their own, one for each change, so a song's tempo, harmony, drums and parts stay what its
 seed makes them whatever its form and mix draw, and a new or changed rule leaves the other changes' draws as they were.

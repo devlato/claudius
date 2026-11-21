@@ -77,6 +77,7 @@
       "name": "snare",
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.92, 1.0], "vary": 0.25},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.92, 1.0], "vary": 0.25}, 0.12]],
       "params": {"decay": [0.2, 0.35], "room": [0.3, 0.6], "snap": [0.5, 0.8], "tone": [0.5, 0.9]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.25}
@@ -89,6 +90,11 @@
         "vel": [0.3, 0.7],
         "rolls": 0.25
       },
+      "alts": [
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.3, 0.7], "rolls": 0.25}, 0.2],
+        [{"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.3, 0.7], "rolls": 0.25}, 0.15],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.3, 0.7], "rolls": 0.25}, 0.15]
+      ],
       "samples": ["Hi-hat"],
       "choke": "hats",
       "mix": {"bus": "drums", "pan": 0.15}
@@ -97,12 +103,16 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0], "vel": [0.5, 0.75]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.5, 0.75]}, 0.15],
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.5, 0.75]}, 0.15]
+      ],
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.15}
     },
     {"name": "perc", "voice": "snap", "euclid": [3, 8], "mix": {"bus": "drums", "pan": 0.4, "reverb": 0.3}}
   ],
-  "kits": [["tr808", 0.3]],
+  "kits": [["tr808", 0.3], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.25,
   "palette": {
     "chords": {"core": 1.0, "synth": 1},
@@ -116,7 +126,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["supersaw"],
-      "styles": ["syncopated", "pump", "sustain"],
+      "styles": ["syncopated", "pump", "sustain", "syncopated", "pump", "sustain", "stabs", "offbeat"],
       "register": [52, 79],
       "voices": 5,
       "voicing": "open",
@@ -134,8 +144,8 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "supersaw", "vox_lead"],
-      "styles": ["disco_hook", "garage_chop"],
+      "presets": ["pluck", "supersaw", "vox_lead", "pluck", "supersaw", "vox_lead", "bell", "chip"],
+      "styles": ["disco_hook", "garage_chop", "disco_hook", "garage_chop", "riff"],
       "register": [67, 91],
       "density": [0.45, 0.7],
       "mix": {"reverb": 0.3, "delay": 0.2, "duck": 0.3}
@@ -143,7 +153,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "warm_pad", "choir|pad"],
+      "presets": ["pad", "warm_pad", "choir|pad", "pad", "warm_pad", "choir|pad", "glass_pad"],
       "styles": ["sustain"],
       "register": [50, 76],
       "voices": 4,
@@ -154,7 +164,7 @@
       "name": "arp",
       "role": "arp",
       "presets": ["pluck"],
-      "styles": ["up", "updown", "random"],
+      "styles": ["up", "updown", "random", "up", "updown", "random", "pinky"],
       "rates": [0.25],
       "register": [64, 88],
       "optional": 0.5,

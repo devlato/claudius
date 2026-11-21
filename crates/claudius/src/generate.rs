@@ -77,7 +77,9 @@ fn spec(g: &GenreProfile, what: &str, rng: &mut Rng) -> PartSpec {
             spec.presets = vec!["string_ensemble|strings".into()];
         }
         spec.core = Some(1.0);
-        if !spec.styles.iter().any(|s| STRINGS.contains(&s.as_str())) {
+        // the ways of its part that a string section plays (a pad's held chord is none of them), else its family's
+        let strung: Vec<String> = spec.styles.iter().filter(|s| STRINGS.contains(&s.as_str())).cloned().collect();
+        spec.styles = if strung.is_empty() {
             let family: &[&str] = match g.family.as_str() {
                 "hip hop" => &["ostinato", "pizzicato", "legato"],
                 "house" | "pop and disco" => &["disco_strings", "legato"],
@@ -85,8 +87,10 @@ fn spec(g: &GenreProfile, what: &str, rng: &mut Rng) -> PartSpec {
                 "bass music" | "drum and bass" => &["legato", "ostinato"],
                 _ => &["legato", "tremolo"],
             };
-            spec.styles = family.iter().map(|s| s.to_string()).collect();
-        }
+            family.iter().map(|s| s.to_string()).collect()
+        } else {
+            strung
+        };
     }
     spec
 }
@@ -313,7 +317,12 @@ mod tests {
         let bass = bp.parts.iter().find(|p| p.name == "reggae_bass").expect(&said);
         let reggae = genres::get("reggae").unwrap();
         let theirs = reggae.parts.iter().find(|p| p.role == Role::Bass).unwrap();
-        assert!(theirs.styles.contains(&bass.style) && bass.register == theirs.register, "{said}");
+        // its register as a song of the genre plays it: the genre's, two semitones higher or lower at most
+        let by = bass.register.0 - theirs.register.0;
+        assert!(
+            theirs.styles.contains(&bass.style) && by.abs() <= 2 && bass.register.1 - theirs.register.1 == by,
+            "{said}"
+        );
         assert!(said.starts_with("reggae_bass: reggae's bass, ") && said.contains(&bass.style), "{said}");
         for s in &bp.form {
             assert_eq!(

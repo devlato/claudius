@@ -7,9 +7,9 @@ prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 2
 section intro (intro) 16 bars, energy 0.49, prog A, sparse [filter_in]: kick hat bass
-section groove (groove) 16 bars, energy 0.80, prog A, main [fills]: kick clap hat ohat bass lead
+section groove (groove) 16 bars, energy 0.85, prog A, main [fills]: kick clap hat ohat bass lead pad
 section break (break) 16 bars, energy 0.35, prog B, main []: pad chords lead
-section build (build) 8 bars, energy 0.66, prog B, main [build gap]: clap hat pad chords lead
+section build (build) 8 bars, energy 0.61, prog B, main [build gap]: clap hat pad chords
 section drop (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat bass lead chords pad
 section outro (outro) 4 bars, energy 0.48, prog A, sparse []: kick bass
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
@@ -17,10 +17,10 @@ drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|.
 drum hat main (drum closed_hat): ..x...x...x...xx|..x...x...x...xx|..x...x...x...xx|..x...x...x...xx
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-part bass (bass): pulse synth saw_bass, register 33..48, density 0.51
-part lead (lead): synth_lead synth saw_lead, register 64..83, density 0.65
-part chords (chords): stabs synth supersaw, register 55..79, density 0.59
-part pad (pad): sustain synth swell_pad, register 48..76, density 0.56
+part bass (bass): offbeat a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'dist_bass' above 90 Hz, register 32..47, density 0.51
+part lead (lead): synth_lead synth saw_lead, register 62..81, density 0.65
+part chords (chords): offbeat synth stab, register 54..78, density 0.59
+part pad (pad): sustain synth strings, register 47..75, density 0.56
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
