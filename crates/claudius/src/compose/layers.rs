@@ -525,6 +525,8 @@ fn shaker(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Libr
         ghost: 0.15,
         rolls: 0.0,
         vary: 0.25,
+        drift: 0.0,
+        ghost_at: Vec::new(),
     };
     let patterns = BTreeMap::from([("main".to_string(), crate::theory::rhythm::generate(&t, 4, sr))]);
     let mix = TrackMix { level_db: SHAKER_DB, pan: 0.3, bus: "drums".into(), ..Default::default() };

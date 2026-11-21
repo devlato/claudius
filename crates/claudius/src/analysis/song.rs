@@ -890,7 +890,15 @@ pub fn to_blueprint(
         if let Some(d) = bp.drums.iter_mut().find(|d| d.name == lane)
             && steps.iter().any(|v| *v > 0.0)
         {
-            let t = LaneTemplate { steps: steps.clone(), vel: (0.7, 1.0), ghost: 0.0, rolls: 0.0, vary: 0.2 };
+            let t = LaneTemplate {
+                steps: steps.clone(),
+                vel: (0.7, 1.0),
+                ghost: 0.0,
+                rolls: 0.0,
+                vary: 0.2,
+                drift: 0.0,
+                ghost_at: Vec::new(),
+            };
             d.patterns.insert("main".into(), rhythm::generate(&t, d.pattern_bars, &mut r));
         }
     }
