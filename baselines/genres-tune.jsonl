@@ -1,0 +1,16 @@
+{"better":{"kad":"lower"},"primary":["kad"],"shown":["spread"]}
+{"item":"house","slice":{"family":"electronic"},"metrics":{"kad":49.9598,"typical":0.7311,"identified":0.0,"spread":0.2392}}
+{"item":"deep_house","slice":{"family":"electronic"},"metrics":{"kad":46.8551,"typical":0.7086,"identified":0.75,"spread":0.2969}}
+{"item":"techno","slice":{"family":"electronic"},"metrics":{"kad":25.4509,"typical":0.7924,"identified":0.9,"spread":0.3193}}
+{"item":"trance","slice":{"family":"electronic"},"metrics":{"kad":54.0672,"typical":0.7544,"identified":0.05,"spread":0.2569}}
+{"item":"dnb","slice":{"family":"electronic"},"metrics":{"kad":29.1475,"typical":0.6713,"identified":0.7,"spread":0.3582}}
+{"item":"dubstep","slice":{"family":"electronic"},"metrics":{"kad":47.5706,"typical":0.6725,"identified":0.15,"spread":0.2993}}
+{"item":"ambient","slice":{"family":"electronic"},"metrics":{"kad":34.7637,"typical":0.8282,"identified":1.0,"spread":0.1521}}
+{"item":"trip_hop","slice":{"family":"electronic"},"metrics":{"kad":48.9904,"typical":0.6933,"identified":0.15,"spread":0.2349}}
+{"item":"dance_pop","slice":{"family":"pop"},"metrics":{"kad":40.3865,"typical":0.6568,"identified":0.05,"spread":0.2116}}
+{"item":"hip_hop","slice":{"family":"hip-hop"},"metrics":{"kad":57.0647,"typical":0.6792,"identified":0.0,"spread":0.1664}}
+{"item":"rnb","slice":{"family":"soul"},"metrics":{"kad":53.5349,"typical":0.4709,"identified":0.0,"spread":0.1726}}
+{"item":"funk","slice":{"family":"soul"},"metrics":{"kad":49.2713,"typical":0.5212,"identified":0.0,"spread":0.267}}
+{"item":"reggae","slice":{"family":"reggae"},"metrics":{"kad":54.8262,"typical":0.5477,"identified":0.0,"spread":0.2345}}
+{"item":"alt_rock","slice":{"family":"rock"},"metrics":{"kad":75.6939,"typical":0.4832,"identified":0.0,"spread":0.2881}}
+{"item":"pop_punk","slice":{"family":"rock"},"metrics":{"kad":78.1359,"typical":0.5344,"identified":0.1,"spread":0.3398}}
