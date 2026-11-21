@@ -3,7 +3,7 @@
 //! the others are dimmed. While playing, the meters follow the render's envelope for the tracks that play in the
 //! section under the playhead.
 
-use claudius_api::{Command, RenderView, TrackView, words};
+use claudius_api::{Command, RenderView, SongView, TrackView, words};
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, StrokeKind, Ui, vec2};
 
 use super::{Cx, empty, layer_color, page_frame};
@@ -32,6 +32,24 @@ pub(crate) fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
     Some((20.0 * at.log10(), avg))
 }
 
+/// the layers of the section under bar `head`, if one is
+pub(crate) fn layers_at(song: &SongView, head: f64) -> Option<Vec<String>> {
+    song.sections
+        .iter()
+        .find(|s| head >= s.start_bar as f64 && head < (s.start_bar + s.bars) as f64)
+        .map(|s| s.layers.clone())
+}
+
+/// whether track `t` sounds where the playhead is: in the section there (`section`: its layers; a track the
+/// arrangement does not lay out, `laid` false, plays throughout), not muted, and not silenced by another track's solo
+pub(crate) fn sounds(t: &TrackView, laid: bool, section: Option<&[String]>, solo: bool) -> bool {
+    let plays = match (section, laid) {
+        (Some(l), true) => l.contains(&t.name),
+        _ => true,
+    };
+    plays && !t.muted && (t.solo || !solo)
+}
+
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let playing = cx.player.is_playing();
     let position = cx.player.position();
@@ -46,11 +64,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     }
     let render = cx.state.render.as_ref();
     let env = render.filter(|_| playing).and_then(|r| envelope_db(r, position));
-    let section_layers: Option<Vec<String>> = song
-        .sections
-        .iter()
-        .find(|s| head >= s.start_bar as f64 && head < (s.start_bar + s.bars) as f64)
-        .map(|s| s.layers.clone());
+    let section_layers = layers_at(song, head);
     let colors: Vec<Color32> = song.tracks.iter().map(|t| layer_color(song, &t.name)).collect();
     let layers = song.layers.clone();
     let solo = super::any_solo(song);
@@ -69,15 +83,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.horizontal_top(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;
                             for (i, t) in song.tracks.iter_mut().enumerate() {
-                                let plays = match (&section_layers, layers.contains(&t.name)) {
-                                    (Some(l), true) => l.contains(&t.name),
-                                    _ => true,
-                                };
-                                let silenced = t.muted || (solo && !t.solo);
+                                let on = sounds(t, layers.contains(&t.name), section_layers.as_deref(), solo);
                                 // while playing: the track's loudness riding the render's envelope, silent where it does not play
-                                let live = env.map(|(at, avg)| {
-                                    t.loudness.filter(|_| plays && !silenced).map(|l| l as f32 + (at - avg))
-                                });
+                                let live =
+                                    env.map(|(at, avg)| t.loudness.filter(|_| on).map(|l| l as f32 + (at - avg)));
                                 strip(ui, t, colors[i], h, live, solo, &mut out);
                             }
                         });
