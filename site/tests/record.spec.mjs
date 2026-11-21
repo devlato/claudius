@@ -101,7 +101,7 @@ test.describe("recording in the browser", () => {
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      const plan = "wait:3;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:5";
+      const plan = "wait:3;record;wait:2;rec:start;wait:9;rec:stop;wait:2;rec:keep;wait:5";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
@@ -117,8 +117,8 @@ test.describe("recording in the browser", () => {
       const take = state.song.tracks.find((t) => t.name === "take1");
       expect(take, "the take is a track of the song").toBeTruthy();
       expect(take.kind).toBe("take");
-      // about seven seconds of the plan, less the count-in and the browser's start: four seconds or so of the tone,
-      // which squeezes into far more than silence would
+      // nine seconds of the plan, less the bar of count-in and the browser's start (which took more than three seconds
+      // on a busy computer): four to seven seconds of the tone, which squeezes into far more than silence would
       const files = takes(c.home);
       expect(files).toHaveLength(1);
       const info = flacInfo(files[0]);
@@ -285,7 +285,10 @@ test.describe("recording in the browser", () => {
       for (const [a, b] of notes.slice(1).map((x, i) => [notes[i], x])) {
         expect(Math.abs(b.t - a.t - 1), `a beat apart: ${a.t} then ${b.t}`).toBeLessThan(0.06);
       }
-      for (const note of notes) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
+      // and a key still held when the take stops ends with it, shorter (it starts on its beat all the same, above):
+      // every other note is held as it was played
+      const held = notes.at(-1).d < 0.34 ? notes.slice(0, -1) : notes;
+      for (const note of held) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
     } finally {
       await close();
       c.stop();

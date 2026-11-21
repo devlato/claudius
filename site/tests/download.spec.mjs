@@ -67,11 +67,12 @@ test.describe("the download button", () => {
       await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:2;download:project;wait:120")}`);
       const file = await download;
       const name = file.suggestedFilename();
-      expect(name).toMatch(/^[a-z0-9-]+\.zip$/);
+      // a project file of its own, which a browser keeps whole (Safari unpacks a .zip), and inside it a zip
+      expect(name).toMatch(/^[a-z0-9-]+\.claudius$/);
       const zip = readFileSync(await file.path());
       expect(zip.subarray(0, 4).toString("latin1")).toBe("PK\x03\x04");
       for (const inside of ["blueprint.json", "song.rhai"]) expect(zip.includes(inside), inside).toBe(true);
-      // the zip as the studio sends a chosen one to claudius, which unpacks it into a song folder and opens it
+      // the project file as the studio sends a chosen one to claudius, which unpacks it into a song folder and opens it
       const opened = await fetch(`${c.base}/api/project?name=${encodeURIComponent(name)}`, {
         method: "POST",
         headers: { "content-type": "application/zip" },
@@ -81,9 +82,19 @@ test.describe("the download button", () => {
       expect(reply.ok, reply.message).toBe(true);
       const state = await (await fetch(`${c.base}/api/state`)).json();
       const slug = state.song.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      expect(`${slug}.zip`, "the demo's song").toBe(name);
-      const folder = join(c.home, "Music", "claudius", name.replace(/\.zip$/, ""));
+      expect(`${slug}.claudius`, "the demo's song").toBe(name);
+      const folder = join(c.home, "Music", "claudius", name.replace(/\.claudius$/, ""));
       expect(existsSync(join(folder, "blueprint.json")), folder).toBe(true);
+      // the same project as earlier demos saved it, a .zip, opens as well, into a folder of its own beside the first
+      const old = `${slug}.zip`;
+      const again = await fetch(`${c.base}/api/project?name=${encodeURIComponent(old)}`, {
+        method: "POST",
+        headers: { "content-type": "application/zip" },
+        body: zip,
+      });
+      const replied = await again.json();
+      expect(replied.ok, replied.message).toBe(true);
+      expect(existsSync(join(`${folder}-2`, "blueprint.json")), `${folder}-2`).toBe(true);
     } finally {
       await close();
       c.stop();
@@ -100,13 +111,14 @@ test.describe("the download button", () => {
       const file = await download;
       const zip = join(c.home, file.suggestedFilename());
       await file.saveAs(zip);
-      // the demo afresh, which keeps nothing, as a person comes back another day and chooses the zip in Open's dialog
+      // the demo afresh, which keeps nothing, as a person comes back another day and chooses the project file in Open's
+      // dialog
       const toasts = heard(page, "toast");
       await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:3;pick:song;wait:120")}`);
       const input = page.locator('input[data-claudius-pick="song"]');
       await input.waitFor({ state: "attached", timeout: 60_000 });
       await input.setInputFiles(zip);
-      await expect.poll(() => toasts.join("\n"), { timeout: 120_000 }).toMatch(/opened [a-z0-9-]+\.zip: /);
+      await expect.poll(() => toasts.join("\n"), { timeout: 120_000 }).toMatch(/opened [a-z0-9-]+\.claudius: /);
     } finally {
       await close();
       c.stop();

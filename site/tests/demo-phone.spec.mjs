@@ -46,14 +46,16 @@ test.describe("a phone with the demo", () => {
       // the demo's engine renders the song first, then the phone's sounds
       await phone.waitForFunction(() => hits.size === song.lanes.length, null, { timeout: 180_000 });
       const said = phone.locator("#said");
-      // two bars on the pads, again if the demo stopped for a moment as the take began (its whole song taking the place
-      // of its first bars)
+      // two bars on the pads, again if the demo had stopped as the take began (its song ended, or a render took its
+      // place): the phone then starts the song itself and counts the take from the section's start, which is not two
+      // bars played along with it (phone.spec.mjs checks that take)
       const take = async () => {
         for (let i = 0; i < 3; i++) {
           await phone.waitForFunction(() => transport.playing, null, { timeout: 60_000 });
-          await phone.evaluate(playTwoBars);
-          if (!/play the song in the studio first/.test(await said.textContent())) return;
+          const { started } = await phone.evaluate(playTwoBars);
+          if (!started) return;
         }
+        throw new Error("the demo stopped as each of three takes began");
       };
       await take();
       // the take waits for the engine to finish what it was rendering
