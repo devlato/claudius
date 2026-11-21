@@ -123,6 +123,10 @@ pub struct Analysis {
     /// each bar's pitch classes, summing to 1
     #[serde(skip)]
     pub bar_chroma: Vec<[f32; 12]>,
+    /// each bar's kick, snare and hats: how hard each hits on each 16th step of the bar, 0..1 of how hard the lane hits
+    /// through the song (its 98th percentile); none for a recording no kit plays in
+    #[serde(skip)]
+    pub bar_drums: Vec<[[f32; 16]; 3]>,
     /// per 16th step of a bar, 0..1: how often each lane hits there in the busiest sections
     pub kick_steps: Vec<f32>,
     pub snare_steps: Vec<f32>,
@@ -138,6 +142,12 @@ pub struct Analysis {
 }
 
 impl Analysis {
+    /// How much its beat changes from bar to bar where its kit plays (a step hit at half the lane's usual strength or
+    /// more counts as hit, `bar_drums`); none where a kit plays in fewer than eight pairs of bars.
+    pub fn beat_change(&self) -> Option<BeatChange> {
+        beat_change_of(&self.bar_drums)
+    }
+
     /// Where bar `b` starts, in seconds (bar `bars` is where the last ends): the beats played, or the grid of
     /// `bar_secs` past the last of them and for an analysis that has no bars of its own.
     pub fn bar_start(&self, b: usize) -> f64 {
@@ -343,6 +353,79 @@ fn steps_of(env: &[f32], bar_start: f64, bar_len: f64) -> [f32; 16] {
             .fold(0.0, f32::max);
     }
     out
+}
+
+/// each bar's lanes, each scaled to how hard it hits through the song: its 98th percentile, so that a few loud hits do
+/// not make every other one look soft
+fn bar_drums(lanes: &[&Vec<[f32; 16]>; 3]) -> Vec<[[f32; 16]; 3]> {
+    let bars = lanes[0].len();
+    let scale: Vec<f32> = lanes
+        .iter()
+        .map(|lane| {
+            let mut all: Vec<f32> = lane.iter().flatten().copied().collect();
+            all.sort_by(f32::total_cmp);
+            all.get(((all.len() as f64 * 0.98) as usize).min(all.len().saturating_sub(1))).copied().unwrap_or(0.0)
+        })
+        .collect();
+    (0..bars)
+        .map(|b| {
+            let mut bar = [[0.0f32; 16]; 3];
+            for (l, lane) in lanes.iter().enumerate() {
+                for k in 0..16 {
+                    bar[l][k] = if scale[l] > 1e-9 { (lane[b][k] / scale[l]).min(1.0) } else { 0.0 };
+                }
+            }
+            bar
+        })
+        .collect()
+}
+
+/// `Analysis::beat_change` of bars `bar_drums` (`Analysis::bar_drums`)
+fn beat_change_of(bar_drums: &[[[f32; 16]; 3]]) -> Option<BeatChange> {
+    let hits: Vec<u64> = bar_drums
+        .iter()
+        .map(|bar| {
+            let mut m = 0u64;
+            for (l, lane) in bar.iter().enumerate() {
+                for (k, v) in lane.iter().enumerate() {
+                    if *v >= 0.5 {
+                        m |= 1 << (l * 16 + k);
+                    }
+                }
+            }
+            m
+        })
+        .collect();
+    // a bar the kit plays in: a kick or a snare in it
+    let playing = |m: u64| m & 0xFFFF_FFFF != 0;
+    let apart = |lag: usize| -> Vec<f64> {
+        hits.windows(lag + 1)
+            .filter(|w| playing(w[0]) && playing(w[lag]))
+            .map(|w| f64::from((w[0] ^ w[lag]).count_ones()) / f64::from((w[0] | w[lag]).count_ones().max(1)))
+            .collect()
+    };
+    let median = |mut v: Vec<f64>| -> Option<f64> {
+        if v.len() < 8 {
+            return None;
+        }
+        v.sort_by(f64::total_cmp);
+        Some(v[v.len() / 2])
+    };
+    let next = apart(1);
+    let turns = next.iter().filter(|d| **d >= 0.5).count() as f64 / next.len().max(1) as f64;
+    Some(BeatChange { next: median(next)?, four: median(apart(4))?, turns })
+}
+
+/// How much a beat changes from bar to bar (`Analysis::beat_change`).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct BeatChange {
+    /// of the kick, snare and hat hits on the 16th steps of two bars in a row, the share in one and not both (Jaccard's
+    /// distance), the median over the song's bars
+    pub next: f64,
+    /// the same of bars four apart: a beat whose phrase comes round every four bars changes here less than bar to bar
+    pub four: f64,
+    /// the share of bars in a row at least half of whose hits differ: fills, edits and switches
+    pub turns: f64,
 }
 
 fn template(avg: &[f32; 16]) -> Vec<f32> {
@@ -685,6 +768,7 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
         sections,
         bar_chroma,
         // a recording no kit plays in has no drum habits
+        bar_drums: if drummed { bar_drums(&[&kick, &snare, &hat]) } else { Vec::new() },
         kick_steps: if drummed { template(&ks) } else { vec![0.0; 16] },
         snare_steps: if drummed { template(&ss) } else { vec![0.0; 16] },
         hat_steps: if drummed { template(&hs) } else { vec![0.0; 16] },
@@ -827,11 +911,36 @@ pub fn to_blueprint(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{Label, SectionKind, analyze, analyze_with, remake_tempo};
+    use super::{Label, SectionKind, analyze, analyze_with, beat_change_of, remake_tempo};
     use crate::audio::Stereo;
     use crate::config::SRF;
     use crate::genres;
     use crate::stems::Stems;
+
+    #[test]
+    fn a_beat_that_loops_one_bar_never_changes_and_one_of_two_bars_changes_bar_to_bar_but_not_four_on() {
+        // kick on 1 and 3, snare on 2 and 4, hats on the eighths; the second bar a kick before the third beat instead
+        let bar = |kicks: &[usize]| {
+            let mut b = [[0.0f32; 16]; 3];
+            kicks.iter().for_each(|&k| b[0][k] = 1.0);
+            [4, 12].into_iter().for_each(|k| b[1][k] = 0.9);
+            (0..16).step_by(2).for_each(|k| b[2][k] = 0.7);
+            b
+        };
+        let (a, b) = (bar(&[0, 8]), bar(&[0, 6]));
+        let looped = vec![a; 16];
+        let same = beat_change_of(&looped).unwrap();
+        assert_eq!((same.next, same.four, same.turns), (0.0, 0.0, 0.0));
+        // two bars of 12 hits each that move one kick: 2 of the 13 hits in either differ
+        let two: Vec<_> = (0..16).map(|i| if i % 2 == 0 { a } else { b }).collect();
+        let changed = beat_change_of(&two).unwrap();
+        assert!((changed.next - 2.0 / 13.0).abs() < 1e-9, "{changed:?}");
+        assert_eq!((changed.four, changed.turns), (0.0, 0.0), "four bars on, the same bar");
+        // a hit at under half the lane's strength is no hit, and too few bars with a kit tell nothing
+        let soft: Vec<_> = (0..16).map(|i| if i % 2 == 0 { a } else { [[0.4; 16]; 3] }).collect();
+        assert!(beat_change_of(&soft).is_none(), "only every other bar has a kit: too few pairs");
+        assert!(beat_change_of(&looped[..8]).is_none());
+    }
 
     #[test]
     fn a_section_is_cut_before_its_own_pickup_not_before_a_line_of_the_section_before() {

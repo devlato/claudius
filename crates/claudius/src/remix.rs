@@ -1237,6 +1237,7 @@ mod tests {
             bars_per_chord: 1,
             sections: vec![section(0, 8, 0.5, SectionKind::Verse), section(8, 8, 0.9, SectionKind::Hook)],
             bar_chroma: Vec::new(),
+            bar_drums: Vec::new(),
             kick_steps: Vec::new(),
             snare_steps: Vec::new(),
             hat_steps: Vec::new(),
