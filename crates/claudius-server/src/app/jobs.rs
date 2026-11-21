@@ -436,16 +436,31 @@ impl App {
             }
         }
         // the whole folder from this render, so the score in it is the song its audio plays: where the folder is now,
-        // when a rename moved it while the render ran
+        // when a rename moved it while the render ran. A save that waits for this job with the same folder has written
+        // a newer score into it already and writes the whole folder next: this render's song, older, would only put
+        // the song as it was back in between (an old title over a rename's new one), so it leaves that folder to the
+        // newer save, and the stems it was asked for with it
         let saved: Vec<_> = {
             let _writing = self.folders.lock().unwrap_or_else(|e| e.into_inner());
-            let moved = self.lock().moved_folders.clone();
+            let (moved, waiting) = {
+                let s = self.lock();
+                (s.moved_folders.clone(), s.pending_saves.clone())
+            };
             saves
                 .iter()
-                .map(|(dir, stems)| {
+                .filter_map(|(dir, stems)| {
                     let dir = moved.iter().fold(dir.clone(), |d, (from, to)| if d == *from { to.clone() } else { d });
+                    if waiting.iter().any(|(d, _)| super::same_folder(d, &dir)) {
+                        if *stems {
+                            let mut s = self.lock();
+                            for (_, wants) in s.pending_saves.iter_mut().filter(|(d, _)| super::same_folder(d, &dir)) {
+                                *wants = true;
+                            }
+                        }
+                        return None;
+                    }
                     let written = song::write_folder(&dir, &bp, &project, &r, &verdict, *stems);
-                    (dir, written)
+                    Some((dir, written))
                 })
                 .collect()
         };

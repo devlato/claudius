@@ -1112,17 +1112,25 @@ async fn a_song_renamed_takes_its_folder_and_its_history_along_and_stays_one_pro
     assert_eq!(folders(), ["house-night-drive-4"], "exported where it lives: {}", r.message);
     let flac = std::fs::read_dir(&dir).unwrap().flatten().any(|e| e.file_name().to_string_lossy().ends_with(".flac"));
     assert!(flac, "{}", r.message);
-    // renamed while a save still renders, the save goes where the folder went: one project still
+    // renamed while a save still renders, the save goes where the folder went: one project still, and the save in
+    // flight, of the song as it was, never puts the old title back over the new one while the rename's save renders
     assert!(app.command(Command::Save { stems: false, path: None }).ok);
     let r = app.command(Command::RenameSong { title: "Morning Run".into() });
     assert!(r.ok && r.message.contains("its folder moved to"), "{}", r.message);
+    let dir = songs.join("house-morning-run-4");
+    let title = || {
+        let json = std::fs::read_to_string(dir.join("blueprint.json")).unwrap();
+        claudius::model::Blueprint::from_json(&json).unwrap().title
+    };
+    let until = std::time::Instant::now() + Duration::from_secs(240);
+    while app.state().cancellable && std::time::Instant::now() < until {
+        assert_eq!(title(), "Morning Run", "the save in flight wrote the old title over the rename's");
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     app.settled(Duration::from_secs(240)).await;
     assert_eq!(folders(), ["house-morning-run-4"], "the save in flight wrote into the folder's new place");
-    let dir = songs.join("house-morning-run-4");
     assert!(dir.join("song.wav").is_file(), "its audio in it");
-    let saved =
-        claudius::model::Blueprint::from_json(&std::fs::read_to_string(dir.join("blueprint.json")).unwrap()).unwrap();
-    assert_eq!(saved.title, "Morning Run");
+    assert_eq!(title(), "Morning Run");
     // a title another song's folder holds is refused, and nothing changes
     std::fs::create_dir_all(songs.join("house-taken-4")).unwrap();
     let r = app.command(Command::RenameSong { title: "Taken".into() });

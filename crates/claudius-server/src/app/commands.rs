@@ -959,7 +959,7 @@ impl App {
     fn rename(self: &Arc<Self>, title: &str) -> Reply {
         let v = self.version();
         let Some(bp) = self.blueprint() else { return no("no song yet: start one with new_song", v) };
-        let same = |a: &Path, b: &Path| a == b || std::fs::canonicalize(a).ok() == std::fs::canonicalize(b).ok();
+        let same = super::same_folder;
         let (head, tail) = (format!("{}-", bp.genre), format!("-{}", bp.seed));
         let named = |d: &Path| {
             d.parent().is_some_and(|p| same(p, &self.songs))
@@ -1037,7 +1037,9 @@ impl App {
             Err(e) => return no(format!("{e:#}"), v),
         }
         // the score and its history now, each whole or not at all; the audio and the verdict (and the stems, when
-        // asked for) once it is rendered
+        // asked for) once it is rendered. Written and queued in one go: a render still writing an older save into this
+        // folder either does it before this score or finds this save waiting and leaves the folder to it
+        let _writing = self.folders.lock().unwrap_or_else(|e| e.into_inner());
         let history = self.lock().history.to_jsonl();
         for (file, text) in
             [("blueprint.json", bp.to_json()), ("song.rhai", script::to_script(&bp)), ("history.jsonl", history)]
