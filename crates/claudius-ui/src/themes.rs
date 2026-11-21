@@ -63,12 +63,6 @@ impl Theme {
         serde_json::to_string_pretty(&v).unwrap_or_default()
     }
 
-    /// a file name for it, from its name (`theme.json` for a name of no letters or digits)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn file_name(&self) -> String {
-        format!("{}.json", self.file_stem())
-    }
-
     /// the name of its file without `.json`: its letters and digits, lower case, the rest dashes; at most 200 bytes, so
     /// that the file and the part file it is first written to stay under a file system's 255
     #[cfg(not(target_arch = "wasm32"))]
@@ -310,10 +304,12 @@ mod tests {
     fn a_long_name_makes_a_file_name_short_enough_to_write() {
         // 60 letters of four bytes each, alphanumeric and without a lower case
         let theme = Theme { name: "\u{1d4d4}".repeat(60), ..Theme::builtin(true) };
-        assert!(theme.file_name().len() <= 205, "{} bytes", theme.file_name().len());
         let dir = folder_for("long");
         keep_in(&dir, &theme).unwrap();
         assert_eq!(added_in(&dir)[0].name, theme.name);
+        let names: Vec<String> =
+            theme_files(&dir).unwrap().iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert!(names.iter().all(|n| n.len() <= 205), "{:?}", names.iter().map(String::len).collect::<Vec<_>>());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -325,7 +321,7 @@ mod tests {
             assert_eq!(back, t);
             assert!(unknown.is_empty(), "{unknown:?}");
         }
-        assert_eq!(Theme::builtin(true).file_name(), "dark.json");
+        assert_eq!(Theme::builtin(true).file_stem(), "dark");
     }
 
     #[test]
