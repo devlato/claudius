@@ -1,5 +1,5 @@
 {"better":{"kad":"lower","beat":"lower"},"primary":["kad"],"shown":["spread","beat_songs","beat_real"]}
-{"item":"house","slice":{"family":"electronic"},"metrics":{"kad":45.3544,"typical":0.747,"identified":0.0,"spread":0.2666,"beat":0.0776,"beat_songs":0.4348,"beat_real":0.3571}}
+{"item":"house","slice":{"family":"electronic"},"metrics":{"kad":42.1168,"typical":0.7442,"identified":0.0,"spread":0.319,"beat":0.0275,"beat_songs":0.3846,"beat_real":0.3571}}
 {"item":"deep_house","slice":{"family":"electronic"},"metrics":{"kad":48.1293,"typical":0.7245,"identified":0.0,"spread":0.3538,"beat":0.0348,"beat_songs":0.4,"beat_real":0.4348}}
 {"item":"tech_house","slice":{"family":"electronic"},"metrics":{"kad":39.4791,"typical":0.7258,"identified":0.65,"spread":0.2741,"beat":0.0354,"beat_songs":0.4444,"beat_real":0.4091}}
 {"item":"electro_house","slice":{"family":"electronic"},"metrics":{"kad":55.6276,"typical":0.7068,"identified":0.0,"spread":0.3033,"beat":0.0446,"beat_songs":0.3929,"beat_real":0.4375}}
