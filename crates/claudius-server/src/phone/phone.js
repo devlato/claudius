@@ -773,6 +773,49 @@ const BRAKE = 3;
 /** the fastest a swipe spins the record, in seconds of record a second: about as fast as a finger turns one */
 const FLING = 4;
 
+/** The hand on the record: where it had the record, and when (ms on the page's clock), over the last third of a
+ * second, and the time between the moments the screen (or a jog wheel) says where (a phone says it 60 or 120 times a
+ * second). The page hears of those moments only as each audio block begins, so a record sent to the newest place would
+ * jump there and rest until the next block, starting and stopping 47 times a second, a buzz. It follows the hand's path
+ * instead, a block and one such time late, between places it knows: as smoothly as the hand moved it. */
+const hand = { path: [], gap: 1 / 60, gaps: [] };
+
+/** a grab, or a jog wheel's first turn: the hand's path begins where the record is, at `time` (ms) */
+function handFrom(pos, time) {
+  hand.path = [{ t: time, x: pos }];
+  deck.target = pos;
+}
+
+/** the hand has the record at `target` at `time` (ms) */
+function handTo(target, time) {
+  const path = hand.path;
+  const last = path[path.length - 1];
+  if (!last || time > last.t) {
+    if (last) {
+      hand.gaps.push((time - last.t) / 1000);
+      if (hand.gaps.length > 8) hand.gaps.shift();
+      const sorted = [...hand.gaps].sort((a, b) => a - b);
+      hand.gap = Math.min(0.034, Math.max(0.004, sorted[sorted.length >> 1]));
+    }
+    path.push({ t: time, x: target });
+  } else last.x = target;
+  while (path.length > 2 && path[1].t < time - 300) path.shift();
+  deck.target = target;
+}
+
+/** where the hand had the record at `t` (ms), and how fast it moved it then (seconds of record a second), from the place
+ * at or before `t` that `k` points at (moved on as `t` goes): between two places it knows, along the line between them;
+ * before the first and after the last, held there */
+function handAt(t, k) {
+  const path = hand.path;
+  while (k.i + 1 < path.length && path[k.i + 1].t <= t) k.i++;
+  const a = path[Math.min(k.i, path.length - 1)];
+  const b = path[k.i + 1];
+  if (!b || t < a.t) return [a.x, 0];
+  const v = (b.x - a.x) / ((b.t - a.t) / 1000);
+  return [a.x + (v * (t - a.t)) / 1000, v];
+}
+
 /** `v` moved toward `to` by at most `by` */
 function toward(v, to, by) {
   return Math.abs(to - v) <= by ? to : v + Math.sign(to - v) * by;
@@ -845,17 +888,32 @@ function lowpass(x, hz, rate) {
   return y;
 }
 
+/** how long the record's first sound takes to come in out of the lead-in groove's silence, in seconds
+ * (`claudius::scratch::LEAD_IN`) */
+const LEAD_IN = 0.002;
+
 /** The record at the bandwidths a needle reads it at (`scratch::levels`): the whole of it, and low-passed under a
- * quarter, an eighth and a sixteenth of its rate, so that a record moved fast whistles no highs folded back. */
+ * quarter, an eighth and a sixteenth of its rate, so that a record moved fast whistles no highs folded back. Its first
+ * `LEAD_IN` comes in out of silence. */
 function levels(b) {
-  const sides = [b.getChannelData(0), b.getChannelData(b.numberOfChannels > 1 ? 1 : 0)];
+  const sides = [b.getChannelData(0), b.getChannelData(b.numberOfChannels > 1 ? 1 : 0)].map((x) => {
+    const y = Float32Array.from(x);
+    const fade = Math.min(y.length, Math.round(LEAD_IN * b.sampleRate));
+    for (let i = 0; i < fade; i++) y[i] *= i / fade;
+    return y;
+  });
   const out = [sides];
   for (let k = 2; k <= 4; k++) out.push(out[out.length - 1].map((x) => lowpass(x, (0.8 * b.sampleRate) / 2 ** k, b.sampleRate)));
   return out;
 }
 
-/** the record under the needle at `pos` seconds, read at `speed` times its own, into `out` (`scratch::needle`) */
+/** the record under the needle at `pos` seconds, read at `speed` times its own, into `out` (`scratch::needle`): past
+ * its end it goes round to its start; before its start the needle is in the lead-in groove, which is silent */
 function needle(lv, rate, pos, speed, out) {
+  if (pos < 0) {
+    out[0] = out[1] = 0;
+    return;
+  }
   const len = lv[0][0].length;
   const at = (((pos * rate) % len) + len) % len;
   const j = Math.floor(at);
@@ -1041,7 +1099,6 @@ function spin(e) {
   }
   const n = L.length;
   const dt = 1 / ctx.sampleRate;
-  const from = deck.pos;
   const motor = platterSpeed();
   const now = performance.now();
   const grip = gripNow(now);
@@ -1049,10 +1106,18 @@ function spin(e) {
   const slew = 1 - Math.exp(-1 / (0.002 * ctx.sampleRate));
   const dc = deck.dc;
   const s = [0, 0];
+  // where the song is as each sample is heard, for a take's moves
+  const songStart = take && take.mode === "deck" ? songAt(heardAt(e.playbackTime)) : null;
+  // the hand's path, a block and the time between its moments late, so that where it was is known (`hand`)
+  const late = (n / ctx.sampleRate + hand.gap) * 1000;
+  const k = { i: 0 };
   for (let i = 0; i < n; i++) {
     const speed = (deck.platter = toward(deck.platter, motor, (motor > 0 ? TORQUE : BRAKE) * dt));
-    if (deck.touching && hold.grab) deck.vel += (SPRING * SPRING * (deck.target - deck.pos) - 2 * SPRING * deck.vel) * dt;
-    else if (deck.touching) deck.vel += (speed * (1 - grip) - deck.vel) * Math.min(1, dt / 0.04);
+    if (deck.touching && hold.grab && hand.path.length) {
+      // toward where the hand had the record, and as fast: a spring that keeps up with a hand moving it
+      const [aim, v] = handAt(now + i * dt * 1000 - late, k);
+      deck.vel += (SPRING * SPRING * (aim - deck.pos) + 2 * SPRING * (v - deck.vel)) * dt;
+    } else if (deck.touching) deck.vel += (speed * (1 - grip) - deck.vel) * Math.min(1, dt / 0.04);
     else deck.vel = toward(deck.vel, speed, (deck.vel >= 0 && deck.vel < speed ? CATCH_UP : SLOW_DOWN) * dt);
     deck.pos += deck.vel * dt;
     needle(lv, deck.rate, deck.pos, Math.abs(deck.vel), s);
@@ -1063,14 +1128,40 @@ function spin(e) {
     dc[0] = x;
     R[i] = dc[3] = y - dc[2] + 0.9987 * dc[3];
     dc[2] = y;
-  }
-  if (take && take.mode === "deck") {
-    const at = songAt(heardAt(e.playbackTime));
-    const last = take.moves[take.moves.length - 1];
-    if (at !== null && (!last || at > last.at)) take.moves.push({ at, pos: from, fader });
+    if (songStart !== null && i % MOVE_EVERY === 0) keepMove(songStart + i * dt, deck.pos, fader);
   }
 }
 
+/** how often a take keeps where the record is, in samples: about every 3 ms, so that a scratch of eight strokes a
+ * second is played back as it was played (`claudius::scratch` reads the take along a curve through them) */
+const MOVE_EVERY = 128;
+
+/** how far a take's moves may stray from where the record was, in seconds of it: a move is left out while the line from
+ * the last one kept to the newest passes within this of every one left out (the motor playing the record on, a hand
+ * holding it still), so a take is as dense as its scratching and no longer than that */
+const MOVE_SLACK = 0.0002;
+
+/** A take's move: the newest stands for those since the last one kept as long as they lie on the line to it (within
+ * `MOVE_SLACK`), its fader has not moved, and a tenth of a second has not gone by; else the one before it is kept. */
+function keepMove(at, pos, fader) {
+  const m = take.moves;
+  const last = m[m.length - 1];
+  if (last && at <= last.at) return;
+  const move = { at, pos, fader };
+  // the last move kept, and the moves since it that the newest stands for
+  const kept = last && last.thin ? m[m.length - 2] : last;
+  const left = take.left || (take.left = []);
+  const onLine = (p) => Math.abs(p.pos - (kept.pos + ((pos - kept.pos) * (p.at - kept.at)) / (at - kept.at))) < MOVE_SLACK;
+  if (kept && fader === kept.fader && at - kept.at < 0.1 && (!last.thin || onLine(last)) && left.every(onLine)) {
+    if (last.thin) left.push(m.pop());
+    m.push({ ...move, thin: true });
+    return;
+  }
+  // the newest no longer stands for them: the one before it is kept, and the newest stands for what comes after
+  if (last && last.thin) delete last.thin;
+  take.left = [];
+  m.push(last && last !== kept ? { ...move, thin: true } : move);
+}
 /** the time on this page's clock at which the audio context's `t` is heard */
 function heardAt(t) {
   if (ctx.getOutputTimestamp) {
@@ -1091,6 +1182,30 @@ function radiusOf(e, c) {
   return Math.hypot(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
 }
 
+/** the finger at `e` on the record `c`: round it by how far it turned since, at the time the screen saw it there, on the
+ * page's clock as the record's turning reads it (`when`: a browser that stamps events with the time of day has it
+ * replaced by the page's) */
+function fingerAt(e, c) {
+  const now = when(e);
+  const a = angleOf(e, c);
+  let d = a - deck.angle;
+  if (d > Math.PI) d -= 2 * Math.PI;
+  if (d < -Math.PI) d += 2 * Math.PI;
+  deck.angle = a;
+  const secs = Math.max(0.004, (now - hold.moved) / 1000);
+  hold.speed += ((d / (2 * Math.PI)) * TURN / secs - hold.speed) * 0.5;
+  hold.moved = now;
+  if (hold.grab) {
+    deck.turned += d;
+    handTo(deck.start + (deck.turned / (2 * Math.PI)) * TURN, now);
+  } else if (Math.abs((hold.turned += d)) * radiusOf(e, c) > GRAB) {
+    // it grabs the record where it is now
+    Object.assign(hold, { grab: true });
+    Object.assign(deck, { start: deck.pos, turned: 0 });
+    handFrom(deck.pos, now);
+  }
+}
+
 function platter() {
   const c = $("platter");
   c.addEventListener("pointerdown", (e) => {
@@ -1103,23 +1218,10 @@ function platter() {
   });
   c.addEventListener("pointermove", (e) => {
     if (!deck.touching) return;
-    const now = performance.now();
-    const a = angleOf(e, c);
-    let d = a - deck.angle;
-    if (d > Math.PI) d -= 2 * Math.PI;
-    if (d < -Math.PI) d += 2 * Math.PI;
-    deck.angle = a;
-    const secs = Math.max(0.004, (now - hold.moved) / 1000);
-    hold.speed += ((d / (2 * Math.PI)) * TURN / secs - hold.speed) * 0.5;
-    hold.moved = now;
-    if (hold.grab) {
-      deck.turned += d;
-      deck.target = deck.start + (deck.turned / (2 * Math.PI)) * TURN;
-    } else if (Math.abs((hold.turned += d)) * radiusOf(e, c) > GRAB) {
-      // it grabs the record where it is now
-      Object.assign(hold, { grab: true });
-      Object.assign(deck, { start: deck.pos, target: deck.pos, turned: 0 });
-    }
+    // every place the finger passed since the last event, where the browser keeps them: a screen samples a moving finger
+    // more often than a page hears of it
+    const passed = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const p of passed.length ? passed : [e]) fingerAt(p, c);
     feel(e, c);
   });
   for (const up of ["pointerup", "pointercancel"]) {
@@ -1408,9 +1510,13 @@ function control(ch, cc, v) {
   } else if (is(midi.jog)) {
     const ticks = midi.jog.offset ? v - 64 : v < 64 ? v : v - 128;
     // the wheel holds the record as it turns, and lets go of it once it rests
-    if (!deck.touching) Object.assign(deck, { touching: true, target: deck.pos });
+    const now = performance.now();
+    if (!deck.touching) {
+      deck.touching = true;
+      handFrom(deck.pos, now);
+    }
     hold.grab = true;
-    deck.target += (ticks / TICKS) * TURN;
+    handTo(deck.target + (ticks / TICKS) * TURN, now);
     clearTimeout(midi.still);
     midi.still = setTimeout(() => (deck.touching = false), 150);
     return;
