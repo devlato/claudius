@@ -19,8 +19,11 @@ const WHAT: [&str; 7] = ["forms", "drum patterns", "kits", "part sounds", "part 
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let n: u64 = args.first().and_then(|a| a.parse().ok()).unwrap_or(20);
-    let only: Vec<&String> = args.iter().skip(1).collect();
+    // N first when it is a number, else 20 and every argument a genre (`variety -- house techno`)
+    let (n, only): (u64, Vec<&String>) = match args.first().and_then(|a| a.parse().ok()) {
+        Some(n) => (n, args.iter().skip(1).collect()),
+        None => (20, args.iter().collect()),
+    };
     println!("genre\t{}", WHAT.join("\t"));
     let mut sums = [0.0f64; WHAT.len()];
     let mut genres_seen = 0usize;
@@ -79,8 +82,14 @@ fn features(song: &Value) -> [u64; WHAT.len()] {
     let styles: Vec<&str> = parts.iter().map(|p| p["style"].as_str().unwrap_or("")).collect();
     let mut fx = Vec::new();
     effects(&song["mix"], &mut fx);
-    let transitions: Vec<&String> =
-        song["transitions"].as_object().into_iter().flatten().filter(|(_, v)| !v.is_null()).map(|(k, _)| k).collect();
+    // the transitions a song has: a flag turned off (`use_downlifter: false`) is none, as one left out is
+    let transitions: Vec<&String> = song["transitions"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(_, v)| !v.is_null() && **v != Value::Bool(false))
+        .map(|(k, _)| k)
+        .collect();
     [hash(&form), hash(&patterns), hash(&kit), hash(&sounds), hash(&styles), hash(&fx), hash(&transitions)]
 }
 
