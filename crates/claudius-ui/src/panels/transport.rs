@@ -917,7 +917,16 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         if std::mem::take(&mut cx.view.new_song.making) && cx.view.analyzing {
             cx.out.push(Command::Cancel);
         }
+        // and a recording from the microphone it was making goes, the microphone let go
+        cx.view.mic = None;
         return;
+    }
+    // the recording from the microphone goes on whichever tab shows, and ends, kept, once its tab is left
+    if cx.view.new_song.start != Start::Microphone && cx.view.mic.as_ref().is_some_and(|m| !m.stopping) {
+        mic_stop(cx.view);
+    }
+    if mic_tick(cx.view, cx.now) {
+        ctx.request_repaint_after(std::time::Duration::from_millis(50));
     }
     let mut closed = false;
     let modal = widgets::dialog(ctx, "new_song").show(ctx, |ui| {
@@ -1347,40 +1356,50 @@ fn from_microphone(ui: &mut Ui, cx: &mut Cx) {
     recording_body(ui, cx, file, "record something first");
 }
 
+/// New song's recording from the microphone, each frame the dialog is open, whichever of its tabs shows: what it hears
+/// taken in, given up when the microphone does not open (as long as the palette waits, `palette::OPENING`, for a
+/// browser asks first), stopped at `MIC_MOST` seconds, and once all of it is in, the recording. Whether it still runs.
+fn mic_tick(v: &mut View, now: f64) -> bool {
+    let Some(m) = v.mic.as_mut() else { return false };
+    let level = m.hearing.level();
+    m.loudest = m.loudest.max(level);
+    // the minute runs from when the microphone opens, as the palette's listening does, so that a slow Allow takes
+    // nothing from it
+    if !m.opened && m.hearing.open() {
+        (m.opened, m.since) = (true, now);
+    }
+    let failed = m.hearing.error().or_else(|| {
+        (!m.opened && now - m.since > super::palette::OPENING)
+            .then(|| "The microphone did not open. Allow claudius to use it, and try again.".to_string())
+    });
+    if let Some(why) = failed {
+        (v.mic, v.mic_failed) = (None, Some(why));
+        return false;
+    }
+    if !m.stopping && now - m.since >= MIC_MOST {
+        m.hearing.stop();
+        m.stopping = true;
+    }
+    if m.stopping
+        && let Some(wav) = m.hearing.finish()
+    {
+        let quiet = m.loudest < 0.005;
+        v.mic = None;
+        if quiet {
+            v.mic_failed = Some("Nothing was heard. Is the microphone muted, or another input chosen?".into());
+        } else {
+            let picked = crate::pick::Picked { name: MIC_FILE.into(), bytes: wav, folder: None };
+            (v.audio_file, v.analysis) = (Some(std::sync::Arc::new(picked)), None);
+        }
+        return false;
+    }
+    true
+}
+
 /// Record and Stop, what it hears as it records, and the recording once it is in; up to `MIC_MOST` seconds.
 fn microphone(ui: &mut Ui, cx: &mut Cx) {
     let (now, busy) = (cx.now, cx.view.analyzing);
     let v = &mut *cx.view;
-    if let Some(m) = v.mic.as_mut() {
-        let level = m.hearing.level();
-        m.loudest = m.loudest.max(level);
-        m.opened |= m.hearing.open();
-        let failed = m.hearing.error().or_else(|| {
-            (!m.opened && now - m.since > 3.0)
-                .then(|| "The microphone did not open. Allow claudius to use it, and try again.".to_string())
-        });
-        if let Some(why) = failed {
-            (v.mic, v.mic_failed) = (None, Some(why));
-        } else {
-            if !m.stopping && now - m.since >= MIC_MOST {
-                m.hearing.stop();
-                m.stopping = true;
-            }
-            if m.stopping
-                && let Some(wav) = m.hearing.finish()
-            {
-                let quiet = m.loudest < 0.005;
-                v.mic = None;
-                if quiet {
-                    v.mic_failed = Some("Nothing was heard. Is the microphone muted, or another input chosen?".into());
-                } else {
-                    let picked = crate::pick::Picked { name: MIC_FILE.into(), bytes: wav, folder: None };
-                    (v.audio_file, v.analysis) = (Some(std::sync::Arc::new(picked)), None);
-                }
-            }
-            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
-        }
-    }
     ui.horizontal(|ui| match v.mic.as_mut() {
         None => {
             if widgets::tool_button(ui, Icon::Record, "Record", !busy, false)

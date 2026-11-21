@@ -289,7 +289,8 @@ pub enum Start {
 /// what New song hears from the microphone while it records
 pub struct Mic {
     pub hearing: crate::audio::record::Hearing,
-    /// when it began, and whether it is stopping, its last audio still to come
+    /// when it began (Record pressed, until the microphone opens: then the moment it opened, which its minute runs from),
+    /// and whether it is stopping, its last audio still to come
     pub since: f64,
     pub stopping: bool,
     /// the loudest it heard, 0..1, and whether the input has opened
