@@ -47,7 +47,9 @@ impl Theme {
         let empty = Map::new();
         let colours = v["colors"].as_object().unwrap_or(&empty);
         let (palette, unknown) = base.with_colours(colours)?;
-        Ok((Theme { name: name.chars().take(60).collect(), dark, palette }, unknown))
+        // trimmed again after the cut, so that a name read back is the name kept, whatever character the cut ends on
+        let name = name.chars().take(60).collect::<String>().trim_end().to_string();
+        Ok((Theme { name, dark, palette }, unknown))
     }
 
     /// The theme as a file holds it, every colour named: to keep, to share, or to make another from.
@@ -64,10 +66,20 @@ impl Theme {
     /// a file name for it, from its name (`theme.json` for a name of no letters or digits)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn file_name(&self) -> String {
+        format!("{}.json", self.file_stem())
+    }
+
+    /// the name of its file without `.json`: its letters and digits, lower case, the rest dashes; at most 200 bytes, so
+    /// that the file and the part file it is first written to stay under a file system's 255
+    #[cfg(not(target_arch = "wasm32"))]
+    fn file_stem(&self) -> String {
         let stem: String =
             self.name.to_lowercase().chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
-        let stem = stem.trim_matches('-');
-        format!("{}.json", if stem.is_empty() { "theme" } else { stem })
+        let mut stem = stem.trim_matches('-').to_string();
+        while stem.len() > 200 {
+            stem.pop();
+        }
+        if stem.is_empty() { "theme".into() } else { stem }
     }
 }
 
@@ -95,28 +107,50 @@ pub fn folder() -> std::path::PathBuf {
     claudius::config::settings_dir().join("themes")
 }
 
+/// Whether `p` is a theme's file: a `.json`, or the file named `.json` alone that studios before this one wrote for a
+/// theme named in symbols only, which every later studio reads (design 0016).
+#[cfg(not(target_arch = "wasm32"))]
+fn is_theme_file(p: &std::path::Path) -> bool {
+    p.extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) || p.file_name().is_some_and(|n| n == ".json")
+}
+
+/// The theme files in folder `dir`, in the order they are read: of two files holding one name, the later wins.
+#[cfg(not(target_arch = "wasm32"))]
+fn theme_files(dir: &std::path::Path) -> std::io::Result<Vec<std::path::PathBuf>> {
+    let mut files: Vec<std::path::PathBuf> =
+        std::fs::read_dir(dir)?.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| is_theme_file(p)).collect();
+    files.sort();
+    Ok(files)
+}
+
 /// The themes added, as their files hold them (in a browser, the page's storage), by name; one that does not read is
 /// left out, and said.
 pub fn added(storage: Option<&dyn eframe::Storage>) -> Vec<Theme> {
-    let texts: Vec<String> = {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = storage;
-            let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(folder())
-                .map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect())
-                .unwrap_or_default();
-            files.retain(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("json")));
-            files.sort();
-            files.iter().filter_map(|p| std::fs::read_to_string(p).ok()).collect()
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = storage;
+        added_in(&folder())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        named(
             storage
                 .and_then(|s| s.get_string(STORED))
                 .and_then(|t| serde_json::from_str::<Vec<String>>(&t).ok())
-                .unwrap_or_default()
-        }
-    };
+                .unwrap_or_default(),
+        )
+    }
+}
+
+/// `added` from folder `dir`
+#[cfg(not(target_arch = "wasm32"))]
+fn added_in(dir: &std::path::Path) -> Vec<Theme> {
+    let files = theme_files(dir).unwrap_or_default();
+    named(files.iter().filter_map(|p| std::fs::read_to_string(p).ok()).collect())
+}
+
+/// the themes `texts` hold, the later of two of one name winning, by name; one that does not read is left out, and said
+fn named(texts: Vec<String>) -> Vec<Theme> {
     let mut out: Vec<Theme> = Vec::new();
     for t in texts {
         match Theme::parse(&t) {
@@ -137,33 +171,28 @@ pub fn keep(theme: &Theme) -> Result<(), String> {
     keep_in(&folder(), theme)
 }
 
-/// `keep` in folder `dir`: written to the file that holds a theme of its name already, else to a file of its own name
-/// that no other theme holds (`-2`, `-3` ... after it while one does: `Ember` and `Ember!` both stay), whole or not at
-/// all (a failed write leaves the theme kept before); and only once it is written, any other file of its name goes.
+/// `keep` in folder `dir`: written to the file that holds a theme of its name already (of several, the one read last,
+/// which `added` keeps, so that a copy left behind never wins), else to a file of its own name that nothing else is in
+/// (`-2`, `-3` ... after it while one is: `Ember` and `Ember!` both stay), whole or not at all (a failed write leaves the
+/// theme kept before); and only once it is written, any other file of its name goes. A folder that cannot be listed
+/// is said, rather than taken for empty.
 #[cfg(not(target_arch = "wasm32"))]
 fn keep_in(dir: &std::path::Path, theme: &Theme) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("cannot make {}: {e}", dir.display()))?;
     let holds = |p: &std::path::Path| -> Option<String> {
         std::fs::read_to_string(p).ok().and_then(|t| Theme::parse(&t).ok()).map(|(t, _)| t.name)
     };
-    let mut same: Vec<std::path::PathBuf> =
-        std::fs::read_dir(dir).map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect()).unwrap_or_default();
-    same.retain(|p| {
-        p.extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) && holds(p).as_ref() == Some(&theme.name)
-    });
-    same.sort();
-    let path = match same.first() {
+    let files = theme_files(dir).map_err(|e| format!("cannot read {}: {e}", dir.display()))?;
+    let same: Vec<std::path::PathBuf> = files.into_iter().filter(|p| holds(p).as_ref() == Some(&theme.name)).collect();
+    let path = match same.last() {
         Some(p) => p.clone(),
         None => {
-            let name = theme.file_name();
-            let stem = name.trim_end_matches(".json");
-            let mut path = dir.join(&name);
-            let mut k = 2;
-            while path.exists() {
-                path = dir.join(format!("{stem}-{k}.json"));
-                k += 1;
-            }
-            path
+            // a name nothing is in: a link to a disk not there now is something, though it leads nowhere
+            let stem = theme.file_stem();
+            std::iter::once(dir.join(format!("{stem}.json")))
+                .chain((2..).map(|k| dir.join(format!("{stem}-{k}.json"))))
+                .find(|p| std::fs::symlink_metadata(p).is_err())
+                .expect("a name nothing is in")
         }
     };
     claudius::config::write_whole(&path, |p| Ok(std::fs::write(p, theme.to_json())?)).map_err(|e| format!("{e:#}"))?;
@@ -218,6 +247,73 @@ mod tests {
         assert!(ember2.dark && ember2.name == "Ember!");
         let ember = Theme::parse(&std::fs::read_to_string(dir.join("ember.json")).unwrap()).unwrap().0;
         assert_eq!(ember.name, "Ember");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// a folder of its own for a test, empty
+    #[cfg(not(target_arch = "wasm32"))]
+    fn folder_for(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("claudius-themes-{test}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_name_cut_where_a_space_falls_reads_back_as_it_was_kept_and_stays_one_file() {
+        let dir = folder_for("cut");
+        // 59 letters, a space, more: the cut at 60 ends on the space
+        let long = format!("{} tail", "a".repeat(59));
+        let theme = Theme::parse(&Theme { name: long, ..Theme::builtin(true) }.to_json()).unwrap().0;
+        assert_eq!(theme.name, "a".repeat(59), "no space left at the end of the name");
+        keep_in(&dir, &theme).unwrap();
+        keep_in(&dir, &Theme { dark: false, ..theme.clone() }).unwrap();
+        let files = theme_files(&dir).unwrap();
+        assert_eq!(files.len(), 1, "kept again into its own file: {files:?}");
+        assert!(!added_in(&dir)[0].dark, "and read back as it was kept last");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_theme_kept_again_goes_into_the_file_read_last_and_its_other_copies_go() {
+        let dir = folder_for("copies");
+        let ember = |dark: bool| Theme { name: "Ember".into(), ..Theme::builtin(dark) };
+        // two files of one name, as a copy dropped in by hand leaves them: the later one is the one read
+        std::fs::write(dir.join("ember-2.json"), ember(true).to_json()).unwrap();
+        std::fs::write(dir.join("ember.json"), ember(true).to_json()).unwrap();
+        keep_in(&dir, &ember(false)).unwrap();
+        let files: Vec<String> =
+            theme_files(&dir).unwrap().iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert_eq!(files, ["ember.json"], "written to the file read last, the copy gone");
+        assert!(!added_in(&dir)[0].dark, "the theme as kept last is the one read");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_theme_an_earlier_studio_kept_as_dot_json_is_read_and_replaced_when_kept_again() {
+        let dir = folder_for("dotjson");
+        // studios before this one kept a theme named in symbols alone as `.json`
+        std::fs::write(dir.join(".json"), Theme { name: "!!!".into(), ..Theme::builtin(true) }.to_json()).unwrap();
+        assert_eq!(added_in(&dir).iter().map(|t| t.name.as_str()).collect::<Vec<_>>(), ["!!!"]);
+        keep_in(&dir, &Theme { name: "!!!".into(), ..Theme::builtin(false) }).unwrap();
+        let read = added_in(&dir);
+        assert_eq!(read.len(), 1);
+        assert!(!read[0].dark, "kept again, in its old file: {:?}", theme_files(&dir).unwrap());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_long_name_makes_a_file_name_short_enough_to_write() {
+        // 60 letters of four bytes each, alphanumeric and without a lower case
+        let theme = Theme { name: "\u{1d4d4}".repeat(60), ..Theme::builtin(true) };
+        assert!(theme.file_name().len() <= 205, "{} bytes", theme.file_name().len());
+        let dir = folder_for("long");
+        keep_in(&dir, &theme).unwrap();
+        assert_eq!(added_in(&dir)[0].name, theme.name);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
