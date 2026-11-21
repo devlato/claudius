@@ -150,7 +150,8 @@ fn sitemap(site_url: &str, pages: &[String]) -> String {
 
 /// The instruments the web studio's demo plays (`pack:instrument`, and `=` the names it also answers to), from packs
 /// the site may pass on (CC0, public domain, CC BY). A song asks for a Rhodes most of all, and jRhodes' samples may not
-/// be passed on for others to use as they like, so the Wurlitzer answers for it.
+/// be passed on for others to use as they like, so the Wurlitzer answers for it. The TR-909's licence forbids passing
+/// its samples on too, so the demo synthesizes it, as it does any kit it lacks.
 const WEB_INSTRUMENTS: &[&str] = &[
     "salamander:piano",
     "epianos:wurlitzer=rhodes",
@@ -225,17 +226,6 @@ const WEB_INSTRUMENTS: &[&str] = &[
     "tr707:cp",
     "tr707:rim",
     "tr707:tb",
-    "tr909:bd",
-    "tr909:sd",
-    "tr909:lt",
-    "tr909:mt",
-    "tr909:ht",
-    "tr909:hh",
-    "tr909:oh",
-    "tr909:cr",
-    "tr909:rd",
-    "tr909:cp",
-    "tr909:rim",
     "uzu:bd",
     "uzu:sd",
     "uzu:hh",
@@ -251,7 +241,17 @@ const WEB_INSTRUMENTS: &[&str] = &[
     "uzu:sh",
     "uzu:tb",
     "uzu:misc",
-    "synthdrums:kit",
+    "synthdrums:bd",
+    "synthdrums:sd",
+    "synthdrums:hh",
+    "synthdrums:oh",
+    "synthdrums:cr",
+    "synthdrums:lt",
+    "synthdrums:mt",
+    "synthdrums:ht",
+    "synthdrums:cp",
+    "synthdrums:sh",
+    "synthdrums:cl",
 ];
 
 /// The demo's instruments, as `claudius-packs web` keeps them for a browser (a few seconds of a note every few
@@ -312,12 +312,42 @@ fn placeholder(version: &str) -> String {
 mod tests {
     use super::*;
 
-    /// Every drum kit a genre plays is in the web demo, so that the demo's songs play the drums the studio's play (and
-    /// the genre benchmark measured) rather than stand-ins synthesized where a kit is missing.
+    /// whether the site may pass a pack's samples on, by the licence the registry gives it: CC0, public domain (the
+    /// Unlicense too) and CC BY, which the site's credits honour; not share-alike, non-commercial or no-derivatives terms,
+    /// nor a licence that forbids it or is unknown
+    fn passable(licence: &str) -> bool {
+        let cc_by = licence.starts_with("CC-BY-") && !["-SA", "-NC", "-ND"].iter().any(|t| licence.contains(t));
+        licence.starts_with("CC0")
+            || cc_by
+            || licence == "Unlicense"
+            || licence.to_lowercase().starts_with("public domain")
+    }
+
+    /// Every drum kit a genre plays is in the web demo where its licence lets the site pass it on, so that the demo's
+    /// songs play the drums the studio's play (and the genre benchmark measured) rather than stand-ins synthesized where a
+    /// kit is missing; and nothing in the demo comes from a pack whose licence does not let it (the TR-909's forbids it,
+    /// so the demo synthesizes that kit).
     #[test]
-    fn the_demo_has_every_drum_kit_a_genre_plays() {
+    fn the_demo_has_every_drum_kit_a_genre_plays_that_the_site_may_pass_on() {
+        let registry: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(root().join("crates/claudius-packs/src/registry.json")).unwrap(),
+        )
+        .unwrap();
+        let licence = |pack: &str| {
+            registry["packs"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|p| p["name"] == pack)
+                .and_then(|p| p["licence"].as_str())
+                .unwrap_or("unknown")
+                .to_string()
+        };
         let web: std::collections::BTreeSet<&str> =
             WEB_INSTRUMENTS.iter().filter_map(|p| p.split(':').next()).collect();
+        let kept: Vec<String> =
+            web.iter().filter(|p| !passable(&licence(p))).map(|p| format!("{p} ({})", licence(p))).collect();
+        assert!(kept.is_empty(), "the demo passes on packs whose licences do not let the site: {kept:?}");
         let mut missing = std::collections::BTreeSet::new();
         for entry in std::fs::read_dir(root().join("crates/claudius/data/genres")).unwrap() {
             let path = entry.unwrap().path();
@@ -327,12 +357,15 @@ mod tests {
             let genre: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
             for kit in genre["kits"].as_array().into_iter().flatten() {
                 let pack = kit.get(0).and_then(serde_json::Value::as_str).unwrap_or_default();
-                if !web.contains(pack) {
+                if passable(&licence(pack)) && !web.contains(pack) {
                     missing.insert(format!("{pack} ({})", path.file_stem().unwrap_or_default().to_string_lossy()));
                 }
             }
         }
-        assert!(missing.is_empty(), "drum kits genres play that the web demo lacks: {missing:?}");
+        assert!(
+            missing.is_empty(),
+            "drum kits genres play that the site may pass on and the web demo lacks: {missing:?}"
+        );
     }
 
     /// The sitemap names the landing page, the radio and the book's pages, each at the site's address, and leaves out
