@@ -98,16 +98,18 @@ results become the next baseline.
   the result on shard 2 (`--shards 2..2`), which the tuning never saw. It holds no chart hits: what it says of the
   songs people hear most is still to be measured.
 - **The generator against real music**: `cargo run --release -p claudius --example eval_genres -- embed DIR --shards
-  0..49` hears the songs of MTG-Jamendo that stand for claudius's genres (by their tags), CLAP's embedding of each, and
-  `run REAL` composes claudius's songs of each genre and hears them the same way, writing a line for `bench compare`
-  for each genre: the kernel audio distance to the genre's real songs (KAD, what a change to the generator is made to
-  lower), how typical its songs are and how often each is heard as its own genre (guards), and how much they differ
-  from one another (shown). Tune on the even shards (`--half tune`, seeds 1 to 20) and confirm on the odd ones
-  (`--half confirm`, seeds 101 to 120). A change to one genre or a few is judged on its songs: `run --songs FILE`
-  writes a line for each, and `kad REAL BEFORE AFTER` tests the genres' KAD on two runs' lines, made with the same
-  seeds, by the paired bootstrap over the seeds; `bench compare` on the same lines keeps how typical each song is and
-  whether it is heard as its genre as guards. Fifteen genres have enough songs in shards 0 to 49 to be measured, 15 or more
-  in each half; amapiano, phonk and synthwave have no honest tag, and electro house too few songs. The real songs'
-  embeddings are not kept here: the songs' licences are the artists' own.
+  0..4,15..19,35 --top-up 40` hears the songs of MTG-Jamendo that stand for claudius's genres (by their tags), CLAP's
+  embedding of each: those of eleven shards, and from the other shards, in the order of their track ids' SHA-256, as
+  many as bring each genre to 40 in each half, each fetched from its shard by byte ranges. `run REAL` then composes
+  claudius's songs of each genre and hears them the same way, writing a line for `bench compare` for each genre: the
+  kernel audio distance to the genre's real songs (KAD, what a change to the generator is made to lower), how typical
+  its songs are and how often each is heard as its own genre (guards), and how much they differ from one another
+  (shown). Tune on the even shards (`--half tune`, seeds 1 to 20) and confirm on the odd ones (`--half confirm`, seeds
+  101 to 120). A change to one genre or a few is judged on its songs: `run --songs FILE` writes a line for each, and
+  `kad REAL BEFORE AFTER` tests the genres' KAD on two runs' lines, made with the same seeds, by the paired bootstrap
+  over the seeds; `bench compare` on the same lines keeps how typical each song is and whether it is heard as its genre
+  as guards. The 2,590 real songs measure 23 genres, 15 songs or more in each half; amapiano, phonk and synthwave have
+  no honest tag, and hardstyle and reggaeton too few songs. The real songs' embeddings are not kept here: the songs'
+  licences are the artists' own.
 - **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and
   `eval_cuts` (JamendoLyrics), which print their measures.

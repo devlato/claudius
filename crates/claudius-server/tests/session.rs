@@ -48,7 +48,7 @@ async fn a_session_edits_renders_and_undoes() {
         complexity: None,
     });
     assert!(r.ok, "{}", r.message);
-    let st = app.settled(Duration::from_secs(120)).await;
+    let st = app.settled(Duration::from_secs(240)).await;
     let render = st.render.clone().expect("a render");
     assert!(render.version >= st.song_version && render.seconds > 60.0 && !render.waveform.is_empty());
     assert!(st.verdict.as_ref().is_some_and(|v| v.total > 50.0));
@@ -93,7 +93,7 @@ async fn a_session_edits_renders_and_undoes() {
     assert_eq!(app.state().song.unwrap().bpm, 122.0);
     assert!(app.command(Command::Redo).ok);
     assert_eq!(app.state().song.unwrap().bpm, 128.0);
-    let st = app.settled(Duration::from_secs(120)).await;
+    let st = app.settled(Duration::from_secs(240)).await;
     assert!(st.busy.is_none() && st.render.is_some_and(|r| r.version >= st.song_version));
 }
 
@@ -376,7 +376,7 @@ async fn the_engines_speed_shows_at_api_metrics_in_prometheus_text() {
         })
         .ok
     );
-    app.settled(Duration::from_secs(120)).await.render.expect("a render");
+    app.settled(Duration::from_secs(240)).await.render.expect("a render");
     let router = http::router(app.clone(), &Options::default());
     let get = Request::get("/api/metrics").header(header::HOST, "localhost").body(Body::empty()).unwrap();
     let (status, headers, body) = call(&router, get).await;

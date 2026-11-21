@@ -14,7 +14,11 @@
 //! genre in each half of the shards (`run`'s halves: ambient alone has 6,825 songs, hip-hop 2,196, trap 42), adds a line
 //! for each to `--out` (a song already there is not heard again, so a run stopped part way goes on), and with
 //! `--drop`, deletes the shard's audio once it is heard, so that all 100 shards (about 170 GB) never have to be on the
-//! disk at once.
+//! disk at once. `--shards` names shards and ranges of them, commas between (`0..4,15..19,35`). With `--top-up N`, it
+//! then brings each genre up to N songs in each half from the other shards: of a genre's songs there, in the order of
+//! their track ids' SHA-256 (fixed, and favouring no shard), as many as its half lacks, each fetched from its shard's
+//! tar by byte ranges (the tar's headers read one by one, then the song read whole and kept only as an MP3 of the length
+//! its header gives) and heard the same way.
 //!
 //! `run` hears claudius's: for each genre measured, the songs of `--seeds` composed and rendered as they are made
 //! (on the installed sample packs, with no samples fetched from online libraries, so that a run does not depend on
@@ -78,8 +82,8 @@
 //! removed when they end; `--keep DIR` works in DIR instead and leaves it there.
 //!
 //! ```text
-//! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--out FILE] [--drop]
-//!     [--most 300] [--threads N]
+//! cargo run --release -p claudius --example eval_genres -- embed DIR [--shards 0..99] [--top-up N] [--out FILE]
+//!     [--drop] [--most 300] [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- beats DIR --real FILE [--out FILE] [--drop]
 //!     [--threads N]
 //! cargo run --release -p claudius --example eval_genres -- run REAL [--seeds 1..20] [--half tune|confirm]
@@ -191,14 +195,17 @@ fn main() {
         (cores / 4).max(1)
     });
     let result = match (args.first().map(String::as_str), args.get(1)) {
-        (Some("embed"), Some(dir)) => embed(
-            Path::new(dir),
-            &range("--shards", (0, 99)).into_iter().map(|s| s as u32).collect::<Vec<_>>(),
-            &flag("--out").map_or_else(|| Path::new(dir).join("real-embeddings.jsonl"), PathBuf::from),
-            args.iter().any(|a| a == "--drop"),
-            flag("--most").and_then(|m| m.parse().ok()).unwrap_or(300),
-            threads,
-        ),
+        (Some("embed"), Some(dir)) => shard_list(flag("--shards").as_deref().unwrap_or("0..99")).and_then(|shards| {
+            embed(
+                Path::new(dir),
+                &shards,
+                &flag("--out").map_or_else(|| Path::new(dir).join("real-embeddings.jsonl"), PathBuf::from),
+                args.iter().any(|a| a == "--drop"),
+                flag("--most").and_then(|m| m.parse().ok()).unwrap_or(300),
+                flag("--top-up").and_then(|n| n.parse().ok()),
+                threads,
+            )
+        }),
         (Some("run"), Some(real)) => run(
             Path::new(real),
             &Runs {
@@ -254,14 +261,16 @@ fn main() {
             ),
             _ => Err("kad needs two runs' songs: kad REAL BEFORE AFTER".into()),
         },
-        _ => Err("usage: eval_genres embed DIR [--shards 0..99] [--out FILE] [--drop] [--threads N]\n       \
+        _ => Err(
+            "usage: eval_genres embed DIR [--shards 0..99] [--top-up N] [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres beats DIR --real FILE [--out FILE] [--drop] [--threads N]\n       \
                   eval_genres run REAL [--seeds 1..20] [--half tune|confirm] [--out FILE] [--genres a,b] \
                   [--songs FILE] [--beats FILE] [--primary a,b] [--threads N] [--keep DIR]\n       \
                   eval_genres remake REAL --sources DIR --genre G [--how flip|rework] [--seeds 1..2] \
                   [--half tune|confirm] [--most 40] [--out FILE] [--primary a,b] [--threads N] [--keep DIR]\n       \
                   eval_genres kad REAL BEFORE AFTER [--half tune|confirm] [--resamples 10000] [--out FILE]"
-            .into()),
+                .into(),
+        ),
     };
     if let Err(e) = result {
         eprintln!("{e}");
@@ -285,17 +294,37 @@ struct Real {
     genre: &'static str,
 }
 
+/// shards as `--shards` names them: ranges and single shards, commas between (`0..4,15..19,35`)
+fn shard_list(spec: &str) -> Result<Vec<u32>, String> {
+    let mut out = Vec::new();
+    for part in spec.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+        let (a, b) = part.split_once("..").unwrap_or((part, part));
+        let bad = || format!("--shards: {part} is not a shard or a range of shards from 0 to 99");
+        let (a, b): (u32, u32) = (a.parse().map_err(|_| bad())?, b.parse().map_err(|_| bad())?);
+        if a > b || b > 99 {
+            return Err(bad());
+        }
+        out.extend(a..=b);
+    }
+    out.sort_unstable();
+    out.dedup();
+    Ok(out)
+}
+
 /// the songs of shard `shard` in DIR that stand for a genre, in the dataset's order
 fn reals(dir: &Path, shard: u32) -> Result<Vec<Real>, String> {
+    reals_of(dir, |s| s == shard)
+}
+
+/// the songs of the shards `keep` takes that stand for a genre, in the dataset's order
+fn reals_of(dir: &Path, keep: impl Fn(u32) -> bool) -> Result<Vec<Real>, String> {
     let tsv = std::fs::read_to_string(dir.join("raw_30s_cleantags.tsv")).map_err(|e| format!("the tags: {e}"))?;
     let mut out = Vec::new();
     for line in tsv.lines().skip(1) {
         let cols: Vec<&str> = line.split('\t').map(str::trim).collect();
         let (Some(id), Some(path)) = (cols.first(), cols.get(3)) else { continue };
         let Some((s, file)) = path.split_once('/') else { continue };
-        if s.parse::<u32>().ok() != Some(shard) {
-            continue;
-        }
+        let Some(shard) = s.parse::<u32>().ok().filter(|&n| keep(n)) else { continue };
         let tags: BTreeSet<&str> = cols.iter().filter_map(|c| c.strip_prefix("genre---")).collect();
         if let Some(genre) = genre_of(&tags) {
             out.push(Real {
@@ -368,8 +397,17 @@ fn kept(e: &[f32]) -> Vec<f64> {
     e.iter().map(|x| (f64::from(*x) * 1e4).round() / 1e4).collect()
 }
 
-/// The real songs of `shards` that stand for a genre, heard and kept in `out`, a line each.
-fn embed(dir: &Path, shards: &[u32], out: &Path, drop: bool, most: usize, threads: usize) -> Result<(), String> {
+/// The real songs of `shards` that stand for a genre, heard and kept in `out`, a line each; with `top_up`, then the
+/// songs of the other shards that bring each genre up to that many in each half (`top_up_songs`).
+fn embed(
+    dir: &Path,
+    shards: &[u32],
+    out: &Path,
+    drop: bool,
+    most: usize,
+    top_up: Option<usize>,
+    threads: usize,
+) -> Result<(), String> {
     fetch_tags(dir)?;
     let before: Vec<Value> = std::fs::read_to_string(out)
         .unwrap_or_default()
@@ -400,28 +438,7 @@ fn embed(dir: &Path, shards: &[u32], out: &Path, drop: bool, most: usize, thread
         }
         fetch_shard(dir, s)?;
         eprintln!("shard {s:02}: hearing {} songs", todo.len());
-        let next = AtomicUsize::new(0);
-        std::thread::scope(|scope| {
-            for _ in 0..threads {
-                scope.spawn(|| {
-                    let ears = match Ears::load(false) {
-                        Ok(e) => e,
-                        Err(e) => return eprintln!("no ears: {e:#}"),
-                    };
-                    while let Some(r) = todo.get(next.fetch_add(1, Ordering::Relaxed)) {
-                        match ears.embed_refs(std::slice::from_ref(&r.path)).map(|mut v| v.pop()) {
-                            Ok(Some(e)) => {
-                                let line = json!({"item": r.id, "shard": r.shard, "genre": r.genre, "emb": kept(&e)});
-                                let mut f = file.lock().unwrap_or_else(|p| p.into_inner());
-                                let _ = writeln!(f, "{line}");
-                            }
-                            Ok(None) => eprintln!("{}: nothing heard", r.id),
-                            Err(e) => eprintln!("{}: {e:#}", r.id),
-                        }
-                    }
-                });
-            }
-        });
+        hear(&todo, &file, threads);
         // the marker goes with the audio, so that a later run that still needs a song of the shard (one that failed to
         // be heard, or another benchmark sharing the folder) downloads it again rather than finding nothing
         if drop {
@@ -429,7 +446,167 @@ fn embed(dir: &Path, shards: &[u32], out: &Path, drop: bool, most: usize, thread
             let _ = std::fs::remove_file(dir.join(format!("{s:02}.ok")));
         }
     }
+    if let Some(want) = top_up {
+        let todo: Vec<Real> =
+            top_up_songs(dir, shards, want, threads)?.into_iter().filter(|r| !done.contains(&r.id)).collect();
+        eprintln!("the other shards: hearing {} songs", todo.len());
+        hear(&todo, &file, threads);
+    }
     Ok(())
+}
+
+/// The songs of `todo` heard, each kept in `file` as a line, shared out among `threads`, each with ears of its own.
+fn hear(todo: &[Real], file: &Mutex<std::fs::File>, threads: usize) {
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..threads {
+            scope.spawn(|| {
+                let ears = match Ears::load(false) {
+                    Ok(e) => e,
+                    Err(e) => return eprintln!("no ears: {e:#}"),
+                };
+                while let Some(r) = todo.get(next.fetch_add(1, Ordering::Relaxed)) {
+                    match ears.embed_refs(std::slice::from_ref(&r.path)).map(|mut v| v.pop()) {
+                        Ok(Some(e)) => {
+                            let line = json!({"item": r.id, "shard": r.shard, "genre": r.genre, "emb": kept(&e)});
+                            let mut f = file.lock().unwrap_or_else(|p| p.into_inner());
+                            let _ = writeln!(f, "{line}");
+                        }
+                        Ok(None) => eprintln!("{}: nothing heard", r.id),
+                        Err(e) => eprintln!("{}: {e:#}", r.id),
+                    }
+                }
+            });
+        }
+    });
+}
+
+/// The songs that bring each genre up to `want` in each half from the shards not among `shards`: of a genre's songs in
+/// the other shards, in the order of their track ids' SHA-256 (fixed, and favouring no shard), as many as its half lacks
+/// (its songs in `shards`, by the tags, counted against `want`). Each is fetched by byte ranges from its shard's tar on
+/// the mirror, which serves them, `threads` shards at a time (four at most): the tar's headers read one by one, then
+/// each song wanted read whole and kept only as an MP3 of the length its header gives (a song cannot be checked against
+/// the published SHA-256, which is of the whole tar). A song already fetched is not fetched again, and a shard that
+/// fails is said and left for the next run. The songs fetched, in the dataset's order.
+fn top_up_songs(dir: &Path, shards: &[u32], want: usize, threads: usize) -> Result<Vec<Real>, String> {
+    let all = reals_of(dir, |_| true)?;
+    let chosen = choose(&all, shards, want);
+    let mut by_shard: BTreeMap<u32, Vec<&Real>> = BTreeMap::new();
+    for &i in &chosen {
+        by_shard.entry(all[i].shard).or_default().push(&all[i]);
+    }
+    let jobs: Vec<(&u32, &Vec<&Real>)> = by_shard.iter().collect();
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..threads.clamp(1, 4) {
+            scope.spawn(|| {
+                while let Some(&(&s, songs)) = jobs.get(next.fetch_add(1, Ordering::Relaxed)) {
+                    match fetch_members(dir, s, songs) {
+                        Ok(got) => eprintln!("shard {s:02}: {got} of {} fetched", songs.len()),
+                        Err(e) => eprintln!("shard {s:02}: stopped ({e}); the rest are fetched on the next run"),
+                    }
+                }
+            });
+        }
+    });
+    let chosen: BTreeSet<usize> = chosen.into_iter().collect();
+    Ok(all.into_iter().enumerate().filter(|(i, r)| chosen.contains(i) && r.path.exists()).map(|(_, r)| r).collect())
+}
+
+/// Which of `all` (the dataset's songs that stand for a genre) bring each genre up to `want` in each half from the shards
+/// not among `shards`: a genre's songs in those shards, in the order of their track ids' SHA-256, as many as the songs it
+/// has in `shards` fall short of `want`. Their places in `all`, genre by genre.
+fn choose(all: &[Real], shards: &[u32], want: usize) -> Vec<usize> {
+    use sha2::{Digest, Sha256};
+    let have: BTreeSet<u32> = shards.iter().copied().collect();
+    let mut count: BTreeMap<(&str, u32), usize> = BTreeMap::new();
+    let mut others: BTreeMap<(&str, u32), Vec<(String, usize)>> = BTreeMap::new();
+    for (i, r) in all.iter().enumerate() {
+        if have.contains(&r.shard) {
+            *count.entry((r.genre, r.shard % 2)).or_default() += 1;
+        } else {
+            let key: String = Sha256::digest(r.id.as_bytes()).iter().map(|b| format!("{b:02x}")).collect();
+            others.entry((r.genre, r.shard % 2)).or_default().push((key, i));
+        }
+    }
+    let mut chosen = Vec::new();
+    for ((genre, half), mut songs) in others {
+        let need = want.saturating_sub(count.get(&(genre, half)).copied().unwrap_or(0));
+        songs.sort();
+        if need > 0 {
+            eprintln!(
+                "{genre}, the {} half: {} more",
+                if half == 0 { "tune" } else { "confirm" },
+                need.min(songs.len())
+            );
+        }
+        chosen.extend(songs.into_iter().take(need).map(|(_, i)| i));
+    }
+    chosen
+}
+
+/// The songs `songs` of shard `s`, fetched by byte ranges from its tar into DIR as `fetch_shard` would unpack them;
+/// how many are there.
+fn fetch_members(dir: &Path, s: u32, songs: &[&Real]) -> Result<usize, String> {
+    let names: BTreeMap<String, &Real> = songs
+        .iter()
+        .filter_map(|r| Some((r.path.strip_prefix(dir).ok()?.to_string_lossy().replace('\\', "/"), *r)))
+        .collect();
+    if names.values().all(|r| r.path.exists()) {
+        return Ok(names.len());
+    }
+    let url = format!("{MIRROR}/raw_30s_audio-low-{s:02}.tar");
+    // each member's place and length, from its 512-byte header; the archive ends with a header of zeros
+    let (mut found, mut at) = (BTreeMap::new(), 0u64);
+    while found.len() < names.len() {
+        let h = ranged(&url, at, at + 511)?;
+        if h.iter().all(|&b| b == 0) {
+            break;
+        }
+        let field =
+            |a: usize, b: usize| String::from_utf8_lossy(&h[a..b]).split('\0').next().unwrap_or("").trim().to_string();
+        let size = u64::from_str_radix(&field(124, 136), 8).map_err(|e| format!("a header at {at}: {e}"))?;
+        let name = field(0, 100);
+        if names.contains_key(&name) {
+            found.insert(name, (at + 512, size));
+        }
+        at += 512 + size.div_ceil(512) * 512;
+    }
+    std::fs::create_dir_all(dir.join(format!("{s:02}"))).map_err(|e| e.to_string())?;
+    let mut got = 0;
+    for (name, &(start, size)) in &found {
+        let dest = &names[name].path;
+        if dest.metadata().is_ok_and(|m| m.len() == size) {
+            got += 1;
+            continue;
+        }
+        let data = ranged(&url, start, start + size.max(1) - 1)?;
+        if !(data.starts_with(b"ID3") || (data.len() > 1 && data[0] == 0xFF && data[1] & 0xE0 == 0xE0)) {
+            eprintln!("shard {s:02}: {name} is not an MP3; left out");
+            continue;
+        }
+        let part = dest.with_extension("part");
+        std::fs::write(&part, &data).and_then(|()| std::fs::rename(&part, dest)).map_err(|e| e.to_string())?;
+        got += 1;
+    }
+    if found.len() < names.len() {
+        eprintln!("shard {s:02}: {} of the songs wanted are not in its tar", names.len() - found.len());
+    }
+    Ok(got)
+}
+
+/// bytes `a` to `b` of `url`, by an HTTP range request, tried seven times
+fn ranged(url: &str, a: u64, b: u64) -> Result<Vec<u8>, String> {
+    for t in 0..7u32 {
+        if let Ok(o) = Command::new("curl").args(["-sf", "--max-time", "120", "-r", &format!("{a}-{b}"), url]).output()
+            && o.status.success()
+            && o.stdout.len() as u64 == b - a + 1
+        {
+            return Ok(o.stdout);
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1 << t.min(5)));
+    }
+    Err(format!("{url}, bytes {a} to {b}: no answer"))
 }
 
 fn cosine(a: &[f64], b: &[f64]) -> f64 {
@@ -1341,6 +1518,48 @@ mod tests {
     fn cloud(n: usize, centre: f64, seed: u64) -> Vec<Vec<f64>> {
         let mut state = seed;
         (0..n).map(|_| (0..8).map(|_| centre + (draw(&mut state) % 1000) as f64 / 1000.0 - 0.5).collect()).collect()
+    }
+
+    #[test]
+    fn shards_are_named_by_ranges_and_single_shards() {
+        assert_eq!(shard_list("0..4,15..19,35").unwrap(), [0, 1, 2, 3, 4, 15, 16, 17, 18, 19, 35]);
+        assert_eq!(shard_list("7").unwrap(), [7]);
+        assert_eq!(shard_list("3..5,4").unwrap(), [3, 4, 5], "once each");
+        assert!(shard_list("5..2").is_err() && shard_list("0..100").is_err() && shard_list("x").is_err());
+    }
+
+    #[test]
+    fn a_top_up_takes_what_each_half_lacks_in_a_fixed_order_from_the_other_shards() {
+        let song =
+            |id: &str, shard: u32, genre: &'static str| Real { id: id.into(), shard, path: PathBuf::new(), genre };
+        let all = vec![
+            song("track_1", 0, "dnb"),
+            song("track_2", 2, "dnb"),
+            song("track_3", 1, "dnb"),
+            song("track_4", 10, "dnb"),
+            song("track_5", 12, "dnb"),
+            song("track_6", 14, "dnb"),
+            song("track_7", 11, "dnb"),
+            song("track_8", 10, "house"),
+        ];
+        // dnb has two songs in the even shards it was given and one in the odd: three wanted in each half
+        let chosen = choose(&all, &[0, 1, 2], 3);
+        let even: Vec<usize> =
+            chosen.iter().copied().filter(|&i| all[i].shard % 2 == 0 && all[i].genre == "dnb").collect();
+        let odd: Vec<usize> = chosen.iter().copied().filter(|&i| all[i].shard % 2 == 1).collect();
+        assert_eq!((even.len(), odd.len()), (1, 1), "one more even, one more odd (the only one there): {chosen:?}");
+        assert!(even.iter().chain(&odd).all(|&i| ![0, 1, 2].contains(&all[i].shard)), "from the other shards only");
+        assert_eq!(
+            chosen.iter().filter(|&&i| all[i].genre == "house").count(),
+            1,
+            "house has none: it gets what is there"
+        );
+        // the order is the track ids' SHA-256, so the same songs every time, whatever order the tags list them in
+        let shuffled: Vec<Real> = all.iter().rev().map(|r| song(&r.id, r.shard, r.genre)).collect();
+        let again: BTreeSet<String> =
+            choose(&shuffled, &[0, 1, 2], 3).into_iter().map(|i| shuffled[i].id.clone()).collect();
+        let first: BTreeSet<String> = chosen.iter().map(|&i| all[i].id.clone()).collect();
+        assert_eq!(again, first);
     }
 
     #[test]
