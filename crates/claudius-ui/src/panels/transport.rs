@@ -1363,7 +1363,11 @@ fn mic_tick(v: &mut View, now: f64) -> bool {
     let Some(m) = v.mic.as_mut() else { return false };
     let level = m.hearing.level();
     m.loudest = m.loudest.max(level);
-    m.opened |= m.hearing.open();
+    // the minute runs from when the microphone opens, as the palette's listening does, so that a slow Allow takes
+    // nothing from it
+    if !m.opened && m.hearing.open() {
+        (m.opened, m.since) = (true, now);
+    }
     let failed = m.hearing.error().or_else(|| {
         (!m.opened && now - m.since > super::palette::OPENING)
             .then(|| "The microphone did not open. Allow claudius to use it, and try again.".to_string())
