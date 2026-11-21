@@ -13,9 +13,10 @@ use symphonia::core::formats::FormatReader;
 
 use crate::{Decoded, TooLong};
 
-/// mono and stereo, or the several streams of a surround one
+/// mono and stereo (its decoder's 10 KB of state in a box, so that the value is small whichever it holds), or the
+/// several streams of a surround one
 enum Decoder {
-    One(OpusDecoder),
+    One(Box<OpusDecoder>),
     Many(OpusMSDecoder),
 }
 
@@ -36,7 +37,7 @@ impl Decoder {
         let gain = i32::from(if head[8] == 0 { i16::from_be_bytes(gain) } else { i16::from_le_bytes(gain) });
         let family = head[18];
         let decoder = if family == 0 {
-            let mut d = OpusDecoder::new(48_000, channels)?;
+            let mut d = Box::new(OpusDecoder::new(48_000, channels)?);
             d.gain_q8 = gain;
             Decoder::One(d)
         } else {
