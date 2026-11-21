@@ -539,10 +539,11 @@ CLAUDIUS_DEMO_SAMPLES=http://127.0.0.1:4321/studio/samples cargo run -p claudius
 A browser has no folder to install packs in, so the demo plays web editions of them, which the site serves from
 `/studio/packs/` (`cargo xtask site --sounds`, `claudius-packs web`, `crates/claudius-packs/src/web.rs`): the
 Salamander piano, a Wurlitzer and a CP-80, the upright piano, the organ, the strings, brass, flute, harp, mallets, sax
-and hand percussion of VSCO 2 and VCSL, the guitars and basses, the choir, the acoustic kit and the TR-808 and TR-707,
-some 70 instruments in 24 MB, from packs the site may pass on (CC0, public domain, CC BY; their credits in
-`/studio/packs/CREDITS.txt`). A song asks for a Rhodes most of all, and jRhodes' samples may not be passed on for
-others to use, so the Wurlitzer answers for it. Of each instrument an edition keeps what a browser can fetch and hold
+and hand percussion of VSCO 2 and VCSL, the guitars and basses, the choir, the acoustic kit, the TR-808 and TR-707,
+uzu's kit and FreePats' synthesizer percussion, 99 instruments in 25 MB, from packs the site may pass on (CC0, public
+domain, CC BY; their credits in `/studio/packs/CREDITS.txt`). A song asks for a Rhodes most of all, and jRhodes'
+samples may not be passed on for others to use, so the Wurlitzer answers for it; the TR-909's licence forbids passing
+its samples on too, so the demo synthesizes the 909, as it does any kit it lacks. Of each instrument an edition keeps what a browser can fetch and hold
 for a song: one velocity layer (two of a keyboard and of a drum), the first round robin, a root every three semitones
 with its keys reaching halfway to the next, and four to six seconds of each note (two of a drum hit; a note that loops
 keeps its loop), as Ogg Vorbis. Its index is a pack's like any other.
