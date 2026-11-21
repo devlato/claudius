@@ -771,6 +771,7 @@ impl Studio {
                         groove: false,
                         found: None,
                         recording: false,
+                        ticket: None,
                     });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -1617,6 +1618,7 @@ impl eframe::App for Studio {
                 groove: false,
                 found: None,
                 recording: true,
+                ticket: None,
             });
         }
         if let Some(l) = self.view.listen.take() {

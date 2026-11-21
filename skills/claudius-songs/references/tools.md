@@ -71,6 +71,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | New song, from a genre | `new_song` | `new_song` |
 | New song, from an example | `open_example` | `open_text` |
 | New song, from a recording: remake it, flip it, rebuild it, sample it (its phrases, a passage, chops or a stab), take its groove, see what is in it; in that window, a song like it, its tempo, its key and chords | `remake` (`flip`, `rebuild`), `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` (`tempo(...)`, `key(...)`, `prog(...)`) | `remake`, `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` |
+| New song, closed (or its Cancel) while its remake runs | `command` | `stop_remake` |
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
 | The chat: what the person writes to an assistant listening, clearing it | `wait_for_message`, `send_message`; `command` | `chat_listen`, `chat_answer`; `chat_say`, `clear_chat` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |

@@ -767,6 +767,9 @@ struct ListenQuery {
     /// the file's name, whose extension says its format
     #[serde(default)]
     name: Option<String>,
+    /// a remake's ticket, which a stop names it by (`Command::StopRemake`)
+    #[serde(default)]
+    ticket: Option<u64>,
     #[serde(default)]
     genre: Option<String>,
     #[serde(default)]
@@ -860,10 +863,13 @@ async fn listen(c: Ctx, q: ListenQuery, headers: &HeaderMap, body: Bytes, remake
             reply: app.remake_bytes(
                 body.to_vec(),
                 &name,
-                q.genre,
-                q.seed,
-                q.bpm,
-                crate::app::Remade::of(q.sampled, q.flip, q.rebuild),
+                crate::app::RemakeAsk {
+                    genre: q.genre,
+                    seed: q.seed,
+                    bpm: q.bpm,
+                    how: crate::app::Remade::of(q.sampled, q.flip, q.rebuild),
+                    ticket: q.ticket,
+                },
             ),
             heard: None,
         },

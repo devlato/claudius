@@ -650,6 +650,10 @@ pub enum Listen {
         /// the song itself rebuilt, every part on claudius's sounds (`Command::Remake`'s `rebuild`)
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         rebuild: bool,
+        /// what a stop names it by (`Command::StopRemake`), the studio's own: a stop sent before this arrives, or while
+        /// the file is still on its way, still stops it
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ticket: Option<u64>,
     },
     SampleSong {
         name: String,
@@ -2521,6 +2525,11 @@ pub enum Command {
     },
     /// stop a running render / mutate / evolve job
     Cancel,
+    /// stop the remake asked for with `ticket` (`Listen::Remake`'s), wherever it is: under way, its file still on its
+    /// way, or not arrived yet; it answers stopped, and the song stays as it was
+    StopRemake {
+        ticket: u64,
+    },
 }
 
 impl Command {

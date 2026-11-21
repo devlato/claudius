@@ -14,6 +14,16 @@ use claudius_api::*;
 use super::{App, no, now_seed, ok};
 use claudius_session::history::{History, OpId};
 pub use claudius_session::listen::{Remade, analysis_text, groove_name, sampling};
+
+/// What a remake is asked for: its genre (else the song's, else house), its seed and tempo, how it is built on the
+/// recording, and the ticket a stop names it by (the studio's own: `Command::StopRemake`)
+pub(crate) struct RemakeAsk {
+    pub(crate) genre: Option<String>,
+    pub(crate) seed: Option<u64>,
+    pub(crate) bpm: Option<f64>,
+    pub(crate) how: Remade,
+    pub(crate) ticket: Option<u64>,
+}
 use claudius_session::{edit, listen, views};
 
 /// the largest project the studio may send to open, as large as a file it reads
@@ -459,7 +469,10 @@ impl App {
                     return no(e, v);
                 }
                 match audio::load(Path::new(&path)) {
-                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, Remade::of(sampled, flip, rebuild)),
+                    Ok(x) => {
+                        let how = Remade::of(sampled, flip, rebuild);
+                        self.remake_audio(&x, &path, RemakeAsk { genre, seed, bpm, how, ticket: None })
+                    }
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
@@ -523,6 +536,16 @@ impl App {
             Command::Cancel => {
                 self.cancel.store(true, Ordering::Relaxed);
                 ok("stopping after the current step", v)
+            }
+            Command::StopRemake { ticket } => {
+                let mut stopped = self.stopped_remakes.lock().unwrap_or_else(|e| e.into_inner());
+                if !stopped.contains(&ticket) {
+                    stopped.push_back(ticket);
+                }
+                while stopped.len() > 32 {
+                    stopped.pop_front();
+                }
+                ok("stopping the remake after the current step", v)
             }
         }
     }
@@ -754,15 +777,8 @@ impl App {
     /// A new song from a recording (`name`: its path, or the name of the file it came in), built on it as `how`
     /// says, the recording kept with the songs' takes; a song on its skeleton only when the recording has nothing a
     /// rework or a flip can be built on.
-    pub(super) fn remake_audio(
-        self: &Arc<Self>,
-        x: &audio::Stereo,
-        path: &str,
-        genre: Option<String>,
-        seed: Option<u64>,
-        bpm: Option<f64>,
-        how: Remade,
-    ) -> Reply {
+    pub(super) fn remake_audio(self: &Arc<Self>, x: &audio::Stereo, path: &str, ask: RemakeAsk) -> Reply {
+        let RemakeAsk { genre, seed, bpm, how, ticket } = ask;
         let v = self.version();
         let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
         let g = match genres::get(&genre) {
@@ -774,14 +790,22 @@ impl App {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
-        // a stop is read between the steps (the parts, the listening, the remake), and the song stays as it was; one
-        // sent before this remake began is not for it
+        // a stop is read between the steps (the parts, the listening, the remake), and the song stays as it was: one
+        // that names this remake's ticket, whenever it came (before the file, while it was on its way), or a stop of
+        // whatever runs sent since it began (one sent before is not for it)
         self.cancel.store(false, Ordering::Relaxed);
         let stopped = || {
-            self.cancel
-                .swap(false, Ordering::Relaxed)
+            let named = ticket.is_some_and(|t| {
+                let mut s = self.stopped_remakes.lock().unwrap_or_else(|e| e.into_inner());
+                let at = s.iter().position(|x| *x == t);
+                at.map(|i| s.remove(i)).is_some()
+            });
+            (self.cancel.swap(false, Ordering::Relaxed) || named)
                 .then(|| no(format!("stopped: {name} was not remade, and the song stays as it was"), v))
         };
+        if let Some(r) = stopped() {
+            return r;
+        }
         let (stems, a) = self.listen_to(x, &name);
         if let Some(r) = stopped() {
             return r;

@@ -174,6 +174,8 @@ pub struct Listen {
     pub found: Option<serde_json::Value>,
     /// heard for the Add a recording window: the answer is that window's (`hear_recording`), not the studio's
     pub recording: bool,
+    /// a remake's ticket, which a stop names it by (`Command::StopRemake`)
+    pub ticket: Option<u64>,
 }
 
 /// what the studio knows about its connection
@@ -270,6 +272,9 @@ pub struct NewSongForm {
     /// a song this window asked for from a recording (a remake, a flip or a rebuild) is being made: the window closed
     /// meanwhile, by Cancel, its close button or Escape, stops it
     pub making: bool,
+    /// the ticket of the remake it asked for (`Command::StopRemake`), which its stop names, so that a stop sent while the
+    /// file is still on its way, or before the remake begins, still stops it
+    pub ticket: Option<u64>,
 }
 
 /// what the New song dialog starts a song from
@@ -592,6 +597,7 @@ impl Default for View {
                 sample_how: claudius_api::SAMPLING_WAYS[0].0,
                 example: None,
                 making: false,
+                ticket: None,
             },
             mutate_count: 4,
             keep_best: true,

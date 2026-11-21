@@ -31,7 +31,7 @@ mod voice;
 pub(crate) use phone::{Running, Take};
 
 pub use commands::{MAX_PROJECT, analysis_text};
-pub(crate) use commands::{Remade, groove_name, sampling};
+pub(crate) use commands::{Remade, RemakeAsk, groove_name, sampling};
 pub use release::{MAX_ARTWORK, report_lines};
 pub use takes::MAX_TAKE;
 
@@ -173,6 +173,8 @@ pub struct App {
     samples_lib: Option<Arc<Library>>,
     ears: Arc<OnceLock<Option<Ears>>>,
     cancel: Arc<AtomicBool>,
+    /// the remakes stopped by their tickets (`Command::StopRemake`), the latest few: a stop may come before its remake
+    stopped_remakes: Mutex<std::collections::VecDeque<u64>>,
     auto_render: AtomicBool,
     cache: PathBuf,
     /// the lock on `cache` that tells other sessions this one is running; the OS lets go of it when the process ends
@@ -260,6 +262,7 @@ impl App {
             samples_lib,
             ears: Arc::new(OnceLock::new()),
             cancel: Arc::new(AtomicBool::new(false)),
+            stopped_remakes: Mutex::new(std::collections::VecDeque::new()),
             auto_render: AtomicBool::new(settings.auto_render),
             cache,
             _in_use: in_use,
@@ -760,6 +763,28 @@ mod tests {
         let bp = app.blueprint().unwrap();
         assert_eq!((bp.bpm, bp.key.name()), (90.0, "D minor".to_string()), "the phrase's tempo and key");
         assert!(bp.loops.iter().any(|l| l.name == "sample"), "the phrase plays");
+    }
+
+    #[test]
+    fn a_remake_stopped_by_its_ticket_before_its_file_came_is_not_made() {
+        let app = app(Some(Vec::new()), false);
+        // a second of a tone, as a recording the studio sends as a file's bytes
+        let file = std::env::temp_dir().join(format!("claudius-ticket-{}.wav", std::process::id()));
+        let tone: Vec<f32> = (0..claudius::config::SR as usize).map(|i| (i as f32 * 0.05).sin() * 0.3).collect();
+        claudius::audio::save_wav(&file, &claudius::audio::Stereo::from_mono(&tone), false).unwrap();
+        let bytes = std::fs::read(&file).unwrap();
+        std::fs::remove_file(&file).unwrap();
+        // the window closed while the file was on its way: the stop came first
+        assert!(app.command(Command::StopRemake { ticket: 7 }).ok);
+        let how = Remade::of(None, None, None);
+        let ask = RemakeAsk { genre: Some("boom_bap".into()), seed: Some(3), bpm: None, how, ticket: Some(7) };
+        let r = app.remake_bytes(bytes, "song.wav", ask);
+        assert!(!r.ok && r.message.starts_with("stopped: song.wav was not remade"), "{}", r.message);
+        assert!(app.blueprint().is_none(), "no song made");
+        // the stop was spent on it; a stop of another ticket is kept for that one alone
+        assert!(app.command(Command::StopRemake { ticket: 8 }).ok);
+        let kept: Vec<u64> = app.stopped_remakes.lock().unwrap().iter().copied().collect();
+        assert_eq!(kept, [8]);
     }
 
     #[test]
