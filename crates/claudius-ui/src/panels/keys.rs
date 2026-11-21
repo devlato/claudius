@@ -10,7 +10,7 @@ use super::{Cx, small};
 use crate::theme::{TEXT, TEXT_DIM, TEXT_FAINT};
 
 /// the keys that move about the studio rather than do one of the palette's actions, and what each does
-pub const MOVING: [(&str, &str); 7] = [
+pub const MOVING: [(&str, &str); 8] = [
     ("Tab, Shift+Tab", "the next control, or the one before, as a screen reader reads them"),
     ("Space, Enter", "press the control that has the keyboard"),
     ("Arrows", "a knob or a fader that has the keyboard up or down; Shift, finer"),
@@ -18,6 +18,10 @@ pub const MOVING: [(&str, &str); 7] = [
     ("Up, Down", "the track above or below, in the arrangement"),
     ("Enter, Delete", "the selected track on or off in the section"),
     ("Escape", "let go of the control, close the window on top, or let go of the track"),
+    (
+        "In the signal flow",
+        "arrows choose a block and open it in the inspector, Delete takes it out, B off or on, F fits, + and − zoom",
+    ),
 ];
 
 /// the window of the keys

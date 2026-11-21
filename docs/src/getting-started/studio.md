@@ -169,16 +169,22 @@ Under the arrangement, the tabs hold the editors: **Drums**, **Instruments**, **
 
 The switcher over the arrangement opens the song's other two views in its place:
 
-- **Signal flow** (8 or G). The song as its sound flows, as a board to work on, fitted to the window and read left
-  to right. Each track is a row: its name and sound, its level and pan to drag, mute and solo, its sends into the
-  reverb and delay returns to drag, its effects as chips in order, a meter, and along its foot the sections it plays
-  in. Its wire runs into its bus, and its sends into the returns, as thick as they are. The buses, with their chips,
-  and the returns, whose setting is a chip too, run into the master: its chain and its loudness to drag, then the
-  finished song with its loudness, true peak and meter. Click a chip to change the effect beside it (numbers to drag,
-  switches, modes, and everything else as the JSON the song keeps it as), drag it along its chain, or add one with +.
-  Click a row to change everything about it in the inspector beside the board (duck, drive, bus, the sections it plays
-  in, its sound), and right-click anything for what can be done to it. Every change undoes. The arranger's own filter
-  moves, width and saturation are added at render and are not on the board.
+- **Signal flow** (8 or G). The song as its sound flows, drawn as its lanes, the way a mixer's channel strips and
+  device chains are. Each track is a lane, in the arrangement's order and colours, read left to right: its source (the
+  instrument, kit or recording it plays), each of its effects as a block that shows what it does (an equalizer's or a
+  filter's curve, a compressor's or a limiter's curve with its threshold, saturation's shape, a delay's repeats, a
+  reverb's tail), its level and pan to drag with its meter, its sends into the reverb and delay returns, and the bus
+  its sound goes into. The buses, the returns and the master are lanes of the same kind under the tracks, the master's
+  with its loudness and ceiling to drag, ending in the finished song. Pinch, or scroll with Ctrl or Cmd held, to zoom
+  around the pointer; scroll or drag the background to move about; **Fit** shows all of it. Click a block to change
+  its settings in the inspector beside the lanes (numbers to drag, switches, modes, and everything else as the JSON the
+  song keeps it as),
+  drag it along its chain or into another lane's, switch it off and on again with its power button (it keeps its
+  settings, so you can hear the track with and without it), take it out with ×, or add one with the + between two
+  blocks. Click a lane's name to change everything about it in the inspector beside the lanes (duck, drive, bus, the
+  sections it plays in, its sound), and right-click anything for what can be done to it. With the lanes focused, the
+  arrows choose a block and open it in the inspector, Delete takes it out, B switches it off or on, F fits and + and − zoom. Every
+  change undoes. The arranger's own filter moves, width and saturation are added at render and are not in the lanes.
 - **Script** (7). The whole song as a script, beside the inspector and the verdict. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
   The sound browser lists every drum, synth and instrument name. At the end of each line, faint words say what its
   numbers set ("118 BPM · swing 56%", "16 bars", "-4 dB", "4.5 kHz"), and pointing at a number says it too (**Hints**

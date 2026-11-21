@@ -123,6 +123,7 @@
 - [0022 A song's own sections](design/0022-a-songs-own-sections.md)
 - [0023 The live mix, first by windows](design/0023-the-live-mix-by-windows.md)
 - [0024 The radio in the app](design/0024-the-radio-in-the-app.md)
+- [0025 The signal flow as the song's lanes](design/0025-the-signal-flow-as-lanes.md)
 
 # Contributing
 

@@ -1,6 +1,7 @@
-//! The signal flow: the song as its sound flows, drawn as a board to work on (`board`): each track, with its effects,
-//! into its bus, the buses and the reverb and delay returns into the master, the master into the finished song
-//! (`SongView::graph`). A row chosen opens in the inspector beside the board, where everything about it changes: a
+//! The signal flow: the song as its sound flows, drawn as its lanes (`lanes`, design 0025): each track through its
+//! effects into its bus, the buses and the reverb and delay returns into the master, the master into the finished song
+//! (`SongView::graph`). A lane, a block or a bus chosen opens in the inspector beside the lanes, where everything about
+//! it changes: a
 //! track's level, pan, sends, duck, drive, bus, mute, solo and the sections it plays in, its sound if it is a part; an
 //! effect's settings, its place in its chain, or the effect itself, as the song keeps it; a chain's new effects; the
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
@@ -14,18 +15,21 @@ use crate::cmds::MixEdit;
 use crate::theme::{self, TEXT, TEXT_FAINT};
 use crate::widgets::{self, commit};
 
-/// the graph's own state: the node chosen, where the canvas looks (nowhere yet: the whole graph), and the effect
-/// being edited as JSON
+/// the signal flow's own state: the node chosen, the lanes' view (nowhere yet, `Rect::ZERO`: all of it, fitted), its
+/// zoom and pan, and the effect being edited as JSON
 pub struct GraphView {
     pub selected: Option<String>,
     pub scene: Rect,
+    /// how near the lanes are (1: as they are drawn), and how far they are moved, in their own units
+    pub zoom: f32,
+    pub pan: egui::Vec2,
     /// the node whose JSON is being edited, and the text so far, and why it was not taken
     pub(super) json: Option<(String, String, Option<String>)>,
 }
 
 impl Default for GraphView {
     fn default() -> Self {
-        GraphView { selected: None, scene: Rect::ZERO, json: None }
+        GraphView { selected: None, scene: Rect::ZERO, zoom: 0.0, pan: egui::Vec2::ZERO, json: None }
     }
 }
 
@@ -71,7 +75,7 @@ fn flow(ui: &mut Ui, cx: &mut Cx) {
         });
     // the graph has what the panel leaves of the width: a panel inside a Ui moves its cursor's end only
     let rest = Rect::from_min_max(ui.cursor().min, pos2(panel.response.rect.left(), ui.max_rect().bottom()));
-    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| super::board::show(ui, cx, &song, &graph));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| super::lanes::show(ui, cx, &song, &graph));
 }
 
 /// what a node's menu offers: effects to add, an effect to move or take out, a track to mute or solo
@@ -163,6 +167,18 @@ pub(super) fn set_chain(cx: &mut Cx, c: &Chain, fx: Vec<Value>) {
     cx.out.push(Command::SetFx { target: c.target(), fx });
 }
 
+/// chains changed as one change, which the history records as one and undo takes back together (`said`, what undo
+/// calls it): an effect dragged from one lane into another leaves the first and joins the second at once
+pub(super) fn set_chains(cx: &mut Cx, said: String, chains: Vec<(Chain, Vec<Value>)>) {
+    if let Some(song) = cx.state.song.as_mut() {
+        for (c, fx) in &chains {
+            put_chain(song, c, fx.clone());
+        }
+    }
+    let commands = chains.into_iter().map(|(c, fx)| Command::SetFx { target: c.target(), fx }).collect();
+    cx.out.push(Command::Together { said, commands });
+}
+
 fn put_chain(song: &mut SongView, c: &Chain, fx: Vec<Value>) {
     match c {
         Chain::Track(n) => {
@@ -187,8 +203,8 @@ fn put_chain(song: &mut SongView, c: &Chain, fx: Vec<Value>) {
     }
 }
 
-/// the node chosen on the board (`chosen`: its id), as the graph has it; a return no track sends to is not in the
-/// graph, but the board shows it, and its effect is set all the same
+/// the node chosen in the lanes (`chosen`: its id), as the graph has it; a return no track sends to is not in the
+/// graph, but the lanes show it, and its effect is set all the same
 fn chosen_node(graph: &Graph, chosen: Option<&str>) -> Option<Node> {
     let id = chosen?;
     graph.nodes.iter().find(|n| n.id == id).cloned().or_else(|| {
@@ -211,10 +227,10 @@ fn inspector(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
         ui.add_space(8.0);
         ui.label(RichText::new("The song as its signal flows").strong().color(TEXT));
         ui.label(small(
-            "Each track runs through its effects into its bus, the buses and the reverb and delay returns into the \
-             master, and the master out. Change a level, a pan or an effect where it is on the board, drag an \
-             effect along its chain, click a row to change everything about it here, and right-click it to add, \
-             move or take out effects.",
+            "Each track's lane runs through its effects into its bus, the buses and the reverb and delay returns \
+             into the master, and the master out. Change a level, a pan or an effect where it is in the lanes, drag \
+             an effect along its chain or into another lane, switch one off with its power button, click a lane's \
+             name to change everything about it here, and right-click anything to add, move or take out effects.",
         ));
         return;
     };
@@ -448,11 +464,52 @@ fn master(ui: &mut Ui, cx: &mut Cx, song: &SongView) {
     chain_list(ui, cx, song, &Chain::Master);
 }
 
+/// a setting's number as a musician reads it, by its unit: decibels to a tenth, a frequency in hertz or, from a
+/// thousand, in kilohertz to a tenth, milliseconds whole from ten, a ratio to a tenth; a number of no unit to the
+/// thousandth it may need
+fn dragged<'a>(drag: egui::DragValue<'a>, unit: &str, x: f64) -> egui::DragValue<'a> {
+    match unit {
+        "dB" => drag.fixed_decimals(1).suffix(" dB"),
+        "Hz" => drag.custom_formatter(|v, _| hertz(v)).custom_parser(parse_hertz),
+        "ms" => drag.max_decimals(if x.abs() >= 10.0 { 0 } else { 1 }).suffix(" ms"),
+        ":1" => drag.max_decimals(1).suffix(":1"),
+        "" => drag.max_decimals(3),
+        "beats" => drag.max_decimals(3).suffix(" beats"),
+        other => drag.max_decimals(2).suffix(format!(" {other}")),
+    }
+}
+
+/// a frequency as a musician says it: "440 Hz", "9.6 kHz"
+fn hertz(v: f64) -> String {
+    if v.abs() >= 1000.0 { format!("{:.1} kHz", v / 1000.0) } else { format!("{v:.0} Hz") }
+}
+
+/// a frequency typed: "9.6 kHz", "9.6k", "9600 Hz" or "9600"
+fn parse_hertz(text: &str) -> Option<f64> {
+    let t = text.trim().to_lowercase();
+    match t.strip_suffix("khz").or_else(|| t.strip_suffix('k')) {
+        Some(k) => k.trim().parse::<f64>().ok().map(|v| v * 1000.0),
+        None => t.strip_suffix("hz").unwrap_or(&t).trim().parse().ok(),
+    }
+}
+
 /// the settings an effect has, by kind: numbers to drag, switches, modes to choose; what else it has (bands, chains,
 /// settings that move) as JSON, the way the song keeps it
 pub(super) fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usize) {
     let fx = chain_of(song, c);
     let Some(mut e) = fx.get(i).cloned() else { return };
+    // switched off, it keeps its settings as they were until it is switched on again (design 0025)
+    if super::lanes::is_off(&e) {
+        ui.label(small(
+            "Switched off: it is not heard, and keeps its settings. Switch it on to hear it and change them.",
+        ));
+        if ui.button("Switch it on").clicked() {
+            let mut all = fx.clone();
+            all[i] = super::lanes::switched(&e);
+            set_chain(cx, c, all);
+        }
+        return;
+    }
     let name = e.get("fx").and_then(|f| f.as_str()).unwrap_or_default().to_string();
     let mut committed = false;
     let mut changed = false;
@@ -468,14 +525,9 @@ pub(super) fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Ch
                     Value::Number(n) => {
                         let mut x = n.as_f64().unwrap_or_default();
                         let speed = (x.abs() * 0.01).max(0.001);
-                        let unit = match unit {
-                            "" => String::new(),
-                            ":1" => unit.to_string(),
-                            _ => format!(" {unit}"),
-                        };
-                        let r = ui
-                            .add(egui::DragValue::new(&mut x).speed(speed).max_decimals(3).suffix(unit))
-                            .on_hover_text(&tip);
+                        let was = x;
+                        let r =
+                            ui.add(dragged(egui::DragValue::new(&mut x).speed(speed), unit, was)).on_hover_text(&tip);
                         if r.changed() {
                             *v = serde_json::json!(x);
                             changed = true;
@@ -604,7 +656,19 @@ mod tests {
         assert!(EFFECT_TEMPLATES.iter().all(|(n, t)| serde_json::from_str::<Value>(t).unwrap()["fx"] == *n));
     }
 
-    /// The board shows both returns, and a click opens a return in the inspector even when no track sends to it, so
+    /// A frequency reads as a musician says it, and what is typed in either way reads back.
+    #[test]
+    fn a_frequency_reads_in_hertz_or_kilohertz() {
+        assert_eq!(hertz(440.0), "440 Hz");
+        assert_eq!(hertz(9599.6), "9.6 kHz");
+        assert_eq!(parse_hertz("9.6 kHz"), Some(9600.0));
+        assert_eq!(parse_hertz("9.6k"), Some(9600.0));
+        assert_eq!(parse_hertz("120 Hz"), Some(120.0));
+        assert_eq!(parse_hertz(" 80 "), Some(80.0));
+        assert_eq!(parse_hertz("loud"), None);
+    }
+
+    /// The lanes show both returns, and a click opens a return in the inspector even when no track sends to it, so
     /// the graph leaves it out: its effect is set there all the same.
     #[test]
     fn a_return_no_track_sends_to_opens_in_the_inspector() {

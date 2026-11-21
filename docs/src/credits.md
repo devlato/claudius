@@ -137,6 +137,12 @@ uses it.
   [doi:10.1371/journal.pone.0026457](https://doi.org/10.1371/journal.pone.0026457). The drift a player's timing
   wanders with.
 
+### Effects and the mix
+
+- Bristow-Johnson, "Cookbook formulae for audio equalizer biquad filter coefficients", published by the W3C as the
+  [Audio EQ Cookbook](https://www.w3.org/TR/audio-eq-cookbook/). An equalizer's and a filter's bands, as the renderer
+  runs them and the signal flow draws their curves.
+
 ### The critic
 
 - Chmiel & Schubert (2017), [doi:10.1177/0305735617697507](https://doi.org/10.1177/0305735617697507); Askin &

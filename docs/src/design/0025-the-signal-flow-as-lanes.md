@@ -28,10 +28,12 @@ one row the sound runs through from left to right.
   ending in the finished song.
 - **A block shows what its effect does**: an equalizer or a filter its frequency curve, a compressor or a limiter
   its transfer curve with its threshold and ratio, saturation its curve and drive, a delay its time and feedback, a
-  reverb its decay. Zoomed out, a block is its name and its main value; zoomed in, its knobs.
-- **Everything is edited where it is**: a click opens a block's settings beside it, a drag moves it along its chain or
-  into another, a + between two blocks adds one there, × or Delete removes it, a power button switches it off, and
-  the keyboard reaches every block.
+  reverb its decay. Zoomed out, a block is its name and its main value; zoomed in, its picture, with its power button
+  and its × along its top.
+- **Everything is edited where it is**: a click chooses a block and opens all its settings in the inspector beside the
+  lanes, a drag moves it along its chain or into another, a + between two blocks adds one there, × or Delete removes
+  it, a power button switches it off, a fader's level and pan drag where they are, and the keyboard reaches every
+  block.
 - **Zoom and pan as a map does**: around the pointer with a pinch or the scroll wheel held with Ctrl or Cmd, dragging
   the background to pan, and a button to fit it all to the window.
 - **An effect can be switched off**: wrapped as an effect of its own, `{"fx": "off", "effect": {"fx": "gain", "db":
@@ -39,7 +41,7 @@ one row the sound runs through from left to right.
   switched on again, it is unwrapped. Every earlier song reads as it did (0016), and a script writes it the same way:
   `#{fx: "off", effect: #{fx: "gain", db: 3}}`.
 
-The studio and the web demo draw it from the same code, and the MCP's `graph` tool says the same lanes in words.
+The studio and the web demo draw it from the same code, and the MCP's `graph` tool describes the same flow in words.
 
 Rejected: keeping a node graph with better drawing (the sound's path stays a tangle of wires to follow, and a node
 graph is a programmer's picture, not a musician's); a mixer of channel strips alone (it hides the order of the
