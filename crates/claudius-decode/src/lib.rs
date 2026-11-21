@@ -156,12 +156,12 @@ fn decode_stream(mss: MediaSourceStream, ext: Option<&str>, max_samples: usize, 
     let mut format =
         symphonia::default::get_probe().probe(&hint, mss, FormatOptions::default(), MetadataOptions::default())?;
     let track = format.default_track(TrackType::Audio).ok_or_else(|| anyhow!("no audio track"))?;
-    let track_id = track.id;
+    let (track_id, delay) = (track.id, track.delay);
     let Some(CodecParameters::Audio(params)) = track.codec_params.clone() else {
         bail!("the audio track has no codec parameters")
     };
     if params.codec == CODEC_ID_OPUS {
-        return opus::decode(format.as_mut(), track_id, &params, max_samples, name);
+        return opus::decode(format.as_mut(), track_id, &params, delay, max_samples, name);
     }
     let mut decoder = symphonia::default::get_codecs().make_audio_decoder(&params, &AudioDecoderOptions::default())?;
     let mut out = Decoded {

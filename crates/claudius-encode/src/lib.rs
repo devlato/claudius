@@ -421,8 +421,10 @@ mod tests {
     }
     /// Whatever claudius writes, it reads back as a source (claudius-decode, in pure Rust): every format the export
     /// menu offers, written and read again, keeps the sound's channels, length and level, and WAV, AIFF, FLAC and Opus
-    /// keep its exact number of samples. A format this machine cannot write (AAC and Apple Lossless with no system
-    /// encoder) is said and left out.
+    /// keep its exact number of samples. The other lossy formats may keep their encoder's delay and last frame's
+    /// padding, where the file does not say how much to trim: MP3 up to 1,105 samples and a frame of 1,152, AAC its
+    /// 2,112 samples of priming and a frame of 1,024, under 4,096 samples either way. A format this machine cannot
+    /// write (AAC and Apple Lossless with no system encoder) is said and left out.
     #[test]
     fn every_format_it_writes_reads_back_as_a_source() {
         let rate = 48_000u32;
@@ -451,7 +453,7 @@ mod tests {
             if matches!(spec.format, Format::Wav(_) | Format::Aiff(_) | Format::Flac(_) | Format::Opus(_)) {
                 assert_eq!(d.frames(), want, "{spec}: as many samples as were written");
             } else {
-                assert!(d.frames().abs_diff(want) < d.rate as usize / 20, "{spec}: {} frames for {want}", d.frames());
+                assert!(d.frames().abs_diff(want) < 4096, "{spec}: {} frames for {want}", d.frames());
             }
             for c in 0..2 {
                 let (a, b) = (rms(&x, c), rms(&d.samples, c));

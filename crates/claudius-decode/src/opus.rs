@@ -1,7 +1,7 @@
 //! Opus, which symphonia finds in Ogg, WebM (Matroska) and MP4 but does not decode, decoded by opus-pure (pure Rust,
 //! byte-exact with libopus where the format allows) and trimmed as the container says, as symphonia's own decoders
-//! trim: an .opus file decodes to exactly the samples it was made from, its encoder's pre-skip and its last packet's
-//! padding left out.
+//! trim, and of its encoder's pre-skip, which symphonia's Ogg reader leaves to the decoder: an .opus file decodes to
+//! exactly the samples it was made from.
 
 use std::path::Path;
 
@@ -49,6 +49,12 @@ impl Decoder {
         Ok((decoder, channels))
     }
 
+    /// the encoder's pre-skip the header declares, in samples at 48 kHz (in an MP4's byte order as well as Ogg's)
+    fn pre_skip(head: &[u8]) -> usize {
+        let skip = [head[10], head[11]];
+        usize::from(if head[8] == 0 { u16::from_be_bytes(skip) } else { u16::from_le_bytes(skip) })
+    }
+
     /// one packet into `out`, interleaved; the frames it decoded
     fn decode(&mut self, packet: &[u8], out: &mut [f32]) -> opus_pure::Result<usize> {
         match self {
@@ -58,17 +64,22 @@ impl Decoder {
     }
 }
 
-/// Track `track_id` of `format`, an Opus stream with codec parameters `params`, decoded at 48 kHz, its usual rate;
-/// a damaged packet is skipped, as players do. `name` is what a too-long error names.
+/// Track `track_id` of `format`, an Opus stream with codec parameters `params` and the encoder delay `delay` the
+/// container says (else the header's pre-skip), decoded at 48 kHz, its usual rate; a damaged packet is skipped, as
+/// players do. `name` is what a too-long error names.
 pub(crate) fn decode(
     format: &mut dyn FormatReader,
     track_id: u32,
     params: &AudioCodecParameters,
+    delay: Option<u32>,
     max_samples: usize,
     name: &Path,
 ) -> Result<Decoded> {
     let head = params.extra_data.as_deref().ok_or_else(|| anyhow!("the Opus stream has no identification header"))?;
     let (mut decoder, channels) = Decoder::new(head)?;
+    // the pre-skip still to leave out: a container that trims it from the first packets itself has those trims
+    // counted toward it, so that it is never left out twice
+    let mut skip = delay.map_or_else(|| Decoder::pre_skip(head), |d| d as usize);
     let mut block = vec![0.0f32; MAX_PACKET_SAMPLES * channels];
     let mut out = Decoded { rate: 48_000, channels, samples: Vec::new() };
     loop {
@@ -82,8 +93,9 @@ pub(crate) fn decode(
             continue;
         }
         let Ok(n) = decoder.decode(&packet.data, &mut block) else { continue };
-        // the encoder's pre-skip at the start and the padding of the last packet, as the container marks them
-        let start = usize::try_from(packet.trim_start.get()).unwrap_or(usize::MAX).min(n);
+        // the pre-skip at the start, and the padding of the last packet as the container marks it
+        let start = usize::try_from(packet.trim_start.get()).unwrap_or(usize::MAX).max(skip).min(n);
+        skip -= skip.min(start);
         let end = n.saturating_sub(usize::try_from(packet.trim_end.get()).unwrap_or(usize::MAX)).max(start);
         let kept = &block[start * channels..end * channels];
         if out.samples.len() + kept.len() > max_samples {
