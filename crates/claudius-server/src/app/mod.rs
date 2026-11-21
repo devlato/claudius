@@ -324,6 +324,13 @@ impl App {
         self.s.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// the session held, which every command and read of the song takes in turn, until what this gives back is dropped:
+    /// a test keeps a command from finishing with it
+    #[cfg(test)]
+    pub(crate) fn held(&self) -> impl Sized + '_ {
+        self.lock()
+    }
+
     fn update<T>(&self, f: impl FnOnce(&mut Session) -> T) -> T {
         let mut s = self.lock();
         let out = f(&mut s);
