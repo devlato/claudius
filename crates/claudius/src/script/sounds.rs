@@ -192,7 +192,7 @@ pub fn resolve_sound(
         return Ok(Sound::Instrument { name: r.to_string(), label: label.to_string() });
     }
     if label.contains('/')
-        || [".wav", ".mp3", ".aif", ".aiff", ".flac", ".caf", ".m4a"].iter().any(|e| label.to_lowercase().ends_with(e))
+        || label.rsplit_once('.').is_some_and(|(_, e)| crate::audio::AUDIO_EXTS.contains(&e.to_lowercase().as_str()))
     {
         if let Some(e) = crate::config::read_error(std::path::Path::new(label), roots) {
             return Err(e);
@@ -208,4 +208,22 @@ pub fn resolve_sound(
         "; sampled: piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass guitar choir sax ... (claudius-packs aliases)"
     };
     Err(format!("unknown sound '{base}' (drums: {}; synths: {}{packs})", drums.join(" "), presets::names().join(" ")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_name_ending_in_any_format_claudius_reads_is_a_file() {
+        // the file is looked for (and here not found) rather than taken for an unknown sound
+        for name in
+            ["nowhere-take.opus", "nowhere-hook.OGG", "nowhere-line.aac", "nowhere-kick.flac", "nowhere-pad.m4a"]
+        {
+            let e = resolve_sound(name, None, None, None, 0, None).unwrap_err();
+            assert!(e.ends_with("does not exist"), "{name}: {e}");
+        }
+        let e = resolve_sound("nowhere-warm.pad", None, None, None, 0, None).unwrap_err();
+        assert!(e.starts_with("unknown sound"), "{e}");
+    }
 }

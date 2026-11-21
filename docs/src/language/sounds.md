@@ -20,7 +20,8 @@ match wins:
 2. **Drum names** play the synthesized drum voices.
 3. **Synth presets** play the synth engine.
 4. **The sample packs**: sampled instruments (`rhodes`, `vsco2:violins`) and kit sounds (`tr808:sd`).
-5. **Files**: a name containing `/` or ending in `.wav`, `.mp3`, `.aif`, `.aiff`, `.flac`, `.caf` or `.m4a`.
+5. **Files**: a name containing `/` or ending in `.wav`, `.mp3`, `.aif`, `.aiff`, `.flac`, `.caf`, `.m4a`, `.aac`, `.ogg`
+   or `.opus`.
 
 Anything else is an error that lists what exists:
 

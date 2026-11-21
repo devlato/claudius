@@ -419,4 +419,44 @@ mod tests {
         assert_eq!(label("alac"), "Apple Lossless, 24-bit, 48 kHz");
         assert!(presets().iter().all(|p| p.to_string().parse::<Spec>().unwrap() == *p));
     }
+    /// Whatever claudius writes, it reads back as a source (claudius-decode, in pure Rust): every format the export
+    /// menu offers, written and read again, keeps the sound's channels, length and level, and WAV, AIFF, FLAC and Opus
+    /// keep its exact number of samples. A format this machine cannot write (AAC and Apple Lossless with no system
+    /// encoder) is said and left out.
+    #[test]
+    fn every_format_it_writes_reads_back_as_a_source() {
+        let rate = 48_000u32;
+        let n = rate as usize + 777;
+        // the two channels apart, so that a swap or a fold to mono shows
+        let x: Vec<f32> = (0..n)
+            .flat_map(|i| {
+                let t = i as f32 / rate as f32;
+                [0.4 * (std::f32::consts::TAU * 440.0 * t).sin(), 0.2 * (std::f32::consts::TAU * 660.0 * t).sin()]
+            })
+            .collect();
+        let rms = |v: &[f32], c: usize| {
+            let (sum, count) =
+                v.iter().skip(c).step_by(2).fold((0.0f64, 0usize), |(s, k), x| (s + f64::from(*x).powi(2), k + 1));
+            (sum / count.max(1) as f64).sqrt()
+        };
+        for spec in presets() {
+            if let Some(why) = spec.unavailable() {
+                eprintln!("{spec}: not written on this machine ({why})");
+                continue;
+            }
+            let bytes = encode(&spec, Pcm { samples: &x, channels: 2, rate }, &Tags::default()).unwrap();
+            let d = claudius_decode::decode_bytes(bytes, spec.extension()).unwrap_or_else(|e| panic!("{spec}: {e:#}"));
+            assert_eq!((d.channels, d.rate), (2, spec.rate_for(rate)), "{spec}");
+            let want = (n as u64 * u64::from(d.rate) / u64::from(rate)) as usize;
+            if matches!(spec.format, Format::Wav(_) | Format::Aiff(_) | Format::Flac(_) | Format::Opus(_)) {
+                assert_eq!(d.frames(), want, "{spec}: as many samples as were written");
+            } else {
+                assert!(d.frames().abs_diff(want) < d.rate as usize / 20, "{spec}: {} frames for {want}", d.frames());
+            }
+            for c in 0..2 {
+                let (a, b) = (rms(&x, c), rms(&d.samples, c));
+                assert!((20.0 * (b / a).log10()).abs() < 1.0, "{spec}: channel {c} at {b:.3} for {a:.3}");
+            }
+        }
+    }
 }

@@ -1,7 +1,7 @@
 //! Audio files to samples. symphonia reads WAV, AIFF, FLAC, MP3, AAC / M4A, ALAC, CAF (Apple Loops) and Ogg Vorbis
-//! in pure Rust, so claudius needs no other program to read sound. When a file uses something symphonia cannot
-//! read and ffmpeg is installed, ffmpeg decodes it instead, reading that one file and nothing it refers to
-//! (`ffmpeg_input`).
+//! in pure Rust, and opus-pure decodes the Opus symphonia finds (in Ogg, WebM or MP4), so claudius reads every format
+//! it writes, and more, with no other program. When a file uses something neither can read and ffmpeg is installed,
+//! ffmpeg decodes it instead, reading that one file and nothing it refers to (`ffmpeg_input`).
 
 #![forbid(unsafe_code)]
 
@@ -14,11 +14,14 @@ use std::process::{Command, Stdio};
 use anyhow::{Context, Result, anyhow, bail};
 use symphonia::core::codecs::CodecParameters;
 use symphonia::core::codecs::audio::AudioDecoderOptions;
+use symphonia::core::codecs::audio::well_known::CODEC_ID_OPUS;
 use symphonia::core::errors::Error as Sym;
 use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, TrackType};
 use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use symphonia::core::meta::MetadataOptions;
+
+mod opus;
 
 /// the most samples a decode keeps: 30 minutes of stereo at 48 kHz (690 MB as f32). A longer file is refused rather
 /// than allowed to fill the memory.
@@ -82,7 +85,7 @@ impl Decoded {
     }
 }
 
-/// decode a file; symphonia first, ffmpeg when symphonia cannot and ffmpeg is installed
+/// decode a file; symphonia (and opus-pure) first, ffmpeg when they cannot and ffmpeg is installed
 pub fn decode(path: &Path) -> Result<Decoded> {
     if !path.is_file() {
         bail!("no such file: {}", path.display());
@@ -104,7 +107,7 @@ pub fn decode(path: &Path) -> Result<Decoded> {
     }
 }
 
-/// decode with symphonia only
+/// decode in pure Rust only: symphonia, and opus-pure for Opus
 pub fn decode_native(path: &Path) -> Result<Decoded> {
     decode_native_upto(path, MAX_SAMPLES)
 }
@@ -157,6 +160,9 @@ fn decode_stream(mss: MediaSourceStream, ext: Option<&str>, max_samples: usize, 
     let Some(CodecParameters::Audio(params)) = track.codec_params.clone() else {
         bail!("the audio track has no codec parameters")
     };
+    if params.codec == CODEC_ID_OPUS {
+        return opus::decode(format.as_mut(), track_id, &params, max_samples, name);
+    }
     let mut decoder = symphonia::default::get_codecs().make_audio_decoder(&params, &AudioDecoderOptions::default())?;
     let mut out = Decoded {
         rate: params.sample_rate.unwrap_or(0),

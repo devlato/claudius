@@ -181,7 +181,7 @@ claudius does not need ffmpeg to work. Without it:
   machine has neither: install ffmpeg, or export MP3 or Opus`;
 - files in formats claudius cannot decode itself fail with
   `cannot decode <file>: <reason> (installing ffmpeg adds more formats)`. It reads WAV, AIFF, FLAC, MP3, AAC and ALAC,
-  CAF and Ogg Vorbis on its own.
+  CAF, Ogg Vorbis and Opus on its own.
 
 `claudius doctor` shows `..  ffmpeg  not installed (optional: reads the formats claudius cannot)`. claudius looks for it on
 `PATH` and then in `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin`, since apps started from the Dock do not

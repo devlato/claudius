@@ -41,7 +41,8 @@ MP3, FLAC and Opus are written by [rusty_mp3](https://crates.io/crates/rusty_mp3
 [flacenc](https://crates.io/crates/flacenc) and [opus-pure](https://crates.io/crates/opus-pure), and Ogg Vorbis by
 [libvorbis](https://xiph.org/vorbis/) with [aoTuV](https://ao-yumi.github.io/aotuv_web/)'s and Lancer's tuning
 (`aotuv_lancer_vorbis_sys`, BSD-3-Clause), built in ([Exporting](guide/export.md)).
-[symphonia](https://github.com/pdeljanov/Symphonia) reads the recordings claudius opens. AAC and Apple Lossless come
+[symphonia](https://github.com/pdeljanov/Symphonia) reads the recordings claudius opens, and opus-pure decodes the Opus
+among them. AAC and Apple Lossless come
 from the system's encoder, Core Audio's `afconvert` on macOS, and [ffmpeg](https://ffmpeg.org) elsewhere and for a file
 symphonia cannot read, when it is installed: claudius runs them as programs and ships neither.
 
