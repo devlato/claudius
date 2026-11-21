@@ -106,7 +106,8 @@ pingpong mix` (the repeats' level on top) · `chorus rate_hz depth_ms delay_ms m
 step_beats depth smooth_ms` · `transient attack_db sustain_db` · `tape wow flutter drive_db lowpass_hz` · `vinyl crackle
 hiss_db` · `tape_stop`, `reverse start len` and `stutter start len slice` (beats) · `parallel chains: [#{ fx: [...],
 amount }] dry` · `tune strength (1) speed_ms (40) humanize (10) vibrato (1) scale ("chords" "key" "chromatic" or
-#{ notes: [...] })`, a voice moved onto the notes it means.
+#{ notes: [...] })`, a voice moved onto the notes it means · `off effect`: an effect switched off, kept in its place with
+its settings and not heard (`#{ fx: "off", effect: #{ fx: "gain", db: 3 } }`).
 
 These settings can move: `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`,
 `width width`, a `parallel`'s `amount` and `dry`, a `tune`'s `strength`, and every `mix`. A setting that moves is a curve of `[beat, value]`

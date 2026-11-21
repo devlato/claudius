@@ -1739,7 +1739,8 @@ async fn chains_of_effects_are_seen_and_set_as_the_graph_sets_them() {
         let e: claudius::fx::Effect = serde_json::from_str(t).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(e.name(), *name);
     }
-    for name in claudius::fx::EFFECT_NAMES.iter().filter(|n| !["tape_stop", "stutter", "reverse"].contains(n)) {
+    // (an effect switched off is not one to add: it is how one already there is kept and not heard)
+    for name in claudius::fx::EFFECT_NAMES.iter().filter(|n| !["tape_stop", "stutter", "reverse", "off"].contains(n)) {
         assert!(claudius_api::EFFECT_TEMPLATES.iter().any(|(n, _)| n == name), "no template for {name}");
     }
     // a chain set is one undo step
