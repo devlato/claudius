@@ -140,7 +140,9 @@ ways that cost about the least, so not every song does the same:
   only resampled and plays in tune with everything else. How far a genre goes is in its profile (`pitch`: trip-hop
   slows a record by up to five semitones, house speeds one up by up to five). A remake's hook that a voice sings in
   is not sped up or slowed down, unless the genre's profile says its producers mean it to be (`speeds_voices`, as
-  chipmunk soul's does).
+  chipmunk soul's does). Trip hop plays such a hook at its own speed in half time a little under its range rather
+  than stretch the voice by more than a tenth (`under`): a pop song at 125 BPM becomes trip hop at 62.5, on trip
+  hop's own drums.
 - **Chopped onto the song's grid at its own speed**, at a tempo two thirds, three quarters, four thirds or three halves
   of its own (where you give the song's tempo, any from two thirds of it to three halves, never half or twice it, which
   would count its bars at half or double time). Each half beat of it plays from the song's half beat, a sixteenth at a

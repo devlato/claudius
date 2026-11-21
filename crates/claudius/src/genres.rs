@@ -371,6 +371,13 @@ pub struct SampleNeed {
     /// in its own key (`remix`)
     #[serde(default)]
     pub speeds_voices: bool,
+    /// How far under the genre's slowest tempo a remake may play a record a voice sings in at the record's own speed,
+    /// as a share of that tempo (0.25: down to a quarter under it), rather than stretch the voice by more than a few
+    /// percent: trip hop plays a pop record of 125 in half time at 62, as its producers have played at 60 against its
+    /// usual 80 to 95. None (0): a remake stretches such a record to the genre's tempo, as house stretches a vocal to
+    /// its 124 (`remix`).
+    #[serde(default)]
+    pub under: f64,
     /// the layers that play where the sample would, when the song has none (offline, or nothing gathered yet); in a
     /// genre whose sections do not list the sample, those it plays in place of (under everything, when none)
     #[serde(default)]

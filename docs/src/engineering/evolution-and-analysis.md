@@ -348,7 +348,12 @@ under 15 % of its power, `remix::BACKING`, when its vocals stay in; else what su
 drums (its drum stem; else what strikes), cut into the pieces a producer would take from it, on the bars it plays. A
 hook a voice sings in (the recording sings, and its voice was not taken out) is offered at its own pitch only, and not
 re-chopped (`remix::own_key`: the genre's `pitch` narrowed to none and its `chop` to 0), wherever a way of playing it so
-meets the genre's tempo, unless the genre's producers speed their singers up (`speeds_voices`, chipmunk soul's). Its
+meets the genre's tempo, unless the genre's producers speed their singers up (`speeds_voices`, chipmunk soul's). In
+a genre whose phrase says how far under its range it plays a record at the record's own speed (`under`, trip hop's
+0.25), such a hook is stretched by a tenth at most (`remix::SUNG_STRETCH`, to the range's nearest edge): further than
+that, the song plays at the hook's own tempo, half or twice it, the fastest of them `under` reaches below the range
+(`remix::sung_tempo`: a pop record of 125 BPM as trip hop at 62.5), with the genre's drums in place of the
+recording's, which would play on at twice the song's tempo. Its
 pieces are chosen by the scores the Sample window offers pieces by (`kinds::cuts_of`): its hook (`remix::hook_of`, a
 loop of the hook of eight bars, else four or two, from the hook's sections), another passage as long (`passage_of`,
 from none of them) and its drums (`break_of`, a drum break of the lengths a break takes), each the best on take 0 and
