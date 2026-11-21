@@ -3,7 +3,7 @@
 {"item":"deep_house","slice":{"family":"electronic"},"metrics":{"kad":48.1293,"typical":0.7245,"identified":0.0,"spread":0.3538,"beat":0.0348,"beat_songs":0.4,"beat_real":0.4348}}
 {"item":"tech_house","slice":{"family":"electronic"},"metrics":{"kad":39.4791,"typical":0.7258,"identified":0.65,"spread":0.2741,"beat":0.0354,"beat_songs":0.4444,"beat_real":0.4091}}
 {"item":"electro_house","slice":{"family":"electronic"},"metrics":{"kad":55.6276,"typical":0.7068,"identified":0.0,"spread":0.3033,"beat":0.0446,"beat_songs":0.3929,"beat_real":0.4375}}
-{"item":"techno","slice":{"family":"electronic"},"metrics":{"kad":25.8972,"typical":0.7937,"identified":0.7,"spread":0.32,"beat":0.1396,"beat_songs":0.2667,"beat_real":0.4063}}
+{"item":"techno","slice":{"family":"electronic"},"metrics":{"kad":25.3045,"typical":0.7982,"identified":0.85,"spread":0.2973,"beat":0.1063,"beat_songs":0.3,"beat_real":0.4063}}
 {"item":"trance","slice":{"family":"electronic"},"metrics":{"kad":52.8256,"typical":0.7389,"identified":0.0,"spread":0.3401,"beat":0.0159,"beat_songs":0.4286,"beat_real":0.4444}}
 {"item":"dnb","slice":{"family":"electronic"},"metrics":{"kad":29.151,"typical":0.7257,"identified":0.8,"spread":0.3902,"beat":0.03,"beat_songs":0.45,"beat_real":0.48}}
 {"item":"jungle","slice":{"family":"electronic"},"metrics":{"kad":37.3189,"typical":0.6703,"identified":0.0,"spread":0.3859,"beat":0.0417,"beat_songs":0.4583,"beat_real":0.5}}
