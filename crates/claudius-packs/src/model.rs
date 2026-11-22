@@ -56,6 +56,10 @@ pub struct PackIndex {
     /// bank names that select this pack (`tr909`, `909`, `RolandTR909` ...)
     #[serde(default)]
     pub aliases: Vec<String>,
+    /// the registry's instruments the pack was installed from, by name, so that an install made before the registry
+    /// gained an instrument can tell (empty in an index written before claudius kept them, and in a user pack)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub built_from: Vec<String>,
     pub files: Vec<FileEntry>,
     pub instruments: Vec<InstrumentDef>,
 }

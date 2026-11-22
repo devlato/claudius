@@ -370,6 +370,7 @@ pub(crate) fn index_from_spec(
         lazy: lazy && copies.is_empty(),
         installed_at: now(),
         aliases: pack.aliases.clone(),
+        built_from: pack.instruments.iter().map(|s| s.name.clone()).collect(),
         files,
         instruments: ctx.built,
     };
@@ -610,6 +611,7 @@ pub fn add_map(spec_str: &str) -> Result<PackIndex> {
         lazy: true,
         installed_at: now(),
         aliases: gh.map(|(_, r)| vec![r.to_ascii_lowercase()]).unwrap_or_default(),
+        built_from: Vec::new(),
         files,
         instruments,
     };

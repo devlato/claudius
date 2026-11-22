@@ -361,7 +361,12 @@ fn main() -> Result<()> {
         "list" => {
             println!("packs in {}", claudius_packs::packs_dir().display());
             for p in claudius_packs::packs() {
-                let state = if p.installed { if p.lazy { "lazy" } else { "installed" } } else { "-" };
+                let state = match (p.installed, p.lacks.len()) {
+                    (false, _) => "-".to_string(),
+                    (true, 0) if p.lazy => "lazy".to_string(),
+                    (true, 0) => "installed".to_string(),
+                    (true, n) => format!("lacks {n}"),
+                };
                 let tag = if p.opt_in {
                     "opt-in"
                 } else if p.default {

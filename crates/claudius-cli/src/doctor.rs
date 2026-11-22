@@ -38,10 +38,25 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
     let packs = claudius_packs::packs();
     let defaults: Vec<_> = packs.iter().filter(|p| p.default).collect();
     let installed = defaults.iter().filter(|p| p.installed).count();
+    let lacking: Vec<String> = defaults
+        .iter()
+        .filter(|p| !p.lacks.is_empty())
+        .map(|p| format!("{} lacks {}", p.name, p.lacks.join(" ")))
+        .collect();
     let dir = tilde(&claudius_packs::packs_dir());
-    if installed == defaults.len() {
+    if installed == defaults.len() && lacking.is_empty() {
         let gb = defaults.iter().map(|p| p.size_mb as f64).sum::<f64>() / 1000.0;
         r.line(true, "sample packs", format!("{installed} default packs ({gb:.1} GB) in {dir}"));
+    } else if installed == defaults.len() {
+        r.line(
+            false,
+            "sample packs",
+            format!(
+                "{installed} default packs in {dir}, without instruments added since they were installed ({}): run \
+                 `claudius setup`",
+                lacking.join("; ")
+            ),
+        );
     } else {
         r.line(
             false,

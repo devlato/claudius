@@ -1753,6 +1753,24 @@ pub struct PackInfo {
     /// on an unclear licence: installed only when asked for by name, with `claudius-packs install --accept-licence`
     #[serde(default)]
     pub opt_in: bool,
+    /// installed before claudius gained these instruments of it, by name: installing it again fetches only them
+    #[serde(default)]
+    pub lacks: Vec<String>,
+    /// about how much installing it again downloads, when it `lacks` instruments
+    #[serde(default)]
+    pub update_mb: f64,
+}
+
+impl PackInfo {
+    /// a pack to download: not installed, or installed without instruments claudius has since gained
+    pub fn wanted(&self) -> bool {
+        !self.installed || !self.lacks.is_empty()
+    }
+
+    /// about how much downloading it takes (the whole pack, or what it lacks)
+    pub fn download_mb(&self) -> f64 {
+        if self.installed { self.update_mb } else { self.size_mb }
+    }
 }
 
 /// what notes sung or played can become (`add_notes` and `transcribe_take` take one as `style`): the line as it is, with

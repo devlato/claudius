@@ -833,30 +833,53 @@ pub fn is_sampled(name: &str, sounds: Option<&SoundList>) -> bool {
     }
 }
 
-/// when default packs are missing: a line that says so, and a button that downloads them
+/// when default packs are missing, or lack instruments claudius gained after they were installed: a line that says
+/// so, and a button that downloads them
 pub fn missing_packs(ui: &mut Ui, cx: &mut Cx) {
     let Some(list) = cx.sounds else { return };
-    let missing: Vec<&claudius_api::PackInfo> = list.packs.iter().filter(|p| p.default && !p.installed).collect();
-    if missing.is_empty() {
+    let wanted: Vec<&claudius_api::PackInfo> = list.packs.iter().filter(|p| p.default && p.wanted()).collect();
+    if wanted.is_empty() {
         return;
     }
     let downloading = cx.state.busy.as_deref().is_some_and(|b| b.starts_with("downloading"));
-    let gb = missing.iter().map(|p| p.size_mb).sum::<f64>() / 1000.0;
+    let absent = wanted.iter().filter(|p| !p.installed).count();
+    let lacking: usize = wanted.iter().map(|p| p.lacks.len()).sum();
     ui.add_space(8.0);
     ui.vertical_centered(|ui| {
-        ui.label(
-            RichText::new(format!(
-                "{} of the default sample packs are not installed, so their instruments are synthesized.",
-                missing.len()
-            ))
-            .color(theme::TEXT_DIM),
-        );
-        let button = egui::Button::new(format!("Download the packs ({gb:.1} GB)"));
+        ui.label(RichText::new(packs_wanted(absent, lacking)).color(theme::TEXT_DIM));
+        let size = download_size(wanted.iter().map(|p| p.download_mb()).sum());
+        let what = if absent > 0 { "the packs" } else { "the instruments" };
+        let button = egui::Button::new(format!("Download {what} ({size})"));
         if ui.add_enabled(!downloading, button).on_disabled_hover_text("downloading…").clicked() {
             cx.out.push(Command::InstallPacks { names: Vec::new() });
         }
     });
     ui.add_space(8.0);
+}
+
+/// what `missing_packs` says: `absent` default packs not installed, `lacking` instruments the installed ones lack
+fn packs_wanted(absent: usize, lacking: usize) -> String {
+    let (instruments, are, they) = if lacking == 1 {
+        ("1 instrument".to_string(), "is", "it is")
+    } else {
+        (format!("{lacking} instruments"), "are", "they are")
+    };
+    match (absent, lacking) {
+        (a, 0) => format!("{a} of the default sample packs are not installed, so their instruments are synthesized."),
+        (0, _) => format!(
+            "{instruments} added to the sample packs since you installed them {are} not downloaded, so {they} \
+             synthesized."
+        ),
+        (a, _) => format!(
+            "{a} of the default sample packs are not installed, and {instruments} added to the others since {are} \
+             not downloaded, so they are synthesized."
+        ),
+    }
+}
+
+/// a download's size as a person reads it: in GB from one, else in MB
+fn download_size(mb: f64) -> String {
+    if mb >= 1000.0 { format!("{:.1} GB", mb / 1000.0) } else { format!("{:.0} MB", mb.max(1.0)) }
 }
 
 /// A sound a track may swap to, as a person reads it: a kit by its name, a synthesized drum by its tuning, an
@@ -1529,5 +1552,25 @@ mod tests {
             matches!(d.due(&state, 12.0, 300.0), Due::Off(why) if why.contains("another song")),
             "a newer render, of another song"
         );
+    }
+
+    #[test]
+    fn the_packs_line_says_what_is_not_downloaded_and_how_much_downloading_it_takes() {
+        assert_eq!(
+            packs_wanted(8, 0),
+            "8 of the default sample packs are not installed, so their instruments are synthesized."
+        );
+        assert_eq!(
+            packs_wanted(0, 1),
+            "1 instrument added to the sample packs since you installed them is not downloaded, so it is synthesized."
+        );
+        assert_eq!(
+            packs_wanted(2, 22),
+            "2 of the default sample packs are not installed, and 22 instruments added to the others since are not \
+             downloaded, so they are synthesized."
+        );
+        assert_eq!(download_size(3240.0), "3.2 GB");
+        assert_eq!(download_size(31.4), "31 MB");
+        assert_eq!(download_size(0.2), "1 MB");
     }
 }

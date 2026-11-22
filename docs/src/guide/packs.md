@@ -88,6 +88,11 @@ system's `tar` (or `unzip`). Each file downloads to a `.part` file, is checked a
 renamed into place, so an interrupted install resumes where it stopped: run the same command again. Installing a
 pack that is already there downloads only what is missing and deletes files its index no longer uses.
 
+A later claudius can add instruments to a pack (FreePats's distorted guitar came after the pack's first release). A
+pack installed before lacks them, and a synth plays their parts until it is installed again: `claudius-packs list`
+shows it as `lacks N`, `claudius doctor` names what it lacks, and `claudius setup`, the studio's **Download the
+instruments** and `install_packs` fetch only those instruments.
+
 Listing a repository uses GitHub's API, which allows 60 requests an hour without an account. If an install fails
 with `set GITHUB_TOKEN if the API rate limit was hit`, set `GITHUB_TOKEN` (or `GH_TOKEN`) to any GitHub token and run
 it again.

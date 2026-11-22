@@ -243,6 +243,8 @@ mod tests {
             warning: None,
             user,
             instruments: 1,
+            lacks: Vec::new(),
+            update_mb: 0.0,
         }
     }
 
