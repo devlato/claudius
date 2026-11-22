@@ -9,16 +9,16 @@ use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, StrokeK
 use super::{Cx, empty, layer_color, page_frame};
 use crate::cmds::MixEdit;
 use crate::theme::{self, LINE, LINE_SOFT, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
-use crate::widgets::{self, commit};
+use crate::widgets::{self, Icon, commit};
 
 /// wide enough for three knobs in a row
 const STRIP_W: f32 = 96.0;
 /// the master strip's width, its frame's margins with it
 const MASTER_W: f32 = 122.0;
 
-/// the height a strip needs for its name, two rows of knobs, a short fader and its buttons: under the dock's own, so
-/// that a strip stands whole in it and its fader takes what is left
-const STRIP_MIN_H: f32 = 200.0;
+/// the height a strip needs for its name, a row of knobs, a short fader and the row of its buttons and level: under the
+/// dock's own, so that a strip stands whole in it and its fader takes what is left
+const STRIP_MIN_H: f32 = 186.0;
 
 /// the render's peak envelope at `t` in dB, and its average
 pub(crate) fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
@@ -146,21 +146,24 @@ fn strip(
                 ui.multiply_opacity(0.45);
             }
             let dim = t.muted || silenced;
-            ui.vertical_centered(|ui| {
-                ui.label(RichText::new(&t.name).strong().size(12.5).color(if dim { TEXT_FAINT } else { TEXT }))
-                    .on_hover_text(format!(
-                        "plays {}\na {} track, mixed as a {}",
-                        words::sound_in_words(&t.sound),
-                        t.kind,
-                        t.role
-                    ));
-                let what = if silenced {
-                    "silent: another track is soloed".to_string()
-                } else {
-                    format!("{} · {}", t.kind, t.role)
-                };
-                ui.label(RichText::new(what).size(9.5).color(if t.solo { theme::SOLO } else { TEXT_FAINT }));
+            // the strip's head: what the track is, as the arrangement's rows show it, and its name; what it plays and how
+            // it is mixed on hover, and a word under it only while another track's solo silences it
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                let (tile, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
+                let ink: Color32 = if dim { TEXT_FAINT.into() } else { color };
+                widgets::paint_icon(ui.painter(), tile, Icon::of_track(&t.kind, &t.role), ink);
+                let name = RichText::new(&t.name).strong().size(12.5).color(if dim { TEXT_FAINT } else { TEXT });
+                ui.add(egui::Label::new(name).truncate()).on_hover_text(format!(
+                    "plays {}\na {} track, mixed as a {}",
+                    words::sound_in_words(&t.sound),
+                    t.kind,
+                    t.role
+                ));
             });
+            if silenced {
+                ui.label(RichText::new("silent: another track is soloed").size(9.5).color(theme::SOLO));
+            }
             let pct = |v: f32| format!("{:.0}%", v * 100.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
@@ -194,7 +197,7 @@ fn strip(
             });
             // the fader takes what the strip has left over its level and its buttons, as tall as the duck and the drive
             // beside it at least
-            let fader_h = (ui.available_height() - 44.0).clamp(78.0, 300.0);
+            let fader_h = (ui.available_height() - 28.0).clamp(78.0, 320.0);
             ui.horizontal_top(|ui| {
                 ui.spacing_mut().item_spacing.x = 3.0;
                 let r = widgets::fader(ui, &mut t.level_db, -36.0..=12.0, fader_h, color, !t.muted);
@@ -232,33 +235,33 @@ fn strip(
                     }
                 });
             });
-            ui.vertical_centered(|ui| {
-                ui.label(RichText::new(format!("{:+.1} dB", t.level_db)).monospace().size(11.0).color(if dim {
-                    TEXT_FAINT
-                } else {
-                    TEXT
-                }))
-                .on_hover_text("its level: how much louder or quieter it is than tracks of its role are mixed at");
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    let w = (STRIP_W - 24.0) / 2.0;
-                    if toggle(ui, t.muted, "M", theme::alpha(theme::BAD, 0.85), w, "mute").clicked() {
-                        t.muted = !t.muted;
-                        out.push(MixEdit { muted: Some(t.muted), ..Default::default() }.on(&t.name));
-                    }
-                    if toggle(
-                        ui,
-                        t.solo,
-                        "S",
-                        theme::SOLO,
-                        w,
-                        "solo: while any track is soloed, only soloed tracks are arranged, rendered and judged",
-                    )
-                    .clicked()
-                    {
-                        t.solo = !t.solo;
-                        out.push(MixEdit { solo: Some(t.solo), ..Default::default() }.on(&t.name));
-                    }
+            // its foot: mute and solo, and its level, in one row under the fader
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 3.0;
+                if toggle(ui, t.muted, "M", theme::alpha(theme::BAD, 0.85), 22.0, "mute").clicked() {
+                    t.muted = !t.muted;
+                    out.push(MixEdit { muted: Some(t.muted), ..Default::default() }.on(&t.name));
+                }
+                if toggle(
+                    ui,
+                    t.solo,
+                    "S",
+                    theme::SOLO,
+                    22.0,
+                    "solo: while any track is soloed, only soloed tracks are arranged, rendered and judged",
+                )
+                .clicked()
+                {
+                    t.solo = !t.solo;
+                    out.push(MixEdit { solo: Some(t.solo), ..Default::default() }.on(&t.name));
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(RichText::new(format!("{:+.1} dB", t.level_db)).monospace().size(11.0).color(if dim {
+                        TEXT_FAINT
+                    } else {
+                        TEXT
+                    }))
+                    .on_hover_text("its level: how much louder or quieter it is than tracks of its role are mixed at");
                 });
             });
         })
