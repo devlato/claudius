@@ -6,6 +6,31 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-22
+
+### Added
+
+- genres: A drum lane can drift from bar to bar as a drummer's does, and play its ghost notes on the steps a style names; neither by default ([#408](https://github.com/devlato/claudius/pull/408))
+- genres: House as it is made now: a DJ intro, an element every eight bars, its own hats and claps, swing, and chords on piano and organ ([#409](https://github.com/devlato/claudius/pull/409))
+- audio: Claudius reads Opus recordings itself, in Ogg, WebM or MP4, so every format it exports opens as a source ([#410](https://github.com/devlato/claudius/pull/410))
+- genres: Hip hop's drums are played on drum machines, the TR-808 and uzu's kit, in place of synthesized drums ([#411](https://github.com/devlato/claudius/pull/411))
+- genres: Techno with its rumble under the kick, and its builds swept by filters rather than snare rolls ([#412](https://github.com/devlato/claudius/pull/412))
+- mix: An effect can be switched off in its chain, kept in its place with all its settings and not heard ([#414](https://github.com/devlato/claudius/pull/414))
+- ui: The signal flow as the song's lanes: each track through its effects as blocks that show what they do, zoomed and panned, everything edited where it is ([#415](https://github.com/devlato/claudius/pull/415))
+- genres: R&B as a band plays it now: 84 to 108 BPM, a live kit beside the 808, a finger bass on neo-soul and funk lines ([#420](https://github.com/devlato/claudius/pull/420))
+
+### Fixed
+
+- remix: In the web studio, a sung hook a little outside a genre's tempo plays at its own speed, which a sampler meets, not at the range's edge ([#417](https://github.com/devlato/claudius/pull/417))
+- analysis: A recording heard whole keeps its bars on the beat through a band's riffs and drift, and starts them on its downbeat more often ([#418](https://github.com/devlato/claudius/pull/418))
+- genres: The genre benchmark's beats are heard with the stems' model downloaded when missing, and the beat's change says it needs eight pairs at both lags ([#419](https://github.com/devlato/claudius/pull/419))
+- packs: A pack installed before claudius gained instruments in it says what it lacks, and downloading fetches only those ([#422](https://github.com/devlato/claudius/pull/422))
+- genres: A slow jam is 90s R&B, now that R&B is played mid-tempo by a band ([#423](https://github.com/devlato/claudius/pull/423))
+
+### Documentation
+
+- site: The landing page leads with what claudius does that no DAW does ([#425](https://github.com/devlato/claudius/pull/425))
+
 ## [0.14.0] - 2026-11-21
 
 A song saved from the demo is a project file of its own, `Song.claudius`, in place of a `.zip`: Safari unpacked the zip
@@ -1382,7 +1407,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.14.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/devlato/claudius/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/devlato/claudius/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/devlato/claudius/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/devlato/claudius/compare/v0.12.0...v0.12.1

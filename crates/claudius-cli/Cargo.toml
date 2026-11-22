@@ -36,7 +36,7 @@ sha2 = "0.11"
 zip = { version = "9", default-features = false }
 serde_json = { version = "1", features = ["preserve_order"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
-claudius-decode = { version = "0.14.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.15.0", path = "../claudius-decode" }
 
 # the files a Mac asks the app to open (a project double-clicked in the Finder), which winit does not pass on
 [target.'cfg(target_os = "macos")'.dependencies]
