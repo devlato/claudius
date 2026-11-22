@@ -3,7 +3,6 @@
 
 pub mod arrange;
 pub mod assistants;
-pub mod board;
 pub mod chat;
 pub mod graph;
 pub mod harmony;
@@ -11,6 +10,7 @@ pub mod hears;
 pub mod import;
 pub mod inspector;
 pub mod keys;
+pub mod lanes;
 pub mod library;
 pub mod log;
 pub mod markdown;

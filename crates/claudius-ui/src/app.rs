@@ -601,7 +601,8 @@ impl Studio {
         if self.view.new_song.open || self.view.change_genre.open {
             return;
         }
-        let free = !menu && focused.is_none();
+        // the arrangement's keys only while it is the view shown: the signal flow and the script have their own
+        let free = !menu && focused.is_none() && self.view.main == panels::Main::Arrangement;
         let (left, right, up, down) = ctx.input_mut(|i| {
             (
                 free && i.consume_key(Modifiers::NONE, Key::ArrowLeft),

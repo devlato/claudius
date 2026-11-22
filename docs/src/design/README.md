@@ -33,6 +33,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0022 A song's own sections](0022-a-songs-own-sections.md) | accepted: the analysis finds a song's sections where they start, to the bar and at any length, names each for what it is by what repeats and what is sung, gives the music each plays a letter, and says where a build resolves and where a piece is best cut |
 | [0023 The live mix, first by windows](0023-the-live-mix-by-windows.md) | accepted: while the song plays, windows of it as it is now, mixed by the server from the tracks the last render kept, play in the render's place from just after the playhead, so a fader is heard as it moves; the runtime of 0019 replaces them later |
 | [0024 The radio in the app](0024-the-radio-in-the-app.md) | accepted: the station planned by shared Rust code, its songs written by an engine of its own on a thread, each change from one song to the next rendered as audio and played as one stream |
+| [0025 The signal flow as the song's lanes](0025-the-signal-flow-as-lanes.md) | accepted: each track a lane the sound runs through left to right, its effects as blocks that show what they do, zoomed and panned and edited where they are; an effect switched off is wrapped as `off`, keeping its place and settings |
 
 ## The format
 
