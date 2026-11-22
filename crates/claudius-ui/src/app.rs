@@ -1406,11 +1406,15 @@ impl eframe::App for Studio {
                 server: self.server_url.as_deref(),
                 now,
             };
-            egui::Panel::top("transport").frame(bar).exact_size(58.0).show_separator_line(false).show(ui, |ui| {
-                #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
-                title_bar(ui);
-                panels::transport::top_row(ui, &mut cx)
-            });
+            egui::Panel::top("transport")
+                .frame(bar)
+                .exact_size(panels::transport::TOP_BAR)
+                .show_separator_line(false)
+                .show(ui, |ui| {
+                    #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+                    title_bar(ui);
+                    panels::transport::top_row(ui, &mut cx)
+                });
             let tools = egui::Frame::new()
                 .fill(theme::mix(PANEL, BG, 0.35))
                 .inner_margin(Margin::symmetric(12, 0))

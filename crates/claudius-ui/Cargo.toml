@@ -55,6 +55,10 @@ souvlaki = { version = "0.9", default-features = false, features = ["use_zbus"] 
 env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
 rodio = { version = "0.23", default-features = false, features = ["playback"] }
 
+# the window's own buttons on the line of the top bar, which is the window's title bar on a Mac
+[target.'cfg(target_os = "macos")'.dependencies]
+claudius-macos = { path = "../claudius-macos" }
+
 # the window's handle, which the media keys need on Windows
 [target.'cfg(target_os = "windows")'.dependencies]
 raw-window-handle = "0.6"

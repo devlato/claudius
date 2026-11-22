@@ -64,10 +64,16 @@ pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn
         .with_inner_size([1600.0, 1000.0])
         .with_min_inner_size([1100.0, 680.0]);
     // On a Mac the studio's top bar is the window's title bar: the window's content runs up under a title bar with
-    // nothing drawn or written in it, and the window's own buttons sit at the top bar's left
-    // (`panels::transport::window_buttons`), which moves and zooms the window as a title bar does (`app::title_bar`).
+    // nothing drawn or written in it, and the window's own buttons sit at the top bar's left, on its middle line
+    // (`panels::transport::window_buttons`, `claudius_macos::window_buttons_at`), which moves and zooms the window as a
+    // title bar does (`app::title_bar`).
     #[cfg(target_os = "macos")]
     let viewport = viewport.with_fullsize_content_view(true).with_title_shown(false).with_titlebar_shown(false);
+    #[cfg(target_os = "macos")]
+    claudius_macos::window_buttons_at(
+        f64::from(panels::transport::TOP_BAR) / 2.0,
+        f64::from(panels::transport::BUTTONS_LEFT),
+    );
     let options = eframe::NativeOptions { viewport, ..Default::default() };
     eframe::run_native(
         APP_NAME,

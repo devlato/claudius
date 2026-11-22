@@ -1,6 +1,6 @@
 [package]
 name = "claudius-macos"
-description = "What a Mac asks of the Claudius app that its window library does not pass on: the files to open"
+description = "What a Mac asks of the Claudius app that its window library does not pass on: the files to open, and where the window's buttons go"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,11 +15,21 @@ publish = false
 objc2 = "0.6.5"
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
+    "NSArray",
     "NSAppleEventDescriptor",
     "NSAppleEventManager",
+    "NSGeometry",
     "NSNotification",
     "NSObject",
     "NSString",
     "NSURL",
 ] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "NSApplication",
+    "NSButton",
+    "NSControl",
+    "NSResponder",
+    "NSView",
+    "NSWindow",
+] }
