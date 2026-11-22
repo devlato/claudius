@@ -53,7 +53,7 @@ impl Role {
         }
     }
 
-    fn named(name: &str) -> Option<Role> {
+    pub(crate) fn named(name: &str) -> Option<Role> {
         [Role::Phrase, Role::Break, Role::Texture, Role::Vocal, Role::Bass].into_iter().find(|r| r.noun() == name)
     }
 }
@@ -549,6 +549,23 @@ impl Sampler {
         Gathering { genre: genre.to_string(), asked, hunts, kept: Vec::new(), to_cut: Vec::new(), next: 1 }
     }
 
+    /// Starts gathering the recordings a song of `genre` was built on before, `given` with their roles (the radio's song,
+    /// handed over with what it sampled): each fetched and cut again, no search asked; one that does not come leaves its
+    /// role without.
+    pub fn given(&mut self, genre: &str, given: Vec<(Role, Found)>) -> Gathering {
+        let hunts = given
+            .into_iter()
+            .map(|(role, f)| Hunt {
+                role,
+                terms: Vec::new(),
+                seconds: (0.0, f64::MAX),
+                term: 0,
+                state: Step::Try(vec![f], 0),
+            })
+            .collect();
+        Gathering { genre: genre.to_string(), asked: None, hunts, kept: Vec::new(), to_cut: Vec::new(), next: 1 }
+    }
+
     /// moves the gathering on as far as what has arrived allows; returns what to log
     pub fn advance(&mut self, g: &mut Gathering, rng: &mut Rng) -> Vec<String> {
         let mut log = Vec::new();
@@ -688,6 +705,42 @@ pub mod tests {
             }
         }
         (g, sent)
+    }
+
+    #[test]
+    fn recordings_handed_over_are_fetched_and_cut_again_without_a_search() {
+        let mut s = Sampler::by_hand();
+        let mut rng = Rng::new(5);
+        let given =
+            vec![(Role::Break, found("7", "Funk Break", 6.0, &[])), (Role::Phrase, found("8", "Old Soul", 30.0, &[]))];
+        let mut g = s.given("trip_hop", given);
+        let mut sent = Vec::new();
+        for _ in 0..10 {
+            s.advance(&mut g, &mut rng);
+            let asked = s.pending();
+            assert!(asked.iter().all(|a| a.starts_with("audio:")), "no search: {asked:?}");
+            for a in asked {
+                let a = a.strip_prefix("audio:").unwrap().to_string();
+                s.arrive_audio(&a, Ok(a.as_bytes().to_vec()));
+            }
+            s.poll();
+            for c in g.take_cuts() {
+                sent.push(c.recording);
+                g.answer(c.id, Ok(serde_json::json!({ "path": "demo:x" })));
+            }
+            if g.done() {
+                break;
+            }
+        }
+        assert!(g.done());
+        let ids: Vec<(&str, &str)> =
+            sent.iter().map(|r| (r["role"].as_str().unwrap(), r["found"]["id"].as_str().unwrap())).collect();
+        assert_eq!(
+            ids,
+            [("break", "freesound:7"), ("phrase", "freesound:8")],
+            "the recordings given, each in its role"
+        );
+        assert_eq!(g.kept(Role::Phrase).map(|f| f.title.as_str()), Some("Old Soul"));
     }
 
     #[test]

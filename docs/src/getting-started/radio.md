@@ -1,9 +1,10 @@
 # Infinite Radio
 
 [Infinite Radio](https://claudius.devlato.com/radio/) is a station of songs claudius writes as it plays them, one
-genre after another, each mixed into the next as a DJ mixes records. Nothing on it is recorded: the engine of the
+genre after another, each mixed into the next as a DJ mixes records. Nothing on it is prerecorded: the engine of the
 [studio demo](studio.md) writes and renders every song in the page, while the one before it plays, and the page plays
-them on two decks of its own (Web Audio).
+them on two decks of its own (Web Audio). A song of a genre built on samples plays recordings from free libraries, as
+the genre's producers dig for records ([below](#samples)).
 
 ## What it plays
 
@@ -50,8 +51,20 @@ starts on its genres. Opening the list before tuning in starts the engine, which
 - **Download this song** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo
   exports), and saves it.
 - **Open it in the studio** opens the [studio demo](studio.md#carrying-on-in-claudius) on the same song, which its
-  engine writes again from what the station asked for: its genre, seed, tempo and key. There every part of it can be
-  changed, sampled, exported or carried on in claudius.
+  engine writes again from what the station asked for: its genre, seed, tempo and key, and the recordings it sampled,
+  which the studio fetches and cuts again before it writes the song. There every part of it can be changed, sampled,
+  exported or carried on in claudius.
+
+## Samples
+
+The station samples as each genre does. Before the engine writes a song of a genre built on samples (trip hop, boom
+bap, lo-fi, phonk and the others whose producers dig for records), the page looks for a few recordings through the
+site's search of Freesound, Jamendo and Wikimedia Commons (under CC0 or CC BY, as the studio demo does): two of each of
+the genre's searches for each part it samples, in an order of the song's own. The engine chooses which of each search's
+finds are worth fetching (of a length the part takes, and none whose own words say it was cut from someone's record),
+and cuts them; the song is written on those it cut, for up to 45 seconds while the song before plays (20 for the first,
+which you wait for). A part nothing is found for goes without, and with no search at all the song plays what stands in
+for samples in its genre. What a song samples is credited under it while it is on air.
 
 ## In the app
 
@@ -62,14 +75,14 @@ the song on air the studio's, the very song you heard (undo brings back the song
 turns: playing one pauses the other. It plays on while its window is closed
 ([design 0024](../design/0024-the-radio-in-the-app.md)).
 
-In the app the station samples as each genre does. A song of a genre built on samples (trip hop, boom bap, lo-fi, phonk
-and the others whose producers dig for records) plays recordings as the studio's songs do: those gathered on this
-computer, and a few more the radio finds in the free libraries before it writes the song, for up to a minute while the
-song before plays (20 seconds for the first song, which you wait for). With no internet it plays what it has gathered,
+In the app the station samples as the studio's songs do: on the recordings gathered on this computer, and a few more
+the radio finds in the free libraries before it writes the song, for up to a minute while the song before plays (20
+seconds for the first song, which you wait for). With no internet it plays what it has gathered,
 or what stands in for samples in its genre. What a song samples is credited under it while it is on air, and **Save
 this song** writes the credits beside the MP3 (`<title>.credits.txt`), as the licences of the recordings ask.
 
 The page is `site/radio/index.html` and `site/assets/radio.js`; it drives the engine as the studio demo does (the
 `new_song` command, the renders it sends back), and `site/tests/radio.spec.mjs` checks it goes on air and mixes a song
-into the next (`?soon` starts the first song 20 seconds before it gives way), and that a station kept to two genres
-plays only them, hands its song over as an MP3, links it to the studio and skips to the next.
+into the next (`?soon` starts the first song 20 seconds before it gives way), that a station kept to two genres plays
+only them, hands its song over as an MP3, links it to the studio and skips to the next, and that a trip hop song finds
+its recordings through the search (a stand-in answers it), credits them on air and hands them to the studio.

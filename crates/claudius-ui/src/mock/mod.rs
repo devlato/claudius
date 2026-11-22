@@ -122,18 +122,19 @@ fn demo_release() -> ReleaseView {
 }
 
 /// The demo's first song: the one the page's address names, as the radio opens a song it plays in the studio
-/// (`?mock&genre=house&seed=12&bpm=124&key=A+minor&sampled=0`), else `FIRST`.
-fn opening() -> Command {
+/// (`?mock&genre=house&seed=12&bpm=124&key=A+minor&sampled=0`), with the recordings it sampled when it did
+/// (`&sampled=1&recordings=[...]`), else `FIRST`.
+fn opening() -> (Command, Vec<(sample::Role, sample::Found)>) {
     #[cfg(target_arch = "wasm32")]
-    if let Some(asked) = web_sys::window()
+    if let Some(p) = web_sys::window()
         .and_then(|w| w.location().search().ok())
         .and_then(|q| web_sys::UrlSearchParams::new_with_str(&q).ok())
-        .and_then(|p| asked_song(|k| p.get(k)))
+        && let Some(asked) = asked_song(|k| p.get(k))
     {
-        return asked;
+        return (asked, asked_recordings(|k| p.get(k)));
     }
     let (genre, seed) = FIRST;
-    Command::NewSong {
+    let first = Command::NewSong {
         genre: genre.into(),
         seed: Some(seed),
         bpm: None,
@@ -142,7 +143,30 @@ fn opening() -> Command {
         sampled: None,
         sample_search: None,
         complexity: None,
+    };
+    (first, Vec::new())
+}
+
+/// The recordings an address hands the demo to build its first song on (`recordings`, as the radio links a song it
+/// played: a list of each with its role and the search's record of it), at most eight; none when it names none, or
+/// none the demo can read.
+#[cfg(any(target_arch = "wasm32", test))]
+fn asked_recordings(get: impl Fn(&str) -> Option<String>) -> Vec<(sample::Role, sample::Found)> {
+    #[derive(serde::Deserialize)]
+    struct Given {
+        role: String,
+        found: sample::Found,
     }
+    let Some(text) = get("recordings").filter(|t| t.len() <= 16_000) else { return Vec::new() };
+    serde_json::from_str::<Vec<serde_json::Value>>(&text)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| {
+            let g: Given = serde_json::from_value(v).ok()?;
+            Some((sample::Role::named(&g.role)?, g.found))
+        })
+        .take(8)
+        .collect()
 }
 
 /// The song an address asks the demo to open first, by what `get` finds in it: its genre (or a fusion, `trip_hop+idm`,
@@ -174,16 +198,15 @@ impl Mock {
     /// starts the engine, which makes the demo's first song; `ctx` is woken when the engine or the sampler says
     /// something
     pub fn new(ctx: Option<egui::Context>) -> Mock {
-        let mut engine = Link::new(ctx.clone());
-        engine.command(OPENING, &opening());
-        Mock {
-            engine,
+        let (first, given) = opening();
+        let mut mock = Mock {
+            engine: Link::new(ctx.clone()),
             state: State::default(),
             release: demo_release(),
             said: vec!["claudius demo: the engine runs in this page, and nothing is kept".into()],
             events: Vec::new(),
             audio: None,
-            waiting: 1,
+            waiting: 0,
             sampler: sample::Sampler::new(ctx.clone()),
             library: None,
             sampling: None,
@@ -198,7 +221,19 @@ impl Mock {
             encode_id: 0,
             finding: meaning::Finding::default(),
             hearing: None,
+        };
+        // a song the radio played, handed over with the recordings it sampled: those are cut again before it is made
+        match &first {
+            Command::NewSong { genre, .. } if !given.is_empty() && mock.sampler.on() => {
+                let genre = genre.clone();
+                mock.gather_given(&genre, given, first);
+            }
+            _ => {
+                mock.engine.command(OPENING, &first);
+                mock.waiting = 1;
+            }
         }
+        mock
     }
 
     /// waiting for the engine or the sampler
@@ -414,6 +449,18 @@ impl Mock {
         );
         self.say(msg.clone());
         msg
+    }
+
+    /// starts gathering the recordings `given` (the radio's song and those it sampled) for the song `song` makes once
+    /// they are cut, no search asked
+    fn gather_given(&mut self, genre: &str, given: Vec<(sample::Role, sample::Found)>, song: Command) {
+        let n = given.len();
+        let gathering = self.sampler.given(genre, given);
+        let rng = Rng::new(self.rng.next());
+        self.sampling =
+            Some(Sampling { gathering, started: self.now, rng, genre: genre.to_string(), song, superseded: None });
+        let what = if n == 1 { "recording" } else { "recordings" };
+        self.say(format!("the {genre} song the radio played: its {n} {what} cut again first, then the song written"));
     }
 
     /// the gathering is done: the engine has cut what it found, and makes the song asked for, built on it
@@ -783,6 +830,26 @@ mod tests {
         assert!(asked_song(|k| get(&none, k)).is_none());
         let odd: std::collections::BTreeMap<&str, &str> = [("genre", "<script>")].into();
         assert!(asked_song(|k| get(&odd, k)).is_none());
+    }
+
+    #[test]
+    fn an_address_hands_over_the_recordings_the_radios_song_sampled_each_with_its_role() {
+        let f = |id: &str, title: &str| sample::tests::found(id, title, 6.0, &["drums"]);
+        let given = serde_json::json!([
+            {"role": "break", "found": {"id": "freesound:7", "provider": "freesound", "title": "Funk Break", "creator": "someone",
+                "license": "by", "license_version": "4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                "page": "https://freesound.org/s/7/", "audio": "audio/1/7_1.ogg", "ext": "wav", "seconds": 6.0, "tags": ["drums"]}},
+            {"role": "phrase", "found": {"id": "freesound:8", "provider": "freesound", "title": "Old Soul", "creator": "someone",
+                "license": "by", "license_version": "4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                "page": "https://freesound.org/s/8/", "audio": "audio/1/8_1.ogg", "ext": "wav", "seconds": 6.0, "tags": ["drums"]}},
+            {"role": "a role no song has", "found": {}}
+        ])
+        .to_string();
+        let got = asked_recordings(|k| (k == "recordings").then(|| given.clone()));
+        let want = vec![(sample::Role::Break, f("7", "Funk Break")), (sample::Role::Phrase, f("8", "Old Soul"))];
+        assert_eq!(got, want, "each with its role, in order; one the demo cannot read is left out");
+        assert!(asked_recordings(|_| None).is_empty());
+        assert!(asked_recordings(|_| Some("not a list".into())).is_empty());
     }
 
     #[test]

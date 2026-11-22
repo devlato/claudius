@@ -211,6 +211,21 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         }
         return;
     }
+    // the radio's page samples as the studio demo does: which of a search's finds are worth fetching for a role, and
+    // after a song, the recordings it plays, which it credits
+    if let Some(ask) = v.get("choose") {
+        let results = ask["results"].as_array().cloned().unwrap_or_default();
+        let (genre, role) = (ask["genre"].as_str().unwrap_or_default(), ask["role"].as_str().unwrap_or_default());
+        let chosen = claudius_session::host::worth_trying(genre, role, &results);
+        post(&engine.borrow().scope, &serde_json::json!({ "chosen": { "id": ask["id"], "recordings": chosen } }), None);
+        return;
+    }
+    if let Some(ask) = v.get("sampled_from") {
+        let e = engine.borrow();
+        let found = e.host.sampled_from();
+        post(&e.scope, &serde_json::json!({ "sampled_from": { "id": ask["id"], "found": found } }), None);
+        return;
+    }
     if let Some(r) = v.get("recording") {
         let id = v["id"].as_u64().unwrap_or(0);
         let bytes = js_sys::Reflect::get(&data, &"bytes".into())
