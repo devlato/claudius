@@ -77,6 +77,15 @@ impl Lane {
         PAD + SOURCE_W
     }
 
+    /// what choosing effect `i`'s block chooses: the effect, as the graph names it, or a return itself, whose one effect
+    /// the inspector opens with it (a send's chain is not a node of its own)
+    fn block_id(&self, i: usize) -> String {
+        match self.kind {
+            LaneKind::Return(_) => self.node.clone(),
+            _ => format!("{}#{i}", self.chain.target()),
+        }
+    }
+
     /// effect `i`'s block
     fn block(&self, i: usize) -> Rect {
         let x = self.chain_x() + SLOT_W + i as f32 * (BLOCK_W + SLOT_W);
@@ -443,6 +452,7 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
 
     let resp = ui.interact(canvas, id, Sense::click_and_drag());
     let focused = ui.memory(|m| m.has_focus(id));
+    let chosen_before = cx.view.graph.selected.clone();
     if resp.clicked() || resp.drag_started() {
         ui.memory_mut(|m| m.request_focus(id));
         cx.view.graph.selected = None;
@@ -517,6 +527,10 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
         land(cx, song, &lanes, &map, d);
     }
     headers(ui, cx, song, &map, &lanes, canvas);
+    // a block or a lane's name clicked takes the keys too, as the background does: else they went to the arrangement
+    if cx.view.graph.selected != chosen_before && cx.view.graph.selected.is_some() {
+        ui.memory_mut(|m| m.request_focus(id));
+    }
     if focused {
         keys(ui, cx, song, &lanes, cols.world, view, origin);
     }
@@ -769,7 +783,7 @@ fn chain(ui: &mut Ui, cx: &mut Cx, song: &SongView, map: &Map, lane: &Lane, lane
         if !r.intersects(ui.clip_rect()) {
             continue;
         }
-        let node = format!("{}#{i}", lane.chain.target());
+        let node = lane.block_id(i);
         let sense = if lane.editable() { Sense::click_and_drag() } else { Sense::click() };
         let resp = ui.interact(r, ui.scope_id().with(("flow-block", &node)), sense);
         let chosen = cx.view.graph.selected.as_deref() == Some(node.as_str());
@@ -1192,7 +1206,7 @@ fn strip(ui: &mut Ui, cx: &mut Cx, song: &SongView, map: &Map, lane: &Lane, cols
             }
             let lr = ui.put(
                 Rect::from_min_size(r.min + vec2(8.0, 10.0 * k), vec2(r.width() - 16.0, 20.0 * k)),
-                egui::DragValue::new(&mut lufs).speed(0.1).range(-24.0..=-6.0).fixed_decimals(1).suffix(" LUFS"),
+                egui::DragValue::new(&mut lufs).speed(0.1).range(-24.0..=-5.0).fixed_decimals(1).suffix(" LUFS"),
             );
             let lr = lr.on_hover_text("how loud the finished song is made: drag, or double-click to type");
             let cr = ui.put(
@@ -1453,7 +1467,7 @@ fn keys(ui: &mut Ui, cx: &mut Cx, _song: &SongView, lanes: &[Lane], world: Vec2,
     });
     let id_of = |li: usize, i: Option<usize>| -> String {
         match i {
-            Some(i) => format!("{}#{i}", lanes[li].chain.target()),
+            Some(i) => lanes[li].block_id(i),
             None => lanes[li].node.clone(),
         }
     };
@@ -1576,6 +1590,21 @@ mod tests {
     }
 
     /// Zooming keeps the world's point under the pointer where it was, at every zoom, and stops at the zoom's ends.
+    #[test]
+    fn a_returns_block_chooses_the_return_which_the_inspector_opens_and_an_effects_block_the_effect() {
+        let s = song();
+        let graph = s.graph();
+        let lanes = lanes(&s, &graph);
+        let reverb = lanes.iter().find(|l| matches!(&l.kind, LaneKind::Return(n) if n == "reverb")).unwrap();
+        // a send's chain is no node of the graph: its one effect is chosen as the return itself
+        assert_eq!(reverb.block_id(0), "return:reverb");
+        assert!(graph.nodes.iter().any(|n| n.id == "return:reverb"), "the lead sends to the reverb");
+        let track = lanes.iter().find(|l| matches!(l.kind, LaneKind::Track(_)) && !l.fx.is_empty()).unwrap();
+        let id = track.block_id(0);
+        assert_eq!(id, format!("{}#0", track.chain.target()));
+        assert!(graph.nodes.iter().any(|n| n.id == id), "{id} is a node of the graph");
+    }
+
     #[test]
     fn a_zoom_keeps_the_point_under_the_pointer_and_stays_in_its_range() {
         let origin = pos2(100.0, 50.0);
