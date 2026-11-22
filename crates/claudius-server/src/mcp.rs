@@ -2415,50 +2415,75 @@ mod tests {
         let quick = studio.bounded_for(Duration::from_millis(500), "`quick`".into(), async { Ok("done".into()) });
         assert_eq!(quick.await.unwrap(), "done");
         assert!(studio.pending_said().await.is_none(), "nothing goes on");
-        // work that goes on: the call says so, and status says how it goes, then gives its answer, once
-        let slow = studio.bounded_for(Duration::from_millis(50), "`remake`".into(), async {
-            tokio::time::sleep(Duration::from_millis(400)).await;
+        // work that goes on: the call says so, and status says how it goes, then gives its answer, once (the work is
+        // held until the test lets it go, so that a slow computer cannot finish it within its call)
+        let (go, held) = tokio::sync::oneshot::channel::<()>();
+        let slow = studio.bounded_for(Duration::from_millis(50), "`remake`".into(), async move {
+            let _ = held.await;
             Ok("remade song.mp3 as house".into())
         });
         let said = slow.await.unwrap();
         assert!(said.starts_with("`remake` is still going after 0 s") && said.contains("Call status"), "{said}");
         let going = studio.status().await.unwrap();
         assert!(going.starts_with("`remake` is still going (0 s so far)\nidle"), "{going}");
-        tokio::time::sleep(Duration::from_millis(600)).await;
+        go.send(()).unwrap();
+        finished(&studio, "`remake`").await;
         let done = studio.status().await.unwrap();
         assert!(done.starts_with("`remake` is done:\nremade song.mp3 as house\n\nidle"), "{done}");
         assert!(!studio.status().await.unwrap().contains("remade"), "given once");
         // and work that fails says why
-        let failing = studio.bounded_for(Duration::from_millis(10), "`analyze`".into(), async {
-            tokio::time::sleep(Duration::from_millis(100)).await;
+        let (go, held) = tokio::sync::oneshot::channel::<()>();
+        let failing = studio.bounded_for(Duration::from_millis(10), "`analyze`".into(), async move {
+            let _ = held.await;
             Err("cannot open song.mp3".into())
         });
         assert!(failing.await.is_ok(), "the call itself answers");
-        tokio::time::sleep(Duration::from_millis(400)).await;
+        go.send(()).unwrap();
+        finished(&studio, "`analyze`").await;
         let failed = studio.status().await.unwrap();
         assert!(failed.starts_with("`analyze` is done:\nit failed: cannot open song.mp3"), "{failed}");
+    }
+
+    /// waits until the work a bounded call left going as `what` has finished, without taking its answer
+    async fn finished(studio: &Studio, what: &str) {
+        for _ in 0..2000 {
+            if studio.pending.lock().unwrap().iter().any(|p| p.what == what && p.task.is_finished()) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        panic!("{what} did not finish in 10 s");
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn two_calls_whose_work_outlasts_them_each_keep_their_answer_for_status() {
         let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
         let studio = Studio::new(Backend::Local { app, base: "http://127.0.0.1:0".into() });
-        let work = |ms: u64, answer: &'static str| async move {
-            tokio::time::sleep(Duration::from_millis(ms)).await;
-            Ok::<String, String>(answer.into())
+        // each piece of work held until the test lets it go, so that a slow computer cannot finish it within its call
+        let work = |answer: &'static str| {
+            let (go, held) = tokio::sync::oneshot::channel::<()>();
+            let work = async move {
+                let _ = held.await;
+                Ok::<String, String>(answer.into())
+            };
+            (go, work)
         };
-        let first = studio.bounded_for(Duration::from_millis(20), "`remake`".into(), work(150, "remade a.mp3"));
+        let (go_first, first) = work("remade a.mp3");
+        let first = studio.bounded_for(Duration::from_millis(20), "`remake`".into(), first);
         assert!(first.await.unwrap().starts_with("`remake` is still going"));
-        let second = studio.bounded_for(Duration::from_millis(20), "`sample_song`".into(), work(1500, "sampled b.mp3"));
+        let (go_second, second) = work("sampled b.mp3");
+        let second = studio.bounded_for(Duration::from_millis(20), "`sample_song`".into(), second);
         assert!(second.await.unwrap().starts_with("`sample_song` is still going"));
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        go_first.send(()).unwrap();
+        finished(&studio, "`remake`").await;
         // the first done, the second still going: both said, in the order they were called
         let one = studio.status().await.unwrap();
         assert!(
             one.starts_with("`remake` is done:\nremade a.mp3\n\n`sample_song` is still going ("),
             "the first answer is kept: {one}"
         );
-        tokio::time::sleep(Duration::from_millis(1500)).await;
+        go_second.send(()).unwrap();
+        finished(&studio, "`sample_song`").await;
         let two = studio.status().await.unwrap();
         assert!(two.starts_with("`sample_song` is done:\nsampled b.mp3\n\nidle"), "{two}");
         assert!(!two.contains("remade"), "each answer given once: {two}");
