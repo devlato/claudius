@@ -191,16 +191,24 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         if widgets::head(ui, "Publish") {
             p.open = false;
         }
-        ui.label(small(
-            "Spotify, Apple Music and the other stores take music from distributors. claudius checks the song the \
-             way they do, and writes the files and the answers a distributor's form asks for.",
-        ));
-        ui.add_space(10.0);
         let Some(release) = &release else {
             ui.label(RichText::new("Make a song first.").color(TEXT));
             close_row(ui, p);
             return;
         };
+        let title = if release.song_title.is_empty() { "The song".to_string() } else { release.song_title.clone() };
+        widgets::item_card(
+            ui,
+            Icon::Export,
+            &title,
+            "Spotify, Apple Music and the other stores take music from distributors. claudius checks the song the way \
+             they do, and writes the files and the answers a distributor's form asks for.",
+            |ui| {
+                let (words, color) = readiness(release, song_version);
+                widgets::pill(ui, &words, color);
+            },
+        );
+        ui.add_space(12.0);
         let mut send = false;
         let height = (ctx.content_rect().height() - 220.0).max(240.0);
         egui::ScrollArea::vertical().max_height(height).auto_shrink([false, true]).show(ui, |ui| {
@@ -209,9 +217,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 ui.add_space(16.0);
                 ui.vertical(|ui| send |= details(ui, &mut p.form, release));
             });
-            ui.add_space(12.0);
             send |= made(ui, &mut p.form, release);
-            ui.add_space(12.0);
             checks(ui, release, song_version);
         });
         if send && p.form.details() != release.details {
@@ -339,27 +345,57 @@ fn details(ui: &mut Ui, form: &mut Form, release: &ReleaseView) -> bool {
     left
 }
 
-/// how the song was made, which only the person can say; true when it changed
+/// how the song was made, which only the person can say, as a card for each answer; true when it changed
 fn made(ui: &mut Ui, form: &mut Form, release: &ReleaseView) -> bool {
-    widgets::heading(ui, "How was it made?");
+    widgets::part_head(ui, "How was it made?");
     ui.label(small("Distributors ask whether music is made with AI, and stores label it. Only you can answer."));
-    ui.add_space(4.0);
+    ui.add_space(6.0);
     let mut changed = false;
-    for (name, what) in &release.made_options {
-        let on = form.made.as_deref() == Some(name.as_str());
-        let text = RichText::new(what).size(12.5).color(if on { TEXT } else { TEXT_DIM });
-        if ui.radio(on, text).clicked() && !on {
-            form.made = Some(name.clone());
-            changed = true;
+    let n = release.made_options.len().max(1);
+    let gap = 8.0;
+    let w = (ui.available_width() - gap * (n - 1) as f32) / n as f32;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = gap;
+        for (i, (name, what)) in release.made_options.iter().enumerate() {
+            let on = form.made.as_deref() == Some(name.as_str());
+            let (title, about) = answer(what);
+            let icon = [Icon::Keys, Icon::Improve, Icon::Dice].get(i).copied().unwrap_or(Icon::Improve);
+            if widgets::option_card(ui, vec2(w, 96.0), on, icon, &title, &about).clicked() && !on {
+                form.made = Some(name.clone());
+                changed = true;
+            }
         }
-    }
+    });
     changed
+}
+
+/// an answer to how the song was made as a card shows it: what comes before its colon as the title, begun with a
+/// capital, and the rest under it ("you wrote it: the notes, ..." -> "You wrote it", "the notes, ...")
+fn answer(what: &str) -> (String, String) {
+    let (title, about) = what.split_once(": ").unwrap_or((what, ""));
+    let mut chars = title.chars();
+    let title = chars.next().map_or_else(String::new, |c| c.to_uppercase().chain(chars).collect());
+    (title, about.to_string())
+}
+
+/// how ready the song is for a distributor, in a few words and their colour: ready, what is left to fix, or that the
+/// checks wait for a render of the song as it is
+fn readiness(release: &ReleaseView, song_version: u64) -> (String, Color32) {
+    let problems = release.checks.iter().filter(|c| c.level == "problem").count();
+    if release.checked == 0 || release.checked < song_version {
+        ("checked once it is rendered".into(), TEXT_FAINT.into())
+    } else if release.ready {
+        ("ready for a distributor".into(), theme::GOOD.into())
+    } else if problems == 1 {
+        ("1 problem to fix".into(), theme::BAD.into())
+    } else {
+        (format!("{problems} problems to fix"), theme::BAD.into())
+    }
 }
 
 /// what stores and distributors would say, problems first
 fn checks(ui: &mut Ui, release: &ReleaseView, song_version: u64) {
-    widgets::heading(ui, "What stores would say");
-    ui.add_space(2.0);
+    widgets::part_head(ui, "What stores would say");
     if release.checked == 0 {
         ui.label(small("checked once the song is rendered"));
         return;
@@ -383,5 +419,16 @@ fn checks(ui: &mut Ui, release: &ReleaseView, song_version: u64) {
             let tint = if c.level == "note" { TEXT_DIM } else { TEXT };
             ui.add(egui::Label::new(RichText::new(text).size(12.0).color(tint)).wrap());
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn an_answer_is_its_words_before_the_colon_begun_with_a_capital_and_the_rest_under_it() {
+        let (title, about) = super::answer("you wrote it: the notes, the parts and the arrangement");
+        assert_eq!((title.as_str(), about.as_str()), ("You wrote it", "the notes, the parts and the arrangement"));
+        let (title, about) = super::answer("an assistant or claudius' generator wrote it");
+        assert_eq!((title.as_str(), about.as_str()), ("An assistant or claudius' generator wrote it", ""));
     }
 }

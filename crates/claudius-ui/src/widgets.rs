@@ -724,6 +724,101 @@ pub fn option_card(ui: &mut Ui, size: Vec2, on: bool, icon: Icon, title: &str, a
     r
 }
 
+/// A window's first card: what the window is about (a recording, the song, a phone), as Add a recording shows the file it
+/// adds: its icon on a tile, its name strong, a line about it under it, and what `right` puts at the card's right (a
+/// button, a pill). Returns what `right` returns.
+pub fn item_card<R>(ui: &mut Ui, icon: Icon, title: &str, about: &str, right: impl FnOnce(&mut Ui) -> R) -> R {
+    egui::Frame::new()
+        .fill(RAISED.into())
+        .corner_radius(8.0)
+        .inner_margin(10.0)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                let (tile, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
+                ui.painter().rect_filled(tile, 6.0, WELL);
+                paint_icon(ui.painter(), tile.shrink(10.0), icon, ACCENT);
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(title).strong().size(14.0).color(TEXT));
+                    if !about.is_empty() {
+                        ui.label(egui::RichText::new(about).size(12.0).color(TEXT_DIM));
+                    }
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), right).inner
+            })
+            .inner
+        })
+        .inner
+}
+
+/// A part of a window under its own heading ("How should it go in?", "Where and how often"), as Add a recording heads
+/// them: the words a little larger than the window's, with room above them
+pub fn part_head(ui: &mut Ui, text: &str) {
+    ui.add_space(12.0);
+    ui.label(egui::RichText::new(text).font(theme::medium(14.0)).color(TEXT));
+    ui.add_space(4.0);
+}
+
+/// One of a window's numbered steps ("1 Point your phone's camera at the code"): its number in a small ring of the
+/// accent, its words beside it, wrapped
+pub fn numbered(ui: &mut Ui, n: usize, words: &str) {
+    ui.horizontal_top(|ui| {
+        let (ring, _) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::hover());
+        ui.painter().circle(ring.center(), 9.0, theme::alpha(ACCENT, 0.14), Stroke::new(1.0, ACCENT));
+        ui.painter().text(ring.center(), Align2::CENTER_CENTER, n.to_string(), theme::medium(11.0), ACCENT.into());
+        ui.add(egui::Label::new(egui::RichText::new(words).color(TEXT)).wrap());
+    });
+    ui.add_space(4.0);
+}
+
+/// A row of a list to pick from (the command palette's): its words (`job`, laid out by the caller), and on the right the
+/// keys that do it too as key caps; no fill but on the row picked (the accent's tint, with a bar of it at its left edge)
+/// or under the pointer, so that a long list reads as a list rather than as a stack of buttons. `name` is what a screen
+/// reader says. Returns its response (clicked = picked).
+pub fn list_row(
+    ui: &mut Ui,
+    job: egui::text::LayoutJob,
+    keys: &str,
+    picked: bool,
+    height: f32,
+    name: &str,
+) -> Response {
+    let (rect, r) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click());
+    let galley = ui.painter().layout_job(job);
+    let p = ui.painter();
+    if picked {
+        p.rect_filled(rect, 6.0, theme::alpha(ACCENT, 0.16));
+        let bar = Rect::from_min_size(rect.min + vec2(0.0, 6.0), vec2(3.0, (rect.height() - 12.0).max(4.0)));
+        p.rect_filled(bar, 1.5, ACCENT);
+    } else if r.hovered() {
+        p.rect_filled(rect, 6.0, theme::alpha(theme::STRONG, 0.05));
+    }
+    let left = rect.left() + 12.0;
+    let right = key_caps(p, pos2(rect.right() - 10.0, rect.center().y), keys);
+    // the words cut short before the caps rather than under them
+    let clip = Rect::from_min_max(pos2(left, rect.top()), pos2((right - 8.0).max(left), rect.bottom()));
+    p.with_clip_rect(clip).galley(pos2(left, rect.center().y - galley.size().y / 2.0), galley, TEXT.into());
+    let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
+    accessible(ui, &r, 6, || WidgetInfo::selected(Role::Button, true, picked, name));
+    r
+}
+
+/// Keys as key caps ("Cmd+Z" as two), drawn leftwards from `right_center`: each its name in a small rounded box of the
+/// line's colour. Returns the left edge of the first.
+fn key_caps(p: &egui::Painter, right_center: Pos2, keys: &str) -> f32 {
+    let mut x = right_center.x;
+    let caps: Vec<&str> = keys.split('+').map(str::trim).filter(|k| !k.is_empty()).collect();
+    for cap in caps.iter().rev() {
+        let galley = p.layout_no_wrap(cap.to_string(), theme::prop(11.0), TEXT_DIM.into());
+        let w = (galley.size().x + 10.0).max(18.0);
+        let r = Rect::from_min_size(pos2(x - w, right_center.y - 9.0), vec2(w, 18.0));
+        p.rect(r, 4.0, theme::alpha(theme::STRONG, 0.04), Stroke::new(1.0, LINE), StrokeKind::Inside);
+        p.galley(r.center() - galley.size() / 2.0, galley, TEXT_DIM.into());
+        x = r.left() - 3.0;
+    }
+    x
+}
+
 /// a small rounded label
 /// a small rounded label; one wider than a whole line of its `Ui` is cut short with its full text on hover, so that it
 /// never widens what holds it

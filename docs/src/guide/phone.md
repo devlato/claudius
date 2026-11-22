@@ -7,12 +7,12 @@ app and in the browser studio that `claudius serve` serves, with a phone on the 
 
 ## Pairing
 
-The phone button after **Record** in the studio's top bar opens **Play from a phone**. claudius starts serving a page
-for phones, and the window shows its address as a QR code: point the phone's camera at it and open the link. The
-address carries a key of its own, which the phone keeps, so the page stays open on that phone until the studio stops
-serving it (**Stop serving the page**) or claudius quits; the next time, the address has a new key. The window says
-when a phone has the page open; **Done** closes it and leaves the page served, and the phone button stays lit while it
-is.
+The phone button after **Record** in the studio's top bar opens **Play from a phone**. claudius shares a page for
+phones, and the window shows its address as a QR code beside the steps: point the phone's camera at it and open the
+link. The address carries a key of its own, which the phone keeps, so the page stays open on that phone until the studio
+stops sharing it (**Stop sharing**) or claudius quits; the next time, the address has a new key. The window's first card
+says when a phone plays along; **Done** closes it and leaves the page open to phones, and the phone button stays lit
+while it is. If the page stopped (the demo opened in another tab takes it), **Share it with my phone** opens it again.
 
 In the demo, the code opens the same page on claudius' site instead, which reaches the demo's tab through a relay on
 the site ([below](#with-the-demo)).

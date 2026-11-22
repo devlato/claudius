@@ -658,20 +658,20 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                     // changes made to the song, each of those with what it says, changes or changed under it
                     let (told, asked, back) = (a.id.starts_with(TOLD), a.id.starts_with(DO), a.id.starts_with(BACK));
                     if told && i == 0 {
-                        ui.label(RichText::new("The song now").size(10.5).color(TEXT_FAINT));
+                        widgets::menu_group(ui, "The song now");
                     }
                     if asked && !acts[..i].iter().any(|b| b.id.starts_with(DO)) {
                         ui.add_space(if i > 0 { 4.0 } else { 0.0 });
-                        ui.label(RichText::new("What your words ask").size(10.5).color(TEXT_FAINT));
+                        widgets::menu_group(ui, "What your words ask");
                     }
                     let after_asked = i > 0 && (acts[i - 1].id.starts_with(DO) || acts[i - 1].id.starts_with(TOLD));
                     if !told && !asked && !back && after_asked {
                         ui.add_space(4.0);
-                        ui.label(RichText::new("Actions").size(10.5).color(TEXT_FAINT));
+                        widgets::menu_group(ui, "Actions");
                     }
                     if back && !acts[..i].iter().any(|b| b.id.starts_with(BACK)) {
                         ui.add_space(4.0);
-                        ui.label(RichText::new("In the song's history").size(10.5).color(TEXT_FAINT));
+                        widgets::menu_group(ui, "In the song's history");
                     }
                     let under = (told || asked || back) && !a.place.is_empty();
                     let mut job = LayoutJob::default();
@@ -683,12 +683,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                         job.append(&a.place, 10.0, place);
                     }
                     let keys = a.keys.replace("Cmd", cmd);
-                    let r = ui.add_sized(
-                        vec2(ui.available_width(), if under { 40.0 } else { 26.0 }),
-                        egui::Button::new(job)
-                            .selected(i == p.at)
-                            .shortcut_text(RichText::new(keys).size(11.0).color(TEXT_FAINT)),
-                    );
+                    let r = widgets::list_row(ui, job, &keys, i == p.at, if under { 40.0 } else { 28.0 }, &a.name);
                     let by_model = asked
                         && p.answered().is_some_and(|ans| {
                             ans.proposed.iter().any(|x| x.reading.by_model && a.id.strip_prefix(DO) == Some(x.said.as_str()))
