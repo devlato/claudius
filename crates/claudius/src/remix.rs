@@ -1198,6 +1198,93 @@ pub fn rework(
     Ok(bp)
 }
 
+/// The voice of the recording `src` sung through the song `bp`, of genre `g` (the Add a recording window's "Its vocals";
+/// `sample_song`, how `vocals`): the song's sections follow the recording's bar for bar, each built from the song's own
+/// section of its kind (a verse from its verse, a chorus from its hook, else the one nearest in energy: `like`), on the
+/// recording's chords bar by bar, at its own tempo or the multiple of it the genre plays (`rework_tempo`), in its key
+/// and swing; and its voice plays on a track of its own from its first downbeat to its end, each section keeping its
+/// stretch of it (`take::pin`), so that its verses sing over the song's verses and its choruses over its hooks, whole.
+/// The song's drums, parts, loops and mix stay its own; a take of its own plays on from its first section. What it did,
+/// in words; why not, the song unchanged, where the voice is not apart from the rest (no ears) or sings nothing.
+pub fn vocals_into(bp: &mut Blueprint, src: &Source, g: &GenreProfile, dir: &Path) -> Result<String, String> {
+    let (name, a) = (src.name, src.a);
+    let voice = match src.stems {
+        Some(s) if s.sung() => &s.vocals,
+        Some(_) => return Err(format!("no voice sings in {name}: add it whole, or sample a passage of it")),
+        None => {
+            return Err(format!(
+                "{name}'s voice cannot be taken apart from the rest of it here: the desktop app can, with its ears"
+            ));
+        }
+    };
+    if a.bars < 4 || a.sections.is_empty() {
+        return Err(format!(
+            "{name} is too short, or its sections too unclear, for its voice to sing through the song"
+        ));
+    }
+    let (bpm, per) = rework_tempo(a, g);
+    let names = bp.layer_names();
+    let track = std::iter::once(VOICE.to_string())
+        .chain((2..).map(|k| format!("{VOICE}{k}")))
+        .find(|n| !names.contains(n))
+        .unwrap_or_default();
+    let (form, progressions) = rework_form(a, per, &bp.form, |_| true, &[track.as_str()]);
+    if form.is_empty() {
+        return Err(format!("{name}'s sections are too short to lie on the song's bars"));
+    }
+    let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
+    let body = cut(&sections_levelled(voice, a), a, Bars { first: 0, count: a.bars });
+    let path = crate::take::store(&body, &dir.join(&slug)).map_err(|e| format!("cannot keep its voice: {e:#}"))?;
+    bp.form = form;
+    bp.harmony.progressions = progressions;
+    bp.harmony.bars_per_chord = if per == Per::Two { 2 } else { 1 };
+    (bp.bpm, bp.key, bp.swing) = (bpm, a.key, a.swing);
+    // a take of the song's own plays on from its first section, as the sections it started in are gone
+    let first = bp.form.first().map(|s| s.name.clone());
+    let sections: Vec<String> = bp.form.iter().map(|s| s.name.clone()).collect();
+    let takes: Vec<String> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.clone()).collect();
+    for l in bp.loops.iter_mut().filter(|l| l.from.as_ref().is_some_and(|f| !sections.contains(f))) {
+        l.from = first.clone();
+    }
+    bp.loops.push(LoopPart {
+        name: track.clone(),
+        role: "vocal".into(),
+        sound: Sound::Loop {
+            path: path.to_string_lossy().into_owned(),
+            bpm: 240.0 / a.bar_secs.max(1e-3) * per.factor(),
+            beats: a.bars as f64 * 4.0 * per.factor(),
+            key: None,
+            tonal: false,
+            label: format!("{slug}, its voice"),
+        },
+        transpose: 0,
+        chop: Vec::new(),
+        slice_beats: 0.0,
+        retime: false,
+        mix: voice_mix(),
+        from: first,
+        sampled: true,
+    });
+    for take in takes.iter().chain(std::iter::once(&track)) {
+        crate::take::pin(bp, take);
+    }
+    let time = match per {
+        Per::One => String::new(),
+        Per::Two => format!(" in double time (its own {:.0})", 240.0 / a.bar_secs.max(1e-3)),
+        Per::Half => format!(" in half time (its own {:.0})", 240.0 / a.bar_secs.max(1e-3)),
+    };
+    let shape: Vec<String> = bp.form.iter().map(|s| format!("{} {}", s.name, s.bars)).collect();
+    let line = format!(
+        "sang the voice of '{name}' through the song ({track}): the song's sections follow its {} bar for bar ({}), \
+         each built from the song's own of its kind, on its chords, in {} at {bpm:.0} BPM{time}",
+        bp.form.len(),
+        shape.join(", "),
+        a.key.name()
+    );
+    bp.lineage.push(line.clone());
+    Ok(line)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2178,6 +2265,68 @@ mod tests {
         let bp = rework(&src, &g, 3, &Options::default(), Some(&lib), &dir).unwrap();
         assert_eq!(bp.key, a.key);
         assert!(bp.loops.iter().all(|l| l.name != PHRASE && l.name != SECOND), "{:?}", bp.loops);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn its_voice_sings_through_the_song_whose_sections_follow_the_recording_s_bar_for_bar() {
+        let (x, s) = (recording(), recording_apart());
+        let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
+        let g = crate::genres::get("boom_bap").unwrap();
+        let mut bp = compose::generate(&g, 7, &Options::default(), None);
+        let own = |kind: SectionKind| bp.form.iter().find(|f| f.kind == kind).map(|f| f.layers.clone());
+        let (verse, hook) = (own(SectionKind::Verse), own(SectionKind::Hook));
+        let dir = std::env::temp_dir().join(format!("claudius-vocals-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
+        let said = vocals_into(&mut bp, &src, &g, &dir).unwrap();
+        assert!(said.starts_with("sang the voice of 'my song.wav' through the song (vocals)"), "{said}");
+        // the recording's sections bar for bar, each built from the song's own of its kind, the voice in every one
+        assert_eq!(bp.form.len(), a.sections.len(), "{:?}", bp.form);
+        for (f, heard) in bp.form.iter().zip(&a.sections) {
+            assert_eq!((f.kind, f.bars as usize), (heard.kind, heard.bars), "{}", f.name);
+            assert!(f.layers.iter().any(|l| l == VOICE), "{}: {:?}", f.name, f.layers);
+            let template = match f.kind {
+                SectionKind::Verse => verse.clone(),
+                SectionKind::Hook => hook.clone(),
+                _ => None,
+            };
+            if let Some(t) = template {
+                assert!(t.iter().all(|l| f.layers.contains(l)), "{}: {:?} holds {t:?}", f.name, f.layers);
+            }
+            let chords = &bp.harmony.progressions[&f.prog];
+            assert_eq!(chords[0], a.numerals[heard.start_bar], "{}: on the recording's chords", f.name);
+        }
+        // at the recording's own tempo (boom bap plays it so), in its key
+        assert!((bp.bpm - 240.0 / a.bar_secs).abs() < 1e-6, "{}", bp.bpm);
+        assert_eq!(bp.key, a.key);
+        // its voice once, from its first downbeat to its end, each section keeping its stretch of it
+        let p = compose::arrange(&bp);
+        let t = p.tracks.iter().find(|t| t.name == VOICE).expect("its voice plays");
+        assert_eq!((t.clips[0].t, t.clips[0].offset), (0.0, 0.0), "{:?}", t.clips);
+        assert!(bp.form.iter().all(|f| f.takes.contains_key(VOICE)), "{:?}", bp.form);
+        let lp = bp.loops.iter().find(|l| l.name == VOICE).unwrap();
+        assert_eq!((lp.role.as_str(), lp.sampled), ("vocal", true));
+        // the song's own drums play on under it
+        assert!(bp.form.iter().any(|f| f.layers.iter().any(|l| bp.drums.iter().any(|d| d.name == *l))));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn without_its_voice_apart_or_with_none_sung_it_says_why_and_the_song_stays_as_it_was() {
+        let (x, mut s) = (recording(), recording_apart());
+        let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
+        let g = crate::genres::get("house").unwrap();
+        let mut bp = compose::generate(&g, 7, &Options::default(), None);
+        let before = bp.clone();
+        let dir = std::env::temp_dir().join(format!("claudius-vocals-none-{}", std::process::id()));
+        let alone = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        let why = vocals_into(&mut bp, &alone, &g, &dir).unwrap_err();
+        assert!(why.contains("cannot be taken apart") && why.contains("desktop app"), "{why}");
+        s.vocals = Stereo::zeros(s.vocals.len());
+        let silent = Source { stems: Some(&s), ..alone };
+        let why = vocals_into(&mut bp, &silent, &g, &dir).unwrap_err();
+        assert!(why.starts_with("no voice sings in my song.wav"), "{why}");
+        assert_eq!(bp, before);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
