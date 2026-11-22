@@ -225,6 +225,22 @@ fn moving_max(v: &[f64], reach: usize) -> Vec<f64> {
         .collect()
 }
 
+/// The phrases of `sung` as a sample cuts them out of `voice`, the voice it was heard in (the Add a recording window's
+/// boxes, and what a click on one plays, as the sampler cuts a phrase: `sampler::pieces`): each from the quiet before its
+/// first word, after the word before (`cut_before`, on the bar line `bar_at` gives for its start where that falls in the
+/// same quiet), to the quiet after its last note, before the word after (`cut_after`).
+pub fn cut_phrases(voice: &Stereo, sung: &Sung, bar_at: impl Fn(f64) -> f64) -> Vec<Span> {
+    sung.phrases
+        .iter()
+        .map(|p| {
+            let before = sung.words.iter().filter(|w| w.end <= p.start + 1e-9).map(|w| w.end).fold(0.0, f64::max);
+            let after =
+                sung.words.iter().filter(|w| w.start >= p.end - 1e-9).map(|w| w.start).fold(voice.secs(), f64::min);
+            Span { start: cut_before(voice, p.start, before, bar_at(p.start)), end: cut_after(voice, p.end, after) }
+        })
+        .collect()
+}
+
 /// Where a cut before a phrase starting at `start` goes, `after` the end of whatever is sung before it: at the end of
 /// the last stretch of quiet before it, at most `LEAD` before it, so that a consonant or a breath heard late is kept
 /// (at the quietest moment, in a gap with no such stretch), on a zero crossing of `x`; or on the bar line `bar`, when
