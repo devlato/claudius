@@ -159,13 +159,15 @@ test.describe("the radio", () => {
       const saved = await file.path();
       expect(saved).toBeTruthy();
       await expect(page.locator("#status")).toContainText("is in your downloads");
-      // once the next song is written, Skip brings it in on the next beat, and it is of the genres chosen too
+      // once the next song is written, Skip brings it in from the next beat (mixed over two bars when it was to blend),
+      // and it is of the genres chosen too, or now and then the two fused
       const first = await page.locator("#now-title").textContent();
       await expect(page.locator("#next")).toContainText(/(mixes|comes) in .* from now/, { timeout: 240_000 });
       await page.locator("#skip").click();
       await expect(page.locator("#now-title")).not.toHaveText(first, { timeout: 5_000 });
       await expect(page.locator("#played li").first()).toContainText(first);
-      await expect(page.locator("#now-meta")).toHaveText(/^(deep house|house) · /);
+      await expect(page.locator("#now-meta")).toHaveText(/^(deep house|house)( \+ (deep house|house))? · /);
+      await expect(page.locator("#status")).toContainText(/skipped to, (mixed in over two bars|in on the beat)/);
       expect(problems).toEqual([]);
     } finally {
       await b.close();
