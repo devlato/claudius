@@ -172,9 +172,18 @@ vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person 
 
 ### Other ways to sample
 
-Phrases that come round are one way producers sample a recording. The auto-sampler knows three more, which
+Phrases that come round are one way producers sample a recording. The auto-sampler knows four more, which
 `--how` asks for (`how` for an assistant); phrases are the way when none is said:
 
+- **Its vocals** (`--how vocals`): the recording's whole voice, taken apart from the band, sung through the song from
+  its first downbeat to its end, as a remix puts a song's vocals over a new beat. The song's sections follow the
+  recording's bar for bar, so that its verses sing over the song's verses and its choruses over its hooks, whole: each
+  section is built from the song's own section of its kind (a verse from its verse, a chorus from its hook, else the
+  one nearest in energy), on the recording's chords, at its tempo (or the multiple of it the song's genre plays, so
+  that the voice keeps its own speed and pitch) and in its key. The song keeps its own drums, sounds and mix, and the
+  voice plays on a track of its own, `vocals`, each section keeping its stretch of it when sections are added, moved or
+  taken out later. It needs the voice apart from the band, which the ears do: the desktop app and the command line
+  with the listening models; in a browser claudius says it cannot yet.
 - **A passage** (`--how passage`): a whole stretch of the recording, 4, 8 or 16 bars of its best sung part (`--bars`;
   8 where a section has room for them, else 4), the better where one of its own sections starts, played through as
   the verse or chorus of the sections it goes in: the drops and hooks, unless `--in` says. It is the voice alone when
@@ -203,9 +212,10 @@ sampled a passage of Many Miracles Vocal Melody.caf into the song: passage
 passage: bars 1-8 of Many Miracles Vocal Melody.caf, its voice (the ears +2.7 for 'a person singing', 35% sung), 5 semitones up into F minor at 126 BPM, played through from the first bar of the drops and hooks (drop, drop2), the song's chords there following it (i i7 III iv7 i7 v7 i i7)
 ```
 
-In the studio, the **Add a recording** window offers each way as a card under **How should it go in?**: **Whole**,
-**Its sung phrases**, **Pieces of it** (every kind of piece of it, below), **A passage**, **Chops** and **A stab**.
-**Plays in** chooses the song's sections it goes in
+In the studio, the **Add a recording** window offers each way as a card under **How should it go in?**: **Its
+vocals**, **Whole**, **Its sung phrases**, **Pieces of it** (every kind of piece of it, below), **A passage**,
+**Chops** and **A stab**. For **Its vocals** the window says what it does to the song, and **Put its vocals in the
+song** does it (undo takes it all back). For the others, **Plays in** chooses the song's sections it goes in
 (none chosen: where it suits), and the button at the foot (**Sample a passage**, **Chop it**, **Sample a stab**) puts
 it in. In the New song dialog, **Sample it into the song** takes a way too.
 

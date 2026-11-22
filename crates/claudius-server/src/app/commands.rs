@@ -476,6 +476,20 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
+            // its voice through the song, the song's sections following the recording's
+            Command::SampleSong { path, how, .. } if how.as_deref() == Some("vocals") => {
+                if let Err(e) = self.readable(Path::new(&path)) {
+                    return no(e, v);
+                }
+                match audio::load(Path::new(&path)) {
+                    Ok(x) => {
+                        let name =
+                            Path::new(&path).file_name().map_or(path.clone(), |n| n.to_string_lossy().into_owned());
+                        self.vocals_audio(&x, &name, &claudius::take::credited(Path::new(&path)))
+                    }
+                    Err(e) => no(format!("cannot read {path}: {e}"), v),
+                }
+            }
             Command::SampleSong { path, count, bars, find, sections, how, every, kinds } => {
                 let opt = match sampling(count, bars, find, sections, how.as_deref()).and_then(|o| {
                     let (every, kinds) = (listen::every(every.as_deref())?, listen::kinds(&kinds)?);
@@ -709,7 +723,7 @@ impl App {
 
     /// a recording's stems and what claudius hears in it with them apart (`name`: what the busy line calls it),
     /// as a remake or the sampler hears it
-    fn listen_to(
+    pub(super) fn listen_to(
         &self,
         x: &audio::Stereo,
         name: &str,

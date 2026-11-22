@@ -2280,7 +2280,8 @@ pub enum Command {
         /// the sections to put them in, by name or kind (those that suit each phrase)
         #[serde(default)]
         sections: Vec<String>,
-        /// how it goes in: "phrases" (the default), "passage", "chops" or "stabs" (`SAMPLING_WAYS`)
+        /// how it goes in: "phrases" (the default), "passage", "chops" or "stabs" (`SAMPLING_WAYS`); or "vocals", its
+        /// whole voice sung through the song, the song's sections following the recording's (`remix::vocals_into`)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         how: Option<String>,
         /// how often each phrase comes round in its sections: "once" (from the start of each), "2", "4", "8" or "16"

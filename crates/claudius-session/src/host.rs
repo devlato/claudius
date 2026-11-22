@@ -390,6 +390,32 @@ impl Host {
                 self.forget_render();
                 self.commit_song(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
             }
+            // its voice through the song: taken apart from the rest where the ears can, else said why not
+            Listen::SampleSong { found, how, .. } if how.as_deref() == Some("vocals") => {
+                let Some(mut bp) = self.bp.clone() else {
+                    return self.no("no song yet: start one with a new song, then put a recording's voice through it");
+                };
+                let g = match claudius::genres::get(&bp.genre) {
+                    Ok(g) => g,
+                    Err(e) => return self.no(format!("{e:#}")),
+                };
+                let stems = claudius::stems::of(&x, &mut |_| {});
+                let a = claudius::analysis::song::analyze_with(&x, stems.as_deref(), None);
+                let before = sampled(&bp);
+                let src = claudius::remix::Source { x: &x, name: &name, a: &a, stems: stems.as_deref() };
+                match claudius::remix::vocals_into(&mut bp, &src, &g, dir) {
+                    Ok(said) => {
+                        if let Some(credit) = credit(found) {
+                            for path in sampled(&bp).difference(&before) {
+                                self.takes.insert(path.clone(), credit.clone());
+                            }
+                        }
+                        self.forget_render();
+                        self.commit(Some(bp), said)
+                    }
+                    Err(e) => self.no(e),
+                }
+            }
             Listen::SampleSong { found, how, sections, every, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then sample a recording into it");
@@ -2891,5 +2917,15 @@ mod tests {
         assert!(r.ok && r.message.starts_with("chopped vocal.wav into the song: chops"), "{}", r.message);
         let r = h.listen(&chop("slices"), wav(&x));
         assert!(!r.ok && r.message.starts_with("no way 'slices'"), "{}", r.message);
+        // its whole voice through the song needs it apart from the rest, which a browser cannot do: it says so, and
+        // the song stays as it was
+        let before = h.blueprint().cloned();
+        let r = h.listen(&chop("vocals"), wav(&x));
+        assert!(
+            !r.ok && r.message.contains("cannot be taken apart") && r.message.contains("desktop app"),
+            "{}",
+            r.message
+        );
+        assert_eq!(h.blueprint().cloned(), before);
     }
 }

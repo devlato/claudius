@@ -27,19 +27,34 @@ const WIDTH: f32 = 760.0;
 /// The ways a recording goes into the song, as the window's cards offer them: by name ("whole", "pieces" for every kind
 /// of piece of it to choose from, or one of `claudius_api::SAMPLING_WAYS`), its icon, its name on the card, and what it
 /// does.
-const WAYS: [(&str, Icon, &str, &str); 6] = [
+const WAYS: [(&str, Icon, &str, &str); 7] = [
+    (
+        "vocals",
+        Icon::Voice,
+        "Its vocals",
+        "its voice through the song: its verses over the song's verses, its choruses over its hooks",
+    ),
     ("whole", Icon::Sample, "Whole", "all of it as a track, from the start of a section; trim it later"),
-    ("phrases", Icon::Voice, "Its sung phrases", "the phrases its voice sings, each whole, to hear and pick first"),
+    ("phrases", Icon::Melody, "Its sung phrases", "the phrases its voice sings, each whole, to hear and pick first"),
     (
         "pieces",
         Icon::Pad,
         "Pieces of it",
         "its drums, its bass line, loops of it and its phrases, to hear and pick first",
     ),
-    ("passage", Icon::Melody, "A passage", "a verse or a chorus of it, the song's chords following it there"),
+    ("passage", Icon::Loop, "A passage", "a verse or a chorus of it, the song's chords following it there"),
     ("chops", Icon::Keys, "Chops", "its voice sliced and played in a new rhythm, like an instrument"),
     ("stabs", Icon::Drum, "A stab", "one short syllable struck on a few beats, like a drum"),
 ];
+
+/// what "Its vocals" does to the song, said under the ways before it is done; and why the browser cannot
+const VOCALS_DOES: &str = "The song's sections follow the recording's, bar for bar: its verses sing over the song's \
+     verses and its choruses over its hooks, whole, at its tempo, in its key and on its chords. The song keeps its own \
+     drums, sounds and mix; undo takes it all back.";
+const VOCALS_IN_A_BROWSER: &str = "In a browser claudius cannot take a voice apart from the band yet. The desktop app \
+     can: it puts the recording's voice through the song, each verse and chorus where it belongs.";
+/// where the desktop app is downloaded
+const GET_THE_APP: &str = "https://claudius.devlato.com/#install";
 
 /// How often a phrase comes round in its sections (`Command::KeepPieces`'s `every`): none as the song suits, by its
 /// genre and what plays there; each with its words on the window and what it does.
@@ -686,8 +701,11 @@ fn timeline(ui: &mut Ui, l: &Listened, marks: &[Mark], at: Option<f64>) -> Optio
 
 /// a card for each way the recording can go in, the one chosen lit
 fn ways(ui: &mut Ui, how: &mut &'static str) {
-    // in rows of three, so that each card has room for what it says
-    for row in WAYS.chunks(3) {
+    // its vocals across the window, the way most asked for; then the others three a row, each card with room for what
+    // it says
+    ways_row(ui, &WAYS[..1], how);
+    ui.add_space(8.0);
+    for row in WAYS[1..].chunks(3) {
         ways_row(ui, row, how);
         ui.add_space(8.0);
     }
@@ -849,17 +867,29 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
             ui.add_space(10.0);
             ui.label(RichText::new("How should it go in?").strong());
             ui.add_space(4.0);
+            // its vocals first where claudius can take them apart; in a browser, its phrases
             if !WAYS.iter().any(|w| w.0 == im.how) {
-                im.how = "phrases";
+                im.how = if demo { "phrases" } else { "vocals" };
             }
             ways(ui, &mut im.how);
             ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                ui.label(RichText::new("Where and how often").strong());
-                ui.label(RichText::new("you can change both in the arrangement later").size(11.5).color(TEXT_FAINT));
-            });
-            ui.add_space(4.0);
-            placing(ui, im, &sections);
+            if im.how == "vocals" {
+                // the song follows the recording: there is no "where" to choose
+                let says = if demo { VOCALS_IN_A_BROWSER } else { VOCALS_DOES };
+                ui.label(RichText::new(says).size(12.0).color(TEXT_DIM));
+                if demo {
+                    ui.hyperlink_to(RichText::new("Get the desktop app").color(ACCENT), GET_THE_APP);
+                }
+            } else {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Where and how often").strong());
+                    ui.label(
+                        RichText::new("you can change both in the arrangement later").size(11.5).color(TEXT_FAINT),
+                    );
+                });
+                ui.add_space(4.0);
+                placing(ui, im, &sections);
+            }
             ui.add_space(8.0);
             ui.separator();
             ui.horizontal(|ui| {
@@ -868,8 +898,10 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     im.browse = !im.browse;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let free = im.sending.is_none();
+                    // in a browser its voice cannot be taken apart: the button waits for the app
+                    let free = im.sending.is_none() && !(demo && im.how == "vocals");
                     let label = match im.how {
+                        "vocals" => "Put its vocals in the song",
                         "whole" => "Add it whole",
                         "phrases" => "Choose its phrases \u{2192}",
                         "pieces" => "Choose its pieces \u{2192}",

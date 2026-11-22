@@ -184,6 +184,39 @@ impl App {
         r
     }
 
+    /// The voice of recording `x`, called `name`, sung through the song (`remix::vocals_into`): the song's sections
+    /// follow the recording's, its verses and choruses over the song's own, and its voice is kept with the song's takes
+    /// (`sources`: what the recording credits, which the voice credits too).
+    pub(super) fn vocals_audio(self: &Arc<Self>, x: &Stereo, name: &str, sources: &take::Sources) -> Reply {
+        let v = self.version();
+        let Some(bp) = self.blueprint() else {
+            return no("no song yet: start one with new_song, then put a recording's voice through it", v);
+        };
+        let dir = take::dir(self.lock().folder.as_deref());
+        if !config::write_allowed(&dir, self.roots.as_deref()) {
+            return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
+        }
+        let g = match claudius::genres::get(&bp.genre) {
+            Ok(g) => g,
+            Err(e) => return no(format!("{e:#}"), v),
+        };
+        let (stems, a) = self.listen_to(x, name);
+        let sampled = super::pieces::sampled;
+        let before = sampled(self.blueprint().as_ref());
+        let src = claudius::remix::Source { x, name, a: &a, stems: stems.as_deref() };
+        let mut r = self.listening(&format!("singing the voice of {name} through the song"), |_| {
+            self.edit_with(|bp| claudius::remix::vocals_into(bp, &src, &g, &dir))
+        });
+        if r.ok && !sources.is_empty() {
+            for file in sampled(self.blueprint().as_ref()).difference(&before) {
+                if let Err(e) = take::keep_sources(Path::new(file), sources) {
+                    r.message.push_str(&format!("\ncannot keep what {file} credits: {e:#}"));
+                }
+            }
+        }
+        r
+    }
+
     /// a recording's bytes decoded (`listen::decode`)
     fn decode(&self, bytes: Vec<u8>, name: &str) -> Result<Stereo, String> {
         claudius_session::listen::decode(bytes, name)
