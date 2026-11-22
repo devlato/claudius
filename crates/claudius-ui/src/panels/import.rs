@@ -772,7 +772,8 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
             egui::Color32::WHITE,
         );
     }
-    if !cx.view.import.open {
+    // its phrases or pieces being chosen take the window's place (`pieces`): one window, its steps one after another
+    if !cx.view.import.open || cx.view.import.sampling {
         return;
     }
     let demo = cx.server.is_none();
@@ -1146,8 +1147,9 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
     let mut cancel = false;
     let what = if im.every_kind { "its pieces" } else { "its sung phrases" };
     let title = offered.as_ref().map_or_else(|| capital(what), |p| format!("{} · {what}", p.recording));
+    // in the Add a recording window's place, as its next step: back goes to the ways it could go in
     egui::Window::new(title)
-        .id(egui::Id::unique("pieces"))
+        .id(egui::Id::unique("add-a-recording"))
         .open(&mut open)
         .resizable(false)
         .collapsible(false)
@@ -1317,9 +1319,9 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
             said(ui, &im.sample_said);
         });
     let im = &mut cx.view.import;
-    // kept, the offer goes, and so does the window, and the one that offered it
+    // kept or closed, the offer goes, and so does the window; back, the window shows the ways again
     if !open || cancel || im.kept {
-        if im.kept {
+        if im.kept || !open {
             im.open = false;
         }
         im.sample_afresh(false);
