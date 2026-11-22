@@ -716,9 +716,12 @@ pub fn option_card(ui: &mut Ui, size: Vec2, on: bool, icon: Icon, title: &str, a
     p.rect(rect, CornerRadius::same(8), fill, stroke, StrokeKind::Inside);
     let inner = rect.shrink(12.0);
     paint_icon(p, Rect::from_min_size(inner.left_top(), vec2(16.0, 16.0)), icon, ACCENT);
-    p.text(inner.left_top() + vec2(0.0, 24.0), Align2::LEFT_TOP, title, theme::medium(13.5), TEXT.into());
+    // the title wrapped in the card, as a long one would run past its edge, and what it does under it
+    let heading = p.layout(title.to_string(), theme::medium(13.5), TEXT.into(), inner.width());
+    let below = 24.0 + heading.size().y + 3.0;
+    p.galley(inner.left_top() + vec2(0.0, 24.0), heading, TEXT.into());
     let words = p.layout(about.to_string(), theme::prop(11.5), TEXT_DIM.into(), inner.width());
-    p.galley(inner.left_top() + vec2(0.0, 44.0), words, TEXT_DIM.into());
+    p.galley(inner.left_top() + vec2(0.0, below), words, TEXT_DIM.into());
     let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
     accessible(ui, &r, 8, || WidgetInfo::selected(Role::RadioButton, true, on, title));
     r
@@ -734,19 +737,28 @@ pub fn item_card<R>(ui: &mut Ui, icon: Icon, title: &str, about: &str, right: im
         .inner_margin(10.0)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            let full = ui.available_width();
+            // what goes at the right first, in a row as tall as the icon at the card's top right, in a child that takes
+            // no room of the card's: its width is what the words beside the icon leave free
+            let row = Rect::from_min_size(ui.cursor().min, vec2(full, 36.0));
+            let layout = egui::Layout::right_to_left(egui::Align::Center);
+            let mut side = ui.new_child(egui::UiBuilder::new().max_rect(row).layout(layout));
+            let r = right(&mut side);
+            let taken = side.min_rect().width();
+            // then the icon, and its words wrapped short of what is at the right
+            ui.horizontal_top(|ui| {
                 let (tile, _) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::hover());
                 ui.painter().rect_filled(tile, 6.0, WELL);
                 paint_icon(ui.painter(), tile.shrink(10.0), icon, ACCENT);
                 ui.vertical(|ui| {
+                    ui.set_max_width((full - 36.0 - 8.0 - taken - 12.0).max(80.0));
                     ui.label(egui::RichText::new(title).strong().size(14.0).color(TEXT));
                     if !about.is_empty() {
-                        ui.label(egui::RichText::new(about).size(12.0).color(TEXT_DIM));
+                        ui.add(egui::Label::new(egui::RichText::new(about).size(12.0).color(TEXT_DIM)).wrap());
                     }
                 });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), right).inner
-            })
-            .inner
+            });
+            r
         })
         .inner
 }
