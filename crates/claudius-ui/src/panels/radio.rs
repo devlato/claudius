@@ -41,7 +41,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
-        .default_width(420.0)
+        .default_width(460.0)
         .pivot(egui::Align2::CENTER_TOP)
         .default_pos(ctx.content_rect().center_top() + vec2(0.0, 90.0))
         .show(ctx, |ui| body(ui, cx));
@@ -69,67 +69,93 @@ fn follow(ctx: &egui::Context, cx: &mut Cx) {
 
 #[cfg(target_arch = "wasm32")]
 fn body(ui: &mut Ui, _cx: &mut Cx) {
-    ui.label(
-        RichText::new(
-            "In a browser Infinite Radio is a page of its own: songs claudius writes as it plays them, one genre after \
-             another, each mixed into the next as a DJ mixes records.",
-        )
-        .color(TEXT),
+    use crate::widgets::{self, Icon};
+    ui.set_width(440.0);
+    widgets::item_card(
+        ui,
+        Icon::Play,
+        "Infinite Radio",
+        "songs claudius writes as it plays them, one genre after another, each mixed into the next as a DJ mixes records",
+        |_| {},
     );
     ui.add_space(8.0);
+    ui.label(RichText::new("In a browser it is a page of its own.").color(TEXT));
+    ui.add_space(4.0);
     ui.hyperlink_to("Open Infinite Radio", SITE);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn body(ui: &mut Ui, cx: &mut Cx) {
     use crate::radio::{Radio, said};
-    use crate::theme::TEXT_DIM;
+    use crate::theme::{self, TEXT_DIM};
     use crate::widgets;
     let ctx = ui.ctx().clone();
     let r = cx.view.radio.radio.get_or_insert_with(|| Radio::new(Some(ctx)));
     if let Some(e) = r.error() {
         ui.label(RichText::new(e).color(crate::theme::BAD));
     }
-    widgets::heading(ui, "On air");
-    match r.on_air() {
-        Some((info, at, secs)) => {
-            ui.label(RichText::new(&info.title).size(17.0).strong().color(TEXT));
-            ui.label(
-                RichText::new(format!("{} · {:.0} BPM · {}", said(&info.genre), info.bpm, info.key)).color(TEXT_DIM),
-            );
-            ui.add(egui::ProgressBar::new((at / secs.max(1.0)) as f32).desired_height(4.0));
-            let time = format!("{} / {}", crate::mock::fmt_time(at), crate::mock::fmt_time(secs));
-            ui.label(RichText::new(time).size(11.0).color(TEXT_DIM));
-            for credit in &info.sampled {
-                ui.label(RichText::new(format!("Samples {credit}")).size(11.0).color(TEXT_DIM));
-            }
+    // the player, as the site's page has it: a round play button beside the song on air, its progress, and what comes
+    // next under it
+    let label = if !r.tuned() {
+        "Tune in"
+    } else if r.playing() {
+        "Pause"
+    } else {
+        "Play"
+    };
+    let mut toggled = false;
+    egui::Frame::new().fill(theme::RAISED.into()).corner_radius(10.0).inner_margin(14.0).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            toggled = widgets::round_play(ui, r.playing(), label, 56.0).clicked();
+            ui.add_space(12.0);
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    // the dot of a station on air: red while it plays
+                    let (dot, _) = ui.allocate_exact_size(vec2(8.0, 8.0), egui::Sense::hover());
+                    let lit = if r.playing() { theme::BAD } else { theme::LINE };
+                    ui.painter().circle_filled(dot.center(), 4.0, lit);
+                    widgets::heading(ui, "On air");
+                });
+                match r.on_air() {
+                    Some((info, at, secs)) => {
+                        let title = RichText::new(&info.title).size(17.0).strong().color(TEXT);
+                        ui.add(egui::Label::new(title).truncate());
+                        let about = format!("{} · {:.0} BPM · {}", said(&info.genre), info.bpm, info.key);
+                        ui.label(RichText::new(about).color(TEXT_DIM));
+                        ui.add_space(4.0);
+                        progress(ui, (at / secs.max(1.0)) as f32);
+                        let time = format!("{} / {}", crate::mock::fmt_time(at), crate::mock::fmt_time(secs));
+                        ui.label(RichText::new(time).size(11.0).monospace().color(TEXT_DIM));
+                        for credit in &info.sampled {
+                            ui.label(RichText::new(format!("Samples {credit}")).size(11.0).color(TEXT_DIM));
+                        }
+                    }
+                    None => {
+                        let words = if r.tuned() { "The first song is being written…" } else { "Not tuned in yet" };
+                        ui.label(RichText::new(words).size(15.0).color(TEXT_DIM));
+                    }
+                }
+            });
+        });
+        if let Some(next) = r.coming() {
+            ui.add_space(8.0);
+            ui.separator();
+            ui.horizontal(|ui| {
+                widgets::heading(ui, "Up next");
+                ui.add(egui::Label::new(RichText::new(next).color(TEXT_DIM)).truncate());
+            });
         }
-        None => {
-            let words = if r.tuned() { "The first song is being written…" } else { "Not tuned in" };
-            ui.label(RichText::new(words).color(TEXT_DIM));
+    });
+    if toggled {
+        // the radio playing gives the studio's song a rest
+        if !r.playing() {
+            cx.player.pause();
         }
-    }
-    if let Some(next) = r.coming() {
-        ui.add_space(6.0);
-        widgets::heading(ui, "Up next");
-        ui.label(RichText::new(next).color(TEXT_DIM));
+        r.toggle();
     }
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        let label = if !r.tuned() {
-            "Tune in"
-        } else if r.playing() {
-            "Pause"
-        } else {
-            "Play"
-        };
-        if widgets::primary(ui, label, true).clicked() {
-            // the radio playing gives the studio's song a rest
-            if !r.playing() {
-                cx.player.pause();
-            }
-            r.toggle();
-        }
         let on = r.on_air().is_some();
         if ui.add_enabled(on, egui::Button::new("Skip")).on_hover_text("the next song, in on the beat").clicked() {
             r.skip();
@@ -217,4 +243,15 @@ fn genres(ui: &mut Ui, r: &mut crate::radio::Radio) {
             r.keep_to(chosen.into_iter().collect());
         }
     });
+}
+
+/// the song's progress as a thin bar of the accent in a well, as the site's player draws it
+#[cfg(not(target_arch = "wasm32"))]
+fn progress(ui: &mut Ui, done: f32) {
+    use crate::theme;
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 5.0), egui::Sense::hover());
+    ui.painter().rect_filled(rect, 2.5, theme::WELL);
+    let mut lit = rect;
+    lit.set_width(rect.width() * done.clamp(0.0, 1.0));
+    ui.painter().rect_filled(lit, 2.5, theme::ACCENT);
 }

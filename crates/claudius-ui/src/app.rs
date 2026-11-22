@@ -747,6 +747,7 @@ impl Studio {
                     }
                 }
                 Step::Phone => self.view.phone.show(self.state.phone.is_some()),
+                Step::Radio => self.view.radio.open = true,
                 Step::Palette if !self.view.palette.open => self.view.palette.toggle(),
                 Step::Palette => {}
                 Step::PaletteSay => self.view.palette.listen_or_stop(now),
