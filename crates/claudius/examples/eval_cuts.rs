@@ -250,7 +250,8 @@ fn sung(path: &Path) -> Result<(Spans, Spans), String> {
     Ok((words, lines))
 }
 
-/// `file` of the dataset, downloaded into `dir` the first time
+/// `file` of the dataset, downloaded into `dir` the first time (curl told not to read the brackets some of its names
+/// hold, "Intro_[Pulsschlag]_...", as a range of URLs)
 fn fetched(dir: &Path, file: &str) -> Result<PathBuf, String> {
     let path = dir.join(file);
     if path.exists() {
@@ -261,7 +262,7 @@ fn fetched(dir: &Path, file: &str) -> Result<PathBuf, String> {
     }
     let url = format!("{DATASET}/{file}");
     let ok = std::process::Command::new("curl")
-        .args(["-sSfL", "--retry", "2", "-o"])
+        .args(["-gsSfL", "--retry", "2", "-o"])
         .arg(&path)
         .arg(&url)
         .status()
