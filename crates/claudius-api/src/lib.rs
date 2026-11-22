@@ -1043,6 +1043,10 @@ pub struct Graph {
 
 /// an effect in a few words: its name and its main settings ("saturate tape 6 dB, 50%", "filter lp 2400 Hz moving")
 pub fn effect_summary(v: &serde_json::Value) -> String {
+    // an effect switched off is said as what it is, and off
+    if v.get("fx").and_then(|f| f.as_str()) == Some("off") {
+        return format!("{} (off)", effect_summary(v.get("effect").unwrap_or(&serde_json::Value::Null)));
+    }
     let name = v.get("fx").and_then(|f| f.as_str()).unwrap_or("effect").replace('_', " ");
     let num = |k: &str| -> Option<String> {
         let x = v.get(k)?;
@@ -2689,6 +2693,13 @@ pub struct SectionHeard {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_effect_switched_off_is_said_as_what_it_is_and_off() {
+        let v = serde_json::json!({"fx": "off", "effect": {"fx": "gain", "db": 3}});
+        assert_eq!(super::effect_summary(&v), "gain 3 dB (off)");
+        assert_eq!(super::words::effect_in_words("off").0, "off");
+    }
+
     use super::*;
     use serde_json::json;
 

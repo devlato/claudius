@@ -354,6 +354,7 @@ pub fn variant_in_words(variant: &str) -> (String, &'static str) {
 /// An effect, by the name a chain gives it (`{"fx": "saturate"}`), as a person reads it, and what it does.
 pub fn effect_in_words(fx: &str) -> (String, &'static str) {
     let (name, about) = match fx {
+        "off" => ("off", "an effect switched off: kept in its place with its settings, and not heard"),
         "gain" => ("gain", "turns it up or down"),
         "eq" => ("EQ", "boosts or cuts bands of its frequencies"),
         "filter" => ("filter", "lets some of its frequencies through and takes the rest away"),

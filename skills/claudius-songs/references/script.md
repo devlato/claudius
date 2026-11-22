@@ -189,6 +189,10 @@ fx("pad", [
 send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: sections(0.3, #{ outro: [0.3, 0.8] }), pingpong: true, mix: 1 } });
 ```
 
+To hear a track with and without an effect, switch it off rather than taking it out: wrapped as
+`#{ fx: "off", effect: #{ fx: "reverb", decay: 4.5, mix: 0.3 } }`, it keeps its place in the chain and all its settings,
+and is not heard until it is unwrapped again.
+
 Real instruments, when the sample packs are installed:
 
 ```js packs

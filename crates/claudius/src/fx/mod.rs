@@ -264,6 +264,11 @@ pub enum Effect {
         #[serde(skip)]
         harmony: Vec<(f64, [f32; 12])>,
     },
+    /// an effect switched off (design 0025): kept in its chain, in its place and with all its settings, and the sound
+    /// passed by it untouched; switched on again, it is `effect` as it was
+    Off {
+        effect: Box<Effect>,
+    },
 }
 
 /// every effect's name, as `fx` names it in a blueprint or a script
@@ -293,6 +298,7 @@ pub const EFFECT_NAMES: &[&str] = &[
     "reverse",
     "parallel",
     "tune",
+    "off",
 ];
 
 /// one of a `Parallel` effect's chains, and how loud it comes out
@@ -306,6 +312,7 @@ pub struct Branch {
 impl Effect {
     pub fn name(&self) -> &'static str {
         match self {
+            Effect::Off { .. } => "off",
             Effect::Gain { .. } => "gain",
             Effect::Eq { .. } => "eq",
             Effect::Filter { .. } => "filter",
@@ -452,6 +459,7 @@ pub fn apply(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
 fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
     let k = Param::first;
     match fx {
+        Effect::Off { .. } => {}
         Effect::Gain { db } => tone::gain(x, db, ctx),
         Effect::Eq { bands } => tone::eq(x, bands, ctx),
         Effect::Filter { mode, cutoff, res, drive, mix } => tone::filter(x, *mode, cutoff, res, *drive, k(mix), ctx),
@@ -577,6 +585,29 @@ mod tests {
     }
 
     const CTX: Ctx = Ctx { sr: 1_000.0, bpm: 60.0, seed: 1, start: 0, total: 0 };
+
+    #[test]
+    fn an_effect_switched_off_keeps_its_settings_and_is_not_heard() {
+        let on: Vec<Effect> =
+            serde_json::from_str(r#"[{"fx": "gain", "db": 6}, {"fx": "filter", "mode": "lp", "cutoff": 200}]"#)
+                .unwrap();
+        let off: Vec<Effect> = serde_json::from_str(
+            r#"[{"fx": "off", "effect": {"fx": "gain", "db": 6}}, {"fx": "filter", "mode": "lp", "cutoff": 200}]"#,
+        )
+        .unwrap();
+        // heard as the chain without it
+        let (mut a, mut b) = (tone(2000), tone(2000));
+        apply_chain(&off, &mut a, &CTX);
+        apply_chain(&on[1..], &mut b, &CTX);
+        assert_eq!((a.l, a.r), (b.l, b.r));
+        // its settings kept as they were, and written back as read
+        let Effect::Off { effect } = &off[0] else { panic!("{:?}", off[0]) };
+        assert_eq!(**effect, on[0]);
+        let written = serde_json::to_value(&off[0]).unwrap();
+        assert_eq!(written["fx"], "off");
+        assert_eq!(serde_json::from_value::<Effect>(written).unwrap(), off[0]);
+        assert_eq!(off[0].tail_secs(120.0), 0.0);
+    }
 
     #[test]
     fn every_effect_is_named_as_a_blueprint_names_it() {
