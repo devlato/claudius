@@ -5,6 +5,8 @@
 //! around it (the median beat of the outgoing song's last 8 bars before it and the next one's first 8 after it) to
 //! the quietest beat of the change and the bar after it, in dB. A paired sign test over the pairs, the songs that sing
 //! from their first bars and the club songs apart (whose blends over beat-only intros and outros should not move).
+//! Beside each dip, the deepest hole the mix itself makes (`hole`): how far it falls below the louder of the two songs
+//! as each would sound there alone, which a song's own quiet beat (a break, a pause before a drop) does not count in.
 //!
 //!   cargo run -p claudius-session --example radio_dips -- [SEEDS]
 
@@ -71,6 +73,24 @@ fn dip(a: &Song, b: &Song, c: &radio::Change) -> f64 {
     (around - quietest).max(0.0)
 }
 
+/// The deepest hole the mixing makes in change `c` from `a` into `b`: over its beats, how far the mix falls below the
+/// louder of the two songs as each would sound there alone (`a` from where the change starts, `b` from where it comes
+/// in), in dB. A song's own quiet beat (a break, a pause before a drop) is no hole, as the other song, or the song alone,
+/// would be as quiet there; beats where both are near silence (under -60 dB) are left out.
+fn hole(a: &Song, b: &Song, c: &radio::Change) -> f64 {
+    let beat = 60.0 / a.bpm * SRF;
+    let n = (c.mixed.len() as f64 / beat).floor() as usize;
+    let mix = beats(&c.mixed, 0, n, beat);
+    let alone_a = beats(&a.audio, c.at, n, beat);
+    let alone_b = beats(&b.audio, c.then.saturating_sub(c.mixed.len()), n, beat);
+    mix.iter()
+        .zip(alone_a.iter().zip(&alone_b))
+        .map(|(m, (x, y))| (x.max(*y), m))
+        .filter(|(louder, _)| *louder > -60.0)
+        .map(|(louder, m)| louder - m)
+        .fold(0.0, f64::max)
+}
+
 /// a two-sided sign test of `n` pairs of which `k` went one way (ties left out)
 fn sign_p(k: usize, n: usize) -> f64 {
     if n == 0 {
@@ -97,6 +117,7 @@ fn main() -> Result<(), String> {
         ("techno", "tech_house", 128.0),
     ];
     let mut rows: Vec<(bool, f64, f64)> = Vec::new();
+    let mut holes: Vec<(bool, f64, f64)> = Vec::new();
     for (ga, gb, bpm) in pairs {
         for seed in 1..=seeds {
             let (a, b) = (song(ga, seed * 2, bpm, "A minor")?, song(gb, seed * 2 + 1, bpm, "C major")?);
@@ -109,12 +130,23 @@ fn main() -> Result<(), String> {
             };
             let was = radio::change(&all(&a), &all(&b), How::Blend, 0);
             let (d0, d1) = (dip(&a, &b, &was), dip(&a, &b, &now));
+            let (h0, h1) = (hole(&a, &b, &was), hole(&a, &b, &now));
             let club = a.club && b.club;
-            println!("{ga} -> {gb} seed {seed}: before {d0:.1} dB ({}), now {d1:.1} dB ({})", was.said, now.said);
+            println!(
+                "{ga} -> {gb} seed {seed}: before {d0:.1} dB ({}), now {d1:.1} dB ({}); the mix's deepest hole below the \
+                 louder song alone: before {h0:.1} dB, now {h1:.1} dB",
+                was.said, now.said
+            );
             rows.push((club, d0, d1));
+            holes.push((club, h0, h1));
         }
     }
-    for (name, club) in [("songs that sing from their first bars", false), ("club songs", true)] {
+    for (name, club, rows) in [
+        ("songs that sing from their first bars", false, &rows),
+        ("club songs", true, &rows),
+        ("songs that sing from their first bars, the mix's holes", false, &holes),
+        ("club songs, the mix's holes", true, &holes),
+    ] {
         let of: Vec<&(bool, f64, f64)> = rows.iter().filter(|r| r.0 == club).collect();
         let n = of.len().max(1) as f64;
         let (b, a) = (of.iter().map(|r| r.1).sum::<f64>() / n, of.iter().map(|r| r.2).sum::<f64>() / n);
@@ -122,7 +154,7 @@ fn main() -> Result<(), String> {
         let higher = of.iter().filter(|r| r.2 > r.1 + 0.05).count();
         let worse = of.iter().filter(|r| r.2 > r.1 + 1.0).count();
         println!(
-            "{name}: {} changes, mean dip before {b:.2} dB, now {a:.2} dB; lower in {lower}, higher in {higher} (sign test p \
+            "{name}: {} changes, mean before {b:.2} dB, now {a:.2} dB; lower in {lower}, higher in {higher} (sign test p \
              {:.4}), more than 1 dB deeper in {worse}",
             of.len(),
             sign_p(lower, lower + higher)
