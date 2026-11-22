@@ -100,6 +100,9 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
             ui.add(egui::ProgressBar::new((at / secs.max(1.0)) as f32).desired_height(4.0));
             let time = format!("{} / {}", crate::mock::fmt_time(at), crate::mock::fmt_time(secs));
             ui.label(RichText::new(time).size(11.0).color(TEXT_DIM));
+            for credit in &info.sampled {
+                ui.label(RichText::new(format!("Samples {credit}")).size(11.0).color(TEXT_DIM));
+            }
         }
         None => {
             let words = if r.tuned() { "The first song is being written…" } else { "Not tuned in" };
@@ -138,14 +141,14 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.horizontal(|ui| {
         let on = r.on_air().is_some();
-        let save = ui
-            .add_enabled(on && !r.downloading(), egui::Button::new("Save this song"))
-            .on_hover_text("an MP3 of the song on air, in the songs folder's radio");
+        let save = ui.add_enabled(on && !r.downloading(), egui::Button::new("Save this song")).on_hover_text(
+            "an MP3 of the song on air, in the songs folder's radio, with the credits of what it samples",
+        );
         if save.clicked() {
             r.download();
         }
         let open = ui.add_enabled(on, egui::Button::new("Open it in the studio")).on_hover_text(
-            "the studio writes the same song again, every part of it to change; undo brings back the song you had",
+            "the song on air, samples and all, every part of it to change; undo brings back the song you had",
         );
         if open.clicked()
             && let Some(c) = r.studio()

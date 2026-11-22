@@ -55,11 +55,19 @@ starts on its genres. Opening the list before tuning in starts the engine, which
 
 ## In the app
 
-The studio app has Infinite Radio too: **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an engine of its
-own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the genres to
-keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open it in the studio**, which makes the song on
-air the studio's (undo brings back the song you had). Your song and the radio take turns: playing one pauses the other.
-It plays on while its window is closed ([design 0024](../design/0024-the-radio-in-the-app.md)).
+The studio app has Infinite Radio too: **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an
+engine of its own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the
+genres to keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open it in the studio**, which makes
+the song on air the studio's, the very song you heard (undo brings back the song you had). Your song and the radio take
+turns: playing one pauses the other. It plays on while its window is closed
+([design 0024](../design/0024-the-radio-in-the-app.md)).
+
+In the app the station samples as each genre does. A song of a genre built on samples (trip hop, boom bap, lo-fi, phonk
+and the others whose producers dig for records) plays recordings as the studio's songs do: those gathered on this
+computer, and a few more the radio finds in the free libraries before it writes the song, for up to a minute while the
+song before plays (20 seconds for the first song, which you wait for). With no internet it plays what it has gathered,
+or what stands in for samples in its genre. What a song samples is credited under it while it is on air, and **Save
+this song** writes the credits beside the MP3 (`<title>.credits.txt`), as the licences of the recordings ask.
 
 The page is `site/radio/index.html` and `site/assets/radio.js`; it drives the engine as the studio demo does (the
 `new_song` command, the renders it sends back), and `site/tests/radio.spec.mjs` checks it goes on air and mixes a song

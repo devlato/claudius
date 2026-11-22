@@ -1403,6 +1403,7 @@ dependencies = [
  "claudius",
  "claudius-api",
  "claudius-intent",
+ "claudius-packs",
  "claudius-session",
  "cpal",
  "eframe",

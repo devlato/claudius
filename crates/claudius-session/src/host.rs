@@ -186,6 +186,12 @@ impl Host {
         self.listened.take()
     }
 
+    /// Builds its songs on samples from `lib`, the samples a computer of its own gathered (the app's radio keeps its
+    /// engine so), rather than from the recordings a page fetched (`sample`).
+    pub fn use_library(&mut self, lib: Arc<Library>) {
+        self.lib = Some(lib);
+    }
+
     /// a new song like the recording analyzed last, in `genre` (the song's, when none)
     fn song_like(&mut self, genre: Option<String>, seed: Option<u64>) -> Reply {
         let Some((name, a)) = self.heard.clone() else {
