@@ -30,6 +30,18 @@ const SAMPLED = 2 / 3;
 const FUSED = 1 / 6;
 // the bass of a song coming in is cut this far, and the outgoing one's once they swap
 const BASS_CUT_DB = -26;
+// a DJ mixer's middle band, round 1 kHz, cut this far while a song's mids wait for the swap or after it
+const MIDS_CUT_DB = -12;
+// the families DJs blend over long beat-only intros and outros, and how long a blend runs at most, in the outgoing
+// song's bars: over the whole of the next song's intro between two of them, over a phrase of 8 for the others
+const CLUB = new Set(["house", "techno and trance", "drum and bass", "edm", "bass music", "hard dance"]);
+const CLUB_BARS = 32;
+const SONG_BARS = 8;
+// the families whose DJs stop a record to change songs, and how often a song that does not blend comes in so after one
+const BRAKES = new Set(["hip hop", "r&b, soul and funk"]);
+const BRAKE = 0.3;
+/** the family of a genre, a fusion's first's */
+const family = (genre) => (engine.genres.find((g) => g.name === genre.split("+")[0]) || {}).family || "";
 // for its tests: the first song starts 20 s before it gives way, so that the next comes in as soon as it is made
 const SOON = new URLSearchParams(location.search).has("soon");
 // the families whose songs are usually in a minor key
@@ -341,6 +353,12 @@ function deck(state, audio, spec) {
   const low = ctx.createBiquadFilter();
   low.type = "lowshelf";
   low.frequency.value = 200;
+  // a DJ mixer's mid knob: a broad bell round 1 kHz, at 0 dB until a blend turns it
+  const mid = ctx.createBiquadFilter();
+  mid.type = "peaking";
+  mid.frequency.value = 1000;
+  mid.Q.value = 0.7;
+  mid.gain.value = 0;
   const thin = ctx.createBiquadFilter();
   thin.type = "highpass";
   thin.frequency.value = 10;
@@ -348,7 +366,8 @@ function deck(state, audio, spec) {
   const send = ctx.createGain();
   send.gain.value = 0;
   src.connect(low);
-  low.connect(thin);
+  low.connect(mid);
+  mid.connect(thin);
   thin.connect(fader);
   fader.connect(master);
   fader.connect(send);
@@ -356,6 +375,7 @@ function deck(state, audio, spec) {
   return {
     src,
     low,
+    mid,
     thin,
     fader,
     send,
@@ -425,22 +445,31 @@ function mix(a, b, how) {
   const at = a.t0 + Math.ceil((soonest - a.t0) / bar(a) - 1e-6) * bar(a);
   const left = a.bars - Math.round((at - a.t0) / bar(a));
   if (how === "blend" && left >= 4) {
-    // the next song's own bars, counted in the outgoing one's (twice as many when it is at twice the tempo)
+    // the next song's own bars, counted in the outgoing one's (twice as many when it is at twice the tempo): its whole
+    // beat-only intro between two club songs, a phrase of 8 between others
     const intro = b.sections.length ? b.sections[0].bars : 16;
     const ratio = bar(b) / bar(a);
-    let bars = Math.min(left, Math.floor(intro * ratio), 16);
+    const most = CLUB.has(family(a.genre)) && CLUB.has(family(b.genre)) ? CLUB_BARS : SONG_BARS;
+    let bars = Math.min(left, Math.floor(intro * ratio), most);
     bars -= bars % 2;
     bars = Math.max(bars, 4);
     const span = bars * bar(a);
     const half = (bars / 2) * bar(a);
     const beat = bar(a) / 4;
+    // as on a three-band mixer: the next song's fader up over the first quarter, its bass and mids held back, so that its
+    // highs come in first; the basses swapping on the half, its mids coming in round it and the outgoing one's leaving
     start(b, at);
-    fade(b.fader.gain, 0, 1, at, half);
+    fade(b.fader.gain, 0, 1, at, span / 4);
     b.low.gain.setValueAtTime(BASS_CUT_DB, at);
     b.low.gain.setValueAtTime(BASS_CUT_DB, at + half - beat);
     b.low.gain.linearRampToValueAtTime(0, at + half);
+    b.mid.gain.setValueAtTime(MIDS_CUT_DB, at);
+    b.mid.gain.setValueAtTime(MIDS_CUT_DB, at + half - beat);
+    b.mid.gain.linearRampToValueAtTime(0, at + half + beat);
     a.low.gain.setValueAtTime(0, at + half - beat);
     a.low.gain.linearRampToValueAtTime(BASS_CUT_DB, at + half);
+    a.mid.gain.setValueAtTime(0, at + half);
+    a.mid.gain.linearRampToValueAtTime(MIDS_CUT_DB, at + half + 2 * beat);
     fade(a.fader.gain, 1, 0, at + half, span - half);
     a.thin.frequency.setValueAtTime(10, at + half);
     a.thin.frequency.exponentialRampToValueAtTime(500, at + span);
@@ -482,7 +511,7 @@ function mix(a, b, how) {
  *  start. What was scheduled for `a` is taken back first. */
 function cut(a, b, how) {
   const now = ctx.currentTime;
-  for (const p of [a.fader.gain, a.low.gain, a.thin.frequency, a.send.gain, a.src.playbackRate]) {
+  for (const p of [a.fader.gain, a.low.gain, a.mid.gain, a.thin.frequency, a.send.gain, a.src.playbackRate]) {
     p.cancelScheduledValues(now);
     p.setValueAtTime(p.value, now);
   }
@@ -549,7 +578,9 @@ function plan(now) {
     const g = pick(pool);
     const bpm = Math.round(g.bpm[0] + Math.random() * (g.bpm[1] - g.bpm[0]));
     const key = { tonic: Math.floor(Math.random() * 12), minor: MINOR.has(g.family) };
-    spec = { genre: g.name, bpm, key, seed, how: Math.random() < 0.2 ? "brake" : "echo" };
+    // a record stop after a song of a family whose DJs do it, an echo out after any other
+    const brakes = BRAKES.has(family(now.genre));
+    spec = { genre: g.name, bpm, key, seed, how: brakes && Math.random() < BRAKE ? "brake" : "echo" };
   }
   return touched(spec);
 }

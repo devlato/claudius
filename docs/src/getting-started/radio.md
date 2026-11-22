@@ -22,15 +22,19 @@ bass, techno and house in minor, pop, Latin and soul in major), or now and then 
 circle of fifths. Since every song is written at the tempo it will be mixed at, nothing is sped up or slowed down, and
 no song is heard out of its key.
 
-- **A blend.** The next song starts on a bar line of the outgoing one's outro (its last 16 bars, when it has no outro
-  of 8 bars or more), on its own first downbeat, its bass cut. It fades in over the first half of the mix, up to 16
-  bars, as long as its intro takes; halfway, the basses swap, and the outgoing song is thinned out by a rising
-  high-pass and faded out over the second half.
+- **A blend**, as a DJ mixes on a three-band mixer. The next song starts on a bar line of the outgoing one's outro
+  (its last 16 bars, when it has no outro of 8 bars or more), on its own first downbeat. Its fader comes up over the
+  first quarter of the mix with its bass and its mids held back, so that its highs come in first; halfway, on the
+  phrase, the basses swap, its mids come in round the swap and the outgoing song's leave just after, and the outgoing
+  song is thinned out by a rising high-pass and faded out over the second half. Between two songs of the genres DJs
+  blend over long intros and outros of beats alone (house, techno and trance, drum and bass, EDM, bass music, hard
+  dance), the mix runs as long as the next song's intro, up to 32 bars; between songs that sing from their first bars,
+  over a phrase of 8.
 - **An echo out.** A song in another tempo: the outgoing song's last beat goes into a feedback echo on a dotted
   eighth, the song is cut on the bar, and the next one comes in on its own downbeat a bar later while the echoes die
   away, its bass held back for two bars.
-- **A record stop.** One time in five, a song in another tempo comes in instead after the outgoing one slows to a stop
-  like a record whose turntable is switched off.
+- **A record stop.** After a hip hop or R&B song, where DJs do it, about one time in three a song in another tempo
+  comes in instead after the outgoing one slows to a stop like a record whose turntable is switched off.
 
 Each change is scheduled on the audio clock as soon as the next song arrives, so it lands on the beat even in a tab
 no one is looking at. A song that arrives too late to blend on the outro comes in on the outgoing one's next bar line.

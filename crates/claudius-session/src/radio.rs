@@ -19,8 +19,19 @@ pub const OPENERS: [&str; 10] =
     ["house", "deep_house", "nu_disco", "hip_hop", "lofi", "afrobeats", "dnb", "synthwave", "trap", "funk"];
 /// how often the next song is one that mixes into the playing one beat for beat
 const BLEND: f64 = 0.75;
-/// how often a song that does not mix in beat for beat comes in after the last one stops like a record
-const BRAKE: f64 = 0.2;
+/// how often a song that does not mix in beat for beat comes in after the last one stops like a record: only after a song
+/// of the families whose DJs do it (`BRAKES`), an echo out after any other
+const BRAKE: f64 = 0.3;
+const BRAKES: [&str; 2] = ["hip hop", "r&b, soul and funk"];
+/// the families DJs blend over long beat-only intros and outros, and how long a blend runs at most, in the outgoing
+/// song's bars: over the whole of the next song's intro between two of them, over a phrase of 8 for songs that sing
+/// from their first bars
+pub const CLUB: [&str; 6] = ["house", "techno and trance", "drum and bass", "edm", "bass music", "hard dance"];
+const CLUB_BARS: u32 = 32;
+const SONG_BARS: u32 = 8;
+/// a DJ mixer's middle band, round 1 kHz, and how far it is cut while a song's mids wait for the swap or after it
+const MIDS_HZ: f64 = 1_000.0;
+const MIDS_CUT_DB: f64 = -12.0;
 /// the bass of a song coming in is cut this far, and the outgoing one's once they swap
 const BASS_CUT_DB: f64 = -26.0;
 /// where a song's bass ends, for its cut
@@ -214,7 +225,10 @@ impl Station {
             let g = self.rng.pick(&pool).clone();
             let bpm = self.rng.range(g.bpm.0, g.bpm.1).round();
             let key = Key { tonic: self.rng.below(12) as u8, minor: MINOR.contains(&g.family.as_str()) };
-            let how = if self.rng.chance(BRAKE) { How::Brake } else { How::Echo };
+            // a record stop after a song of a family whose DJs do it, an echo out after any other
+            let first = genre.split('+').next().unwrap_or(genre);
+            let brakes = self.all.iter().any(|g| g.name == first && BRAKES.contains(&g.family.as_str()));
+            let how = if brakes && self.rng.chance(BRAKE) { How::Brake } else { How::Echo };
             let spec = Spec { genre: g.name.clone(), bpm, key: Some(key), seed, how, sampled: None };
             (g, spec)
         };
@@ -257,6 +271,8 @@ pub struct Song {
     pub bpm: f64,
     pub bars: u32,
     pub sections: Vec<(u32, u32, String)>,
+    /// of a family DJs blend over long beat-only intros and outros (`CLUB`)
+    pub club: bool,
 }
 
 impl Song {
@@ -337,14 +353,17 @@ fn quick(a: &Song, b: &Song, at: usize) -> Change {
     Change { at, mixed, then: span, said: "skipped to, mixed in over two bars".into(), blended: true }
 }
 
-/// `b` faded in under `a`'s last `left` bars from `at`, its bass cut, the basses swapping halfway, and `a` thinned out
-/// by a rising high-pass and faded out over the second half; over as many bars of `a` as `b`'s first section has of its
-/// own (at most 16, at least 4, an even number)
+/// `b` mixed in under `a`'s last `left` bars from `at` as a DJ mixes on a three-band mixer: its fader up over the
+/// first quarter with its bass and its mids held back, so that its highs come in first; the basses swapping halfway, on
+/// the phrase, `b`'s mids coming in round it and `a`'s leaving after it; and `a` thinned out by a rising high-pass and
+/// faded out over the second half. Over as many bars of `a` as `b`'s first section has of its own: at most 32 between
+/// two songs of the families DJs blend over long beat-only intros (`CLUB`), 8 for others, at least 4, an even number.
 fn blend(a: &Song, b: &Song, at: usize, left: u32) -> Change {
     let bar = a.bar();
     let intro = b.sections.first().map_or(16, |s| s.1);
     let ratio = b.bar() / bar;
-    let mut bars = left.min((intro as f64 * ratio).floor() as u32).min(16);
+    let most = if a.club && b.club { CLUB_BARS } else { SONG_BARS };
+    let mut bars = left.min((intro as f64 * ratio).floor() as u32).min(most);
     bars -= bars % 2;
     let bars = bars.max(4);
     let span = (bars as f64 * bar).round() as usize;
@@ -352,13 +371,18 @@ fn blend(a: &Song, b: &Song, at: usize, left: u32) -> Change {
     let beat = (bar / 4.0).round() as usize;
     let swap = half.saturating_sub(beat);
     let mut mixed = Stereo::zeros(span);
-    // the next song: faded in over the first half, its bass cut until the swap and up by the half
+    // the next song: up over the first quarter, its bass cut until the swap and up by the half, its mids held back until
+    // round the swap
+    let quarter = (span / 4).max(1);
     let mut b_part = window(&b.audio, 0, span);
     bass(&mut b_part, |i| ramp_db(i, swap, half, BASS_CUT_DB, 0.0));
-    gain(&mut b_part, |i| if i < half { power(i as f64 / half as f64, true) } else { 1.0 });
-    // the outgoing one: its bass down by the half, then faded out and thinned over the second half
+    mids(&mut b_part, |i| ramp_db(i, swap, half + beat, MIDS_CUT_DB, 0.0));
+    gain(&mut b_part, |i| if i < quarter { power(i as f64 / quarter as f64, true) } else { 1.0 });
+    // the outgoing one: its bass down by the half and its mids just after, then faded out and thinned over the second
+    // half
     let mut a_part = window(&a.audio, at, span);
     bass(&mut a_part, |i| ramp_db(i, swap, half, 0.0, BASS_CUT_DB));
+    mids(&mut a_part, |i| ramp_db(i, half, half + 2 * beat, 0.0, MIDS_CUT_DB));
     let rise = (span - half).max(1) as f64;
     thin(&mut a_part, |i| if i < half { 10.0 } else { 10.0 * 50f64.powf((i - half) as f64 / rise) });
     gain(&mut a_part, |i| if i < half { 1.0 } else { power((i - half) as f64 / rise, false) });
@@ -473,6 +497,20 @@ fn bass(x: &mut Stereo, db: impl Fn(usize) -> f64) {
             let low = shelf.tick(*v);
             let how_far = ((1.0 - 10f64.powf(db(i) / 20.0)) / (1.0 - cut)).clamp(0.0, 1.0) as f32;
             *v += (low - *v) * how_far;
+        }
+    }
+}
+
+/// `x` with its middle band (a broad bell round `MIDS_HZ`) lowered by `db(frame)`, 0 to `MIDS_CUT_DB`, as a DJ mixer's
+/// mid knob turns: the bell cut through in full, mixed in as far as the frame asks
+fn mids(x: &mut Stereo, db: impl Fn(usize) -> f64) {
+    let cut = 10f64.powf(MIDS_CUT_DB / 20.0);
+    for ch in [&mut x.l, &mut x.r] {
+        let mut bell = Biquad::new(BiquadKind::Peak, MIDS_HZ, SRF, 0.7, MIDS_CUT_DB);
+        for (i, v) in ch.iter_mut().enumerate() {
+            let cut_through = bell.tick(*v);
+            let how_far = ((1.0 - 10f64.powf(db(i) / 20.0)) / (1.0 - cut)).clamp(0.0, 1.0) as f32;
+            *v += (cut_through - *v) * how_far;
         }
     }
 }
@@ -599,7 +637,7 @@ mod tests {
             })
             .collect();
         let sections = sections.into_iter().map(|(a, b, k)| (a, b, k.to_string())).collect();
-        Song { audio: Arc::new(Stereo::from_mono(&tone)), bpm, bars, sections }
+        Song { audio: Arc::new(Stereo::from_mono(&tone)), bpm, bars, sections, club: false }
     }
 
     /// the level of the band near `hz` in `x` from frame `a` for `n` frames (a correlation with the tone)
@@ -662,6 +700,60 @@ mod tests {
         let beat_at = ((5.1 * bar + 0.15 * SRF) / beat).ceil() * beat;
         assert_eq!(s.at, beat_at as usize - beat as usize);
         assert!(level(&s.mixed.l, 300.0, beat as usize + n, n) > 0.1, "the next song on the beat");
+    }
+
+    #[test]
+    fn a_blend_runs_over_the_next_club_song_s_whole_intro_and_over_a_phrase_of_8_between_songs_that_sing_from_the_start()
+     {
+        let club = |hz: f32, sections| Song { club: true, ..song(hz, 126.0, 96, sections) };
+        let a = club(55.0, vec![(0, 32, "intro"), (32, 32, "drop"), (64, 32, "outro")]);
+        let b = club(82.0, vec![(0, 32, "intro"), (32, 64, "drop")]);
+        let c = change(&a, &b, How::Blend, 0);
+        let bar = 240.0 / 126.0 * SRF;
+        assert!(c.blended && c.said.contains("32 bars"), "{}", c.said);
+        assert_eq!(c.mixed.len(), (32.0 * bar).round() as usize);
+        // songs that sing from their first bars: a phrase of 8, however long the next one's first section
+        let (a, b) = (Song { club: false, ..a }, Song { club: false, ..b });
+        let c = change(&a, &b, How::Blend, 0);
+        assert!(c.blended && c.said.contains("8 bars"), "{}", c.said);
+    }
+
+    #[test]
+    fn the_next_song_s_mids_come_in_round_the_swap_and_the_outgoing_one_s_leave_after_it() {
+        // tops at 1200 Hz (the outgoing song) and 900 Hz (the next), both in a mixer's middle band
+        let a = song(150.0, 120.0, 64, vec![(0, 16, "intro"), (16, 32, "drop"), (48, 16, "outro")]);
+        let b = song(112.5, 120.0, 64, vec![(0, 8, "intro"), (8, 56, "drop")]);
+        let c = change(&a, &b, How::Blend, 0);
+        let (bar, n) = (2.0 * SRF, SRF as usize / 4);
+        assert_eq!(c.mixed.len(), (8.0 * bar) as usize);
+        // its third bar: the next song's fader up, its mids held back; the outgoing one's whole
+        let early = (2.5 * bar) as usize;
+        assert!(
+            level(&c.mixed.l, 900.0, early, n) < 0.09,
+            "the next mids held back: {}",
+            level(&c.mixed.l, 900.0, early, n)
+        );
+        assert!(level(&c.mixed.l, 1200.0, early, n) > 0.15, "the outgoing mids");
+        // its sixth: the next song's mids in, the outgoing one's out
+        let late = (5.25 * bar) as usize;
+        assert!(level(&c.mixed.l, 900.0, late, n) > 0.15, "the next mids: {}", level(&c.mixed.l, 900.0, late, n));
+        assert!(
+            level(&c.mixed.l, 1200.0, late, n) < 0.06,
+            "the outgoing mids gone: {}",
+            level(&c.mixed.l, 1200.0, late, n)
+        );
+    }
+
+    #[test]
+    fn a_record_stop_follows_only_a_song_of_a_family_whose_djs_do_it() {
+        let key = Key { tonic: 9, minor: true };
+        let hows = |from: &str| {
+            let mut s = Station::new(&genres(), 11);
+            (0..300).filter_map(|_| s.next(from, 90.0, key)).map(|n| n.how).collect::<Vec<_>>()
+        };
+        assert!(!hows("house").contains(&How::Brake), "never after house");
+        assert!(!hows("synthwave").contains(&How::Brake), "nor after synthwave");
+        assert!(hows("hip_hop").contains(&How::Brake), "now and then after hip hop");
     }
 
     fn cut_now(a: &Song, b: &Song, now: usize) -> Change {
