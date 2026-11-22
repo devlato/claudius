@@ -1,4 +1,4 @@
-// claudius radio: the studio demo's engine (claudius itself, in a Web Worker) writes and renders a song at a time,
+// Infinite Radio: the studio demo's engine (claudius itself, in a Web Worker) writes and renders a song at a time,
 // one genre after another, and this page plays them on two decks, mixing each into the next as a DJ would.
 //
 // The next song is asked for as soon as one goes on air. Most of the time its genre is one whose tempo range takes
@@ -535,7 +535,7 @@ async function download() {
     const url = URL.createObjectURL(new Blob([file.bytes], { type: file.mime }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${d.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, " ") || "claudius radio"}.${file.extension}`;
+    a.download = `${d.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, " ") || "Infinite Radio"}.${file.extension}`;
     document.body.append(a);
     a.click();
     a.remove();

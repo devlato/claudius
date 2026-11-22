@@ -416,7 +416,7 @@ fn save(audio: &Stereo, title: &str) -> Result<PathBuf, String> {
     let dir = claudius::config::songs_dir().join("radio");
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let name: String = title.chars().filter(|c| c.is_alphanumeric() || " -_'".contains(*c)).collect();
-    let name = if name.trim().is_empty() { "claudius radio".to_string() } else { name.trim().to_string() };
+    let name = if name.trim().is_empty() { "Infinite Radio".to_string() } else { name.trim().to_string() };
     let path = dir.join(format!("{name}.{}", spec.extension()));
     std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(path)

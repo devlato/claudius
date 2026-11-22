@@ -36,7 +36,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let mut open = true;
-    egui::Window::new("Radio")
+    egui::Window::new("Infinite Radio")
         .id(egui::Id::unique("radio"))
         .open(&mut open)
         .collapsible(false)
@@ -71,13 +71,13 @@ fn follow(ctx: &egui::Context, cx: &mut Cx) {
 fn body(ui: &mut Ui, _cx: &mut Cx) {
     ui.label(
         RichText::new(
-            "In a browser the radio is a page of its own: songs claudius writes as it plays them, one genre after \
+            "In a browser Infinite Radio is a page of its own: songs claudius writes as it plays them, one genre after \
              another, each mixed into the next as a DJ mixes records.",
         )
         .color(TEXT),
     );
     ui.add_space(8.0);
-    ui.hyperlink_to("Open claudius radio", SITE);
+    ui.hyperlink_to("Open Infinite Radio", SITE);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
