@@ -2476,9 +2476,16 @@ mod tests {
             Ok("remade song.mp3 as house".into())
         });
         let said = slow.await.unwrap();
-        assert!(said.starts_with("`remake` is still going after 0 s") && said.contains("Call status"), "{said}");
+        // the seconds are the wall clock's: a slow computer can let a second pass before the bound is polled
+        let seconds = |rest: Option<&str>, until: &str| {
+            rest.and_then(|r| r.split_once(until)).is_some_and(|(n, _)| n.parse::<u64>().is_ok())
+        };
+        assert!(
+            seconds(said.strip_prefix("`remake` is still going after "), " s") && said.contains("Call status"),
+            "{said}"
+        );
         let going = studio.status().await.unwrap();
-        assert!(going.starts_with("`remake` is still going (0 s so far)\nidle"), "{going}");
+        assert!(seconds(going.strip_prefix("`remake` is still going ("), " s so far)\nidle"), "{going}");
         go.send(()).unwrap();
         finished(&studio, "`remake`").await;
         let done = studio.status().await.unwrap();
