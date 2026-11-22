@@ -29,6 +29,10 @@ const BRAKES: [&str; 2] = ["hip hop", "r&b, soul and funk"];
 pub const CLUB: [&str; 6] = ["house", "techno and trance", "drum and bass", "edm", "bass music", "hard dance"];
 const CLUB_BARS: u32 = 32;
 const SONG_BARS: u32 = 8;
+/// how many of the outgoing song's bars the next one's intro runs under, at most and at least, when the beat is handed
+/// over on a downbeat (`hand_over`)
+const HAND_OVER_MOST: u32 = 8;
+const HAND_OVER_LEAST: u32 = 2;
 /// a DJ mixer's middle band, round 1 kHz, and how far it is cut while a song's mids wait for the swap or after it
 const MIDS_HZ: f64 = 1_000.0;
 const MIDS_CUT_DB: f64 = -12.0;
@@ -264,13 +268,17 @@ impl Station {
     }
 }
 
+/// The layers a song's beat is: a section plays its beat when one of them plays there (a hat or a shaker alone keeps
+/// time over an intro, and is not the beat a DJ hands over).
+pub const BEAT: [&str; 4] = ["kick", "snare", "clap", "break"];
+
 /// A song as its change into the next needs it: its audio, its tempo, its length in bars and its sections (where each
-/// starts and how many bars it lasts, and its kind).
+/// starts and how many bars it lasts, its kind, and whether its beat plays there: `BEAT`).
 pub struct Song {
     pub audio: Arc<Stereo>,
     pub bpm: f64,
     pub bars: u32,
-    pub sections: Vec<(u32, u32, String)>,
+    pub sections: Vec<(u32, u32, String, bool)>,
     /// of a family DJs blend over long beat-only intros and outros (`CLUB`)
     pub club: bool,
 }
@@ -293,19 +301,41 @@ pub struct Change {
     pub blended: bool,
 }
 
-/// where `a` starts to give way to the next: its outro when it has one of 8 bars or more, else its last 16 bars, never
-/// before its middle; the bar it starts on
+/// where `a` starts to give way to the next: its outro when it has one of 8 bars or more, else its last 16 bars, or 8
+/// bars before its beat stops for good where that is sooner (the most the next song's intro runs under it: `hand_over`),
+/// never before its middle; the bar it starts on
 pub fn leaving(a: &Song) -> u32 {
     let from = match a.sections.last() {
-        Some((start, bars, kind)) if kind == "outro" && *bars >= 8 => *start,
+        Some((start, bars, kind, _)) if kind == "outro" && *bars >= 8 => *start,
         _ => a.bars.saturating_sub(16),
     };
+    let end = beat_ends(a);
+    let from = if end < a.bars { from.min(end.saturating_sub(HAND_OVER_MOST)) } else { from };
     from.max(a.bars.div_ceil(2))
+}
+
+/// the bar where `s`'s beat stops for good: the end of its last section that plays it (its end when none does, as a
+/// song whose sections say nothing of it)
+fn beat_ends(s: &Song) -> u32 {
+    if !s.sections.iter().any(|x| x.3) {
+        return s.bars;
+    }
+    s.sections.iter().rev().find(|x| x.3).map_or(s.bars, |x| x.0 + x.1)
+}
+
+/// how many bars `s` plays before its beat first comes in: its intro without drums (none when no section plays it)
+fn beat_starts(s: &Song) -> u32 {
+    s.sections.iter().find(|x| x.3).map_or(0, |x| x.0)
 }
 
 /// The change from `a` to `b` as `how` says, from frame `soonest` of `a` on (where it plays and a little more, when the
 /// next song came late), on one of `a`'s bar lines. A blend with fewer than 4 bars of `a` left echoes out instead.
 pub fn change(a: &Song, b: &Song, how: How, soonest: usize) -> Change {
+    if how == How::Blend
+        && let Some(c) = hand_over(a, b, soonest)
+    {
+        return c;
+    }
     let bar = a.bar();
     let from = (leaving(a) as f64 * bar) as usize;
     let at_bar = (soonest.max(from) as f64 / bar - 1e-6).ceil();
@@ -351,6 +381,56 @@ fn quick(a: &Song, b: &Song, at: usize) -> Change {
     mixed.mix(&a_part, 1.0);
     mixed.mix(&b_part, 1.0);
     Change { at, mixed, then: span, said: "skipped to, mixed in over two bars".into(), blended: true }
+}
+
+/// When `a`'s beat stops before its end (an outro without drums) or `b`'s starts after its beginning (an intro without
+/// them), a blend of the one over the other would leave the music without a beat while it lasts. Instead `b` comes in
+/// under `a`'s last bars with a beat, so that `b`'s beat lands on the downbeat where `a`'s ends, as a DJ lets the next
+/// record's intro run under the outgoing song's last bars and drops its beat on the one: `b`'s intro under as many of
+/// `a`'s bars as it lasts (8 at most, its start left out to fit; 2 at least, the next song's first bars with its bass
+/// held back), its fader up over the first half, its bass held back until the downbeat and its mids until just before
+/// it, and `a` whole until its last beat, thinned and faded over it. What `a` would have played after its beat (its
+/// outro) is left out. None when both beats run on through the change (the blend), or when `a`'s beat ends before
+/// `soonest` (a song that came too late), or too near its start.
+fn hand_over(a: &Song, b: &Song, soonest: usize) -> Option<Change> {
+    let (end, start) = (beat_ends(a), beat_starts(b));
+    if end >= a.bars && start == 0 {
+        return None;
+    }
+    let bar = a.bar();
+    // `b`'s bars counted in `a`'s, and its intro so
+    let ratio = b.bar() / bar;
+    let intro = start as f64 * ratio;
+    let lead = intro.round().clamp(HAND_OVER_LEAST as f64, HAND_OVER_MOST as f64);
+    let at_bar = end as f64 - lead;
+    if at_bar < a.bars.div_ceil(2) as f64 || at_bar * bar + 1.0 < soonest as f64 {
+        return None;
+    }
+    let at = (at_bar * bar).round() as usize;
+    let span = (lead * bar).round() as usize;
+    // the frames of `b`'s intro left out, so that its beat lands on `a`'s downbeat
+    let skip = ((intro - lead).max(0.0) * bar).round() as usize;
+    let beat = (bar / 4.0).round() as usize;
+    let last = span.saturating_sub(beat);
+    let mut b_part = window(&b.audio, skip, span);
+    let rise = (span / 2).max(1);
+    gain(&mut b_part, |i| if i < rise { power(i as f64 / rise as f64, true) } else { 1.0 });
+    bass(&mut b_part, |i| ramp_db(i, last, span, BASS_CUT_DB, 0.0));
+    mids(&mut b_part, |i| ramp_db(i, span.saturating_sub(2 * beat), last, MIDS_CUT_DB, 0.0));
+    let mut a_part = window(&a.audio, at, span);
+    let fall = beat.max(1) as f64;
+    thin(&mut a_part, |i| if i < last { 10.0 } else { 10.0 * 30f64.powf((i - last) as f64 / fall) });
+    gain(&mut a_part, |i| if i < last { 1.0 } else { power((i - last) as f64 / fall, false) });
+    let mut mixed = Stereo::zeros(span);
+    mixed.mix(&a_part, 1.0);
+    mixed.mix(&b_part, 1.0);
+    Some(Change {
+        at,
+        mixed,
+        then: skip + span,
+        said: format!("its intro under the last {lead} bars, its beat in on the downbeat where the other's ended"),
+        blended: true,
+    })
 }
 
 /// `b` mixed in under `a`'s last `left` bars from `at` as a DJ mixes on a three-band mixer: its fader up over the
@@ -636,8 +716,21 @@ mod tests {
                 0.4 * (std::f32::consts::TAU * hz * t).sin() + 0.2 * (std::f32::consts::TAU * hz * 8.0 * t).sin()
             })
             .collect();
-        let sections = sections.into_iter().map(|(a, b, k)| (a, b, k.to_string())).collect();
+        let sections = sections.into_iter().map(|(a, b, k)| (a, b, k.to_string(), true)).collect();
         Song { audio: Arc::new(Stereo::from_mono(&tone)), bpm, bars, sections, club: false }
+    }
+
+    /// `song`, its beat playing only in the sections named
+    fn with_beat(s: Song, beat: &[&str]) -> Song {
+        let sections = s
+            .sections
+            .into_iter()
+            .map(|(a, b, k, _)| {
+                let on = beat.contains(&k.as_str());
+                (a, b, k, on)
+            })
+            .collect();
+        Song { sections, ..s }
     }
 
     /// the level of the band near `hz` in `x` from frame `a` for `n` frames (a correlation with the tone)
@@ -700,6 +793,47 @@ mod tests {
         let beat_at = ((5.1 * bar + 0.15 * SRF) / beat).ceil() * beat;
         assert_eq!(s.at, beat_at as usize - beat as usize);
         assert!(level(&s.mixed.l, 300.0, beat as usize + n, n) > 0.1, "the next song on the beat");
+    }
+
+    #[test]
+    fn a_beat_that_stops_before_the_end_is_handed_over_on_its_downbeat_the_next_intro_under_its_last_bars() {
+        let bar = 2.0 * SRF;
+        // a song whose outro has no beat, and one whose intro has none: the next intro's 4 bars under the last 4 of the
+        // first's beat, the next beat in on the bar where the first's ended (its outro left out)
+        let a = with_beat(song(55.0, 120.0, 64, vec![(0, 8, "intro"), (8, 48, "hook"), (56, 8, "outro")]), &["hook"]);
+        let b = with_beat(song(82.0, 120.0, 64, vec![(0, 4, "intro"), (4, 60, "verse")]), &["verse"]);
+        assert_eq!(leaving(&a), 48, "8 bars before the beat ends, the most an intro runs under it");
+        let c = change(&a, &b, How::Blend, 0);
+        assert_eq!(c.at, (52.0 * bar) as usize, "4 bars before the first's beat ends on bar 56");
+        assert_eq!(
+            (c.mixed.len(), c.then),
+            ((4.0 * bar) as usize, (4.0 * bar) as usize),
+            "on from the next one's beat"
+        );
+        assert!(c.blended && c.said.contains("downbeat"), "{}", c.said);
+        let n = (bar / 2.0) as usize;
+        // the first song whole under the intro, the next one's bass held back until the downbeat
+        assert!(level(&c.mixed.l, 55.0, (bar * 2.0) as usize, n) > 0.3, "the outgoing bass under the intro");
+        assert!(level(&c.mixed.l, 82.0, (bar * 2.0) as usize, n) < 0.03, "the next bass held back");
+        assert!(level(&c.mixed.l, 656.0, (bar * 2.5) as usize, n) > 0.05, "the next song's top, coming in");
+        // the outgoing song faded over its last beat, so that the next beat comes in alone on the downbeat
+        let tail = (0.1 * SRF) as usize;
+        assert!(level(&c.mixed.l, 440.0, c.mixed.len() - tail, tail) < 0.05, "the outgoing top faded out");
+        // a long intro without a beat: 8 bars of it under the first, its start left out, so that its beat lands there
+        let long = with_beat(song(82.0, 120.0, 64, vec![(0, 12, "intro"), (12, 52, "verse")]), &["verse"]);
+        let c = change(&a, &long, How::Blend, 0);
+        assert_eq!((c.at, c.then), ((48.0 * bar) as usize, (12.0 * bar) as usize), "from the intro's fifth bar");
+        // a next song that starts on its beat, after an outro without one: its first 2 bars under the first's last 2
+        let full = song(82.0, 120.0, 64, vec![(0, 64, "verse")]);
+        let c = change(&a, &full, How::Blend, 0);
+        assert_eq!((c.at, c.then), ((54.0 * bar) as usize, (2.0 * bar) as usize));
+        // both beats running on through the change: the blend over the outro, as before
+        let on = song(55.0, 120.0, 64, vec![(0, 16, "intro"), (16, 32, "drop"), (48, 16, "outro")]);
+        let c = change(&on, &full, How::Blend, 0);
+        assert!(c.said.contains("over 8 bars"), "{}", c.said);
+        // a next song that came after the first's beat had ended: no hand-over, the change as it was
+        let late = change(&a, &b, How::Blend, (58.3 * bar) as usize);
+        assert!(!late.said.contains("downbeat"), "{}", late.said);
     }
 
     #[test]
