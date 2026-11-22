@@ -185,10 +185,10 @@
       "role": "pad",
       "presets": [
         "string_ensemble|strings",
-        "synth_strings|strings",
+        "solina",
         "strings",
         "string_ensemble|strings",
-        "synth_strings|strings",
+        "solina",
         "strings",
         "warm_pad",
         "pad"
@@ -209,10 +209,10 @@
       "presets": [
         "brass|stab",
         "square_lead",
-        "synth_brass|supersaw",
+        "brass_lead",
         "brass|stab",
         "square_lead",
-        "synth_brass|supersaw",
+        "brass_lead",
         "pluck",
         "supersaw"
       ],

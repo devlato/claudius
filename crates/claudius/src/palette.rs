@@ -156,7 +156,26 @@ pub struct Instrument {
     pub rings: bool,
 }
 
-/// the installed pitched instruments whose packs are publishable (read again when the installed packs change)
+/// FreePats' General MIDI programs: its synth strings and brass, synth basses, square and bass leads, the sweep, new age,
+/// bowed and choir pads, and the FM piano. claudius plays real recordings and its own synths, never General MIDI
+/// (design 0001), so none of them is ever drawn; a script may still name one.
+const GENERAL_MIDI: &[&str] = &[
+    "freepats:synth_strings",
+    "freepats:synth_strings_2",
+    "freepats:synth_brass",
+    "freepats:synth_bass",
+    "freepats:synth_bass_2",
+    "freepats:bass_lead",
+    "freepats:square_lead",
+    "freepats:sweep_pad",
+    "freepats:new_age_pad",
+    "freepats:bowed_pad",
+    "freepats:choir_pad",
+    "freepats:fm_piano",
+];
+
+/// the installed pitched instruments a song may draw: their packs publishable, General MIDI's programs left out (read
+/// again when the installed packs change)
 pub fn instruments() -> Vec<Instrument> {
     static SEEN: std::sync::Mutex<Option<(Vec<String>, Vec<Instrument>)>> = std::sync::Mutex::new(None);
     let packs: Vec<String> = claudius_packs::installed().iter().map(|p| p.name.clone()).collect();
@@ -169,6 +188,7 @@ pub fn instruments() -> Vec<Instrument> {
     let list: Vec<Instrument> = claudius_packs::instruments()
         .into_iter()
         .filter(|i| i.kind == "pitched" && i.variant == 0 && publishable(&i.licence))
+        .filter(|i| !GENERAL_MIDI.contains(&i.name.as_str()))
         .map(|i| Instrument { name: i.name, category: i.category, low: i.lowest, high: i.highest, rings: i.one_shot })
         .collect();
     *seen = Some((packs, list.clone()));
@@ -421,6 +441,37 @@ mod tests {
 
     fn inst(name: &str, category: &str, low: u8, high: u8) -> Instrument {
         Instrument { name: name.into(), category: category.into(), low, high, rings: false }
+    }
+
+    #[test]
+    fn general_midis_programs_are_named_as_the_registry_names_them() {
+        // a program renamed in the registry would slip back into the draws unseen
+        let known = claudius_packs::registry_names();
+        for name in GENERAL_MIDI {
+            let (pack, inst) = name.split_once(':').expect("pack:instrument");
+            assert_eq!(pack, "freepats");
+            assert!(known.iter().any(|k| k == inst), "{name} is not in the registry");
+        }
+    }
+
+    #[test]
+    fn no_genre_names_one_of_general_midis_programs_for_its_parts() {
+        // a part's own list is drawn from as the palette is; a bare name is claudius's preset where there is one
+        let presets = crate::synth::presets::names();
+        for g in crate::genres::all().unwrap() {
+            for part in &g.parts {
+                for name in part.presets.iter().flat_map(|p| p.split('|')) {
+                    let program = if name.contains(':') {
+                        name.to_string()
+                    } else if presets.contains(&name) {
+                        continue;
+                    } else {
+                        format!("freepats:{name}")
+                    };
+                    assert!(!GENERAL_MIDI.contains(&program.as_str()), "{}'s {} names {name}", g.name, part.name);
+                }
+            }
+        }
     }
 
     #[test]

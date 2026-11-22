@@ -27,7 +27,7 @@ instrument maps onto them) and a `files/` folder.
 | `tr707` | Roland TR-707, all 15 sounds | 13 | public domain | no | 0.5 MB |
 | `uzu` | the uzu drum kit made for Strudel | 15 | Unlicense | no | 2.4 MB |
 | `muldjord` | MuldjordKit, an acoustic rock kit (bank `acoustic`) | 11 | CC BY 4.0 | yes | 135 MB |
-| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars (clean, jazz and distorted), synth pads, strings and leads, glasses of water, a hang | 22 | CC0 | no | 225 MB |
+| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars (clean, jazz and distorted), synth pads, strings and leads (General MIDI's programs, which a song never draws by itself: a script may name them), glasses of water, a hang | 22 | CC0 | no | 225 MB |
 | `doublebass` | double bass pizzicato with round robins | 1 | CC0 | no | 30 MB |
 | `growlybass` | Squier Jazz Bass, fingered | 1 | CC0 | no | 67 MB |
 | `voice` | a low male "ah", and a 5-voice choir made from it | 2 | CC0 | no | 27 MB |

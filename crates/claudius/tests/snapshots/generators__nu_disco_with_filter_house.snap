@@ -25,8 +25,8 @@ drum perc sparse (drum rim): ..........x.....|..........x.....|..........x.....|
 part bass (bass): disco synth saw_bass, register 34..53, density 0.43
 part guitar (chords): offbeat synth pluck, register 53..77, density 0.53
 part keys (keys): offbeat synth rock_organ, register 51..73, density 0.56
-part strings (pad): legato synth strings, register 52..79, density 0.47
-part lead (lead): organ_riff synth brass_stab, register 58..78, density 0.37
+part strings (pad): legato synth solina, register 52..79, density 0.47
+part lead (lead): organ_riff synth brass_lead, register 58..78, density 0.37
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
