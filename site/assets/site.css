@@ -1334,6 +1334,12 @@ button {
     border-radius: 50%;
     background: var(--bg);
   }
+
+  /* modules side by side that are not a signal chain: no cables */
+  .chain-loose .module::after,
+  .chain-loose .module::before {
+    content: none;
+  }
 }
 
 .revise {
