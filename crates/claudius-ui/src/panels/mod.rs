@@ -444,6 +444,8 @@ pub struct AddTrackForm {
     pub filter: String,
     /// the words to search the free libraries for a recording
     pub query: String,
+    /// what a sampled track samples: `break`, `phrase`, `texture`, `vocal` or `stab` (a phrase when none)
+    pub sample: String,
 }
 
 /// what the "+ Track" menu adds
@@ -458,6 +460,8 @@ pub enum AddKind {
     Drum,
     /// a recording: a file of yours, one a free library offers, or one recorded now, each through its window
     Recording,
+    /// a recording the free libraries offer for the song's genre, found with its producers' words and sampled in
+    Sampled,
 }
 
 pub struct View {
