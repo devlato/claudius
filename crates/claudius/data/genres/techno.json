@@ -2,7 +2,7 @@
   "name": "techno",
   "family": "techno and trance",
   "aliases": ["berlin techno", "detroit techno", "warehouse", "industrial techno"],
-  "description": "Techno: a driving distorted kick, offbeat hats and rides, rolling bass locked between the kicks, one- or two-chord stabs in minor or phrygian, long builds of layers, optional acid line",
+  "description": "Techno: a driving distorted kick with its rumble under it (its own reverb, driven, low-passed and ducked by the next kick), offbeat hats and rides, rolling bass locked between the kicks, one- or two-chord stabs in minor or phrygian, long builds of layers swept by filters rather than snare rolls, optional acid line",
   "query": "techno music",
   "alts": ["house music", "minimal electronic music", "drum and bass music", "dubstep music"],
   "bpm": [126, 134],
@@ -40,6 +40,7 @@
         "energy": 0.6,
         "layers": ["clap", "hat", "ride", "chords", "pad"],
         "build": true,
+        "build_style": "sweep",
         "gap": true
       },
       {
@@ -70,7 +71,27 @@
       "params": {"decay": [0.4, 0.75], "tune": [42, 52], "tone": [0.2, 0.5], "punch": [0.3, 0.6], "drive": [6, 12]},
       "samples": ["Kick"],
       "tune_to_key": true,
-      "mix": {"bus": "drums"}
+      "mix": {
+        "bus": "drums",
+        "fx": [
+          {
+            "fx": "parallel",
+            "dry": 1.0,
+            "chains": [
+              {
+                "amount": 0.4,
+                "fx": [
+                  {"fx": "reverb", "decay": 3.5, "damping": 0.7, "predelay_ms": 0, "width": 0.0, "mix": 1.0, "lowcut": 30},
+                  {"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0},
+                  {"fx": "gate", "steps": [0.1, 0.45, 0.8, 1.0], "step_beats": 0.25, "depth": 1.0, "smooth_ms": 12},
+                  {"fx": "filter", "mode": "lp", "cutoff": 150, "res": 0.15},
+                  {"fx": "width", "width": 0.0}
+                ]
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "name": "hat",
