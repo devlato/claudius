@@ -57,6 +57,8 @@ pub struct Palette {
     retyped: bool,
     /// why what was said was not heard
     unheard: Option<String>,
+    /// what there is to act on, as the palette was last drawn: it offers and finds only what works now
+    now: Now,
 }
 
 /// how long a pause after speech ends listening, the longest the palette listens, and the longest it waits for the
@@ -264,8 +266,15 @@ impl Palette {
     /// ask of the song, then the actions it found, by name and by meaning, then the changes made to the song it found,
     /// to go back to before (but those a reading goes back to before already); or until it answers, what the words find
     /// by name here
+    ///
+    /// Only what works now is shown (`works`): before a song is open, nothing that needs one.
     fn shown(&self) -> Vec<Found> {
-        let Some(a) = self.answered() else { return Finder::new(ENTRIES, None).find(&self.query, None, SHOWN) };
+        let now = self.now;
+        let offered = |f: &Found| run_of(&f.id).is_some_and(|r| works(&r, &now));
+        let Some(a) = self.answered() else {
+            let found = Finder::new(ENTRIES, None).find(&self.query, None, ENTRIES.len());
+            return found.into_iter().filter(offered).take(SHOWN).collect();
+        };
         let told = a.told.iter().map(|t| Found {
             id: format!("{TOLD}{}", t.said),
             name: t.said.clone(),
@@ -274,7 +283,7 @@ impl Palette {
             score: 1.0,
             by: By::Meaning,
         });
-        let asked = a.proposed.iter().map(|p| Found {
+        let asked = a.proposed.iter().filter(|p| p.commands.iter().all(|c| does(c, &now))).map(|p| Found {
             id: format!("{DO}{}", p.said),
             name: p.said.clone(),
             place: brief(&p.detail, 72),
@@ -285,7 +294,7 @@ impl Palette {
         let proposed_back = |id: &str| {
             a.proposed.iter().any(|p| p.commands.iter().any(|c| matches!(c, Command::GoBack { to } if to == id)))
         };
-        let back = a.done.iter().filter(|d| !proposed_back(&d.id)).map(|d| Found {
+        let back = a.done.iter().filter(|d| now.song && !proposed_back(&d.id)).map(|d| Found {
             id: format!("{BACK}{}", d.id),
             name: format!("Go back to before {}", d.name),
             place: brief(&d.place, 72),
@@ -293,7 +302,7 @@ impl Palette {
             score: d.score,
             by: d.by,
         });
-        told.chain(asked).chain(a.found.iter().cloned()).chain(back).collect()
+        told.chain(asked).chain(a.found.iter().filter(|f| offered(f)).cloned()).chain(back).collect()
     }
 
     /// what the row `id` does: a reading's commands, while it is the engine's for what is typed, or an action's; an
@@ -354,6 +363,120 @@ pub(crate) enum Run {
         said: String,
         commands: Vec<Command>,
     },
+}
+
+/// What there is to act on at a moment, as the studio's own buttons ask before they can be pressed: whether a song is
+/// open, what the player holds, and the rest. The palette offers, finds and does only what works now (`works`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Now {
+    /// a song is open
+    pub song: bool,
+    /// the player holds the song's audio, and no take is recording (which plays the song itself)
+    pub audio: bool,
+    /// a take is recording
+    pub recording: bool,
+    /// a change to undo, and one to redo
+    pub undo: bool,
+    pub redo: bool,
+    /// claudius is at a job, which can be stopped
+    pub busy: bool,
+    /// the critic heard what quick fixes fix, in a verdict of the song as it is
+    pub fixes: bool,
+    /// a phone can play along: a claudius behind the studio, or the site's relay in a browser
+    pub phone: bool,
+    /// sample packs, or instruments of them, to download, and none downloading
+    pub packs: bool,
+    /// the chat has something in it: an assistant listening, messages, or assistants claudius can start there
+    pub chat: bool,
+}
+
+impl Now {
+    /// what there is to act on in the studio of `cx`, as its buttons see it
+    pub(crate) fn of(cx: &Cx) -> Now {
+        let st = &*cx.state;
+        let recording = cx.view.record.recording();
+        let downloading = st.busy.as_deref().is_some_and(|b| b.starts_with("downloading"));
+        let chat = &st.chat;
+        Now {
+            song: st.song.is_some(),
+            audio: cx.player.has_audio() && !recording,
+            recording,
+            undo: st.can_undo,
+            redo: st.can_redo,
+            busy: st.busy.is_some(),
+            fixes: st.verdict.as_ref().is_some_and(|v| !v.fixes.is_empty()) && !cx.render_stale(),
+            phone: cx.server.is_some() || cfg!(target_arch = "wasm32"),
+            packs: cx.sounds.is_some_and(|l| l.packs.iter().any(|p| p.default && p.wanted())) && !downloading,
+            chat: super::chat::listening(st, super::chat::now_ms()).is_some()
+                || !chat.messages.is_empty()
+                || chat.starts_agents,
+        }
+    }
+}
+
+/// Whether an action works `now`, as the button that does it in the studio would let it be pressed: those that need a
+/// song once one is open, play once there is audio to play, undo once there is a change to undo, and so on; a new
+/// song, an example, a song to open, the radio, the docs, the tour and the looks at any time.
+pub(crate) fn works(run: &Run, now: &Now) -> bool {
+    match run {
+        Run::NewSong
+        | Run::Example
+        | Run::Open
+        | Run::Assistants
+        | Run::Reference
+        | Run::Docs
+        | Run::Tour
+        | Run::Keys
+        | Run::Radio
+        | Run::Look(_) => true,
+        // Space ends a take recording, as it plays the song otherwise
+        Run::Play => now.audio || now.recording,
+        Run::ToStart | Run::Stop => now.audio,
+        Run::Undo => now.undo,
+        Run::Redo => now.redo,
+        Run::Cancel => now.busy,
+        Run::FixAll => now.fixes,
+        Run::Phone => now.phone,
+        Run::Packs => now.packs,
+        Run::Chat => now.chat,
+        Run::Loop
+        | Run::Save
+        | Run::Render
+        | Run::Record
+        | Run::AddRecording
+        | Run::Paint
+        | Run::Tab(_)
+        | Run::View(_)
+        | Run::Variations
+        | Run::Improve
+        | Run::Stems
+        | Run::Publish
+        | Run::GoBack(_) => now.song,
+        Run::Do { commands, .. } => commands.iter().all(|c| does(c, now)),
+    }
+}
+
+/// Whether a command a request was read as can be done `now`: one that makes or opens a song, listens to a recording,
+/// downloads the packs or talks in the chat at any time; stopping a job while there is one; undo and redo while there
+/// is a change to take back or bring back; the rest, which change, play or keep the song, once one is open.
+fn does(c: &Command, now: &Now) -> bool {
+    match c {
+        Command::NewSong { .. }
+        | Command::Load { .. }
+        | Command::OpenText { .. }
+        | Command::Analyze { .. }
+        | Command::Remake { .. }
+        | Command::SongLike { .. }
+        | Command::InstallPacks { .. }
+        | Command::ChatSay { .. }
+        | Command::ChatListen { .. }
+        | Command::ClearChat => true,
+        Command::Cancel | Command::StopRemake { .. } => now.busy,
+        Command::Undo => now.undo,
+        Command::Redo => now.redo,
+        Command::Together { commands, .. } => commands.iter().all(|c| does(c, now)),
+        _ => now.song,
+    }
 }
 
 /// The commands that do what a request asked: its edits as one change, which undo takes back at once and calls what
@@ -430,7 +553,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     if !cx.view.palette.open {
         return None;
     }
+    let now = Now::of(cx);
     let p = &mut cx.view.palette;
+    p.now = now;
     p.follow_history(cx.state.history.first().map(|d| d.id.as_str()));
     // the keys are the palette's, but for a field elsewhere being typed in
     let field_id = egui::Id::unique("command palette field");
@@ -607,8 +732,11 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
 }
 
 /// Does what an action of the catalogue does, picked in the palette or by its key (`keys::answer`); what the app does
-/// itself for it, if anything.
+/// itself for it, if anything. An action that does not work now (`works`) does nothing, as its button cannot be pressed.
 pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
+    if !works(&run, &Now::of(cx)) {
+        return None;
+    }
     let example = run == Run::Example;
     match run {
         Run::NewSong | Run::Example => {
@@ -624,15 +752,13 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::Save => super::transport::ask_download(cx.state, cx.view, cx.out, cx.server.is_none(), cx.now, None),
         // as Space does: a take recording ends, and the song plays only once it has its audio
         Run::Play if cx.view.record.recording() => cx.view.record.stop = true,
-        Run::Play if !cx.player.has_audio() => {}
         Run::Play if cx.player.is_playing() => cx.player.pause(),
         Run::Play => cx.player.play(),
         Run::ToStart => cx.player.seek(0.0),
         Run::Stop => cx.player.stop(),
         Run::Loop => cx.view.looping = !cx.view.looping,
-        Run::Undo if cx.state.can_undo => cx.out.push(Command::Undo),
-        Run::Redo if cx.state.can_redo => cx.out.push(Command::Redo),
-        Run::Undo | Run::Redo => {}
+        Run::Undo => cx.out.push(Command::Undo),
+        Run::Redo => cx.out.push(Command::Redo),
         Run::Render => cx.out.push(Command::Render { stems: false }),
         Run::Record => cx.view.record.show(),
         Run::AddRecording => cx.view.import.open = true,
@@ -679,6 +805,20 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
 mod tests {
     use super::*;
 
+    /// a song open and playing, with a change to undo: what the tests of finding and reading look for works
+    const SONG: Now = Now {
+        song: true,
+        audio: true,
+        recording: false,
+        undo: true,
+        redo: false,
+        busy: false,
+        fixes: false,
+        phone: true,
+        packs: false,
+        chat: false,
+    };
+
     #[test]
     fn every_action_of_the_catalogue_is_one_the_palette_does_and_every_tab_is_there() {
         for e in ENTRIES {
@@ -695,7 +835,7 @@ mod tests {
 
     #[test]
     fn what_is_typed_is_found_by_name_until_the_engine_answers_for_it() {
-        let mut p = Palette { query: "mix".into(), ..Palette::default() };
+        let mut p = Palette { query: "mix".into(), now: SONG, ..Palette::default() };
         assert_eq!(p.shown()[0].name, "Mixer");
         let found = |name: &str| Found {
             id: "tab:sounds".into(),
@@ -741,7 +881,7 @@ mod tests {
 
     #[test]
     fn a_change_the_words_found_is_a_row_after_the_actions_that_goes_back_to_before_it() {
-        let mut p = Palette { query: "before the whistles".into(), ..Palette::default() };
+        let mut p = Palette { query: "before the whistles".into(), now: SONG, ..Palette::default() };
         let change = Found {
             id: "7@4f2a".into(),
             name: "track whistle".into(),
@@ -866,7 +1006,7 @@ mod tests {
 
     #[test]
     fn the_answer_to_a_question_comes_first_and_picking_it_changes_nothing() {
-        let mut p = Palette { query: "is the bass too loud".into(), ..Palette::default() };
+        let mut p = Palette { query: "is the bass too loud".into(), now: SONG, ..Palette::default() };
         let told = claudius_intent::Told { said: "Bass is at -3 dB".into(), detail: String::new() };
         let down = proposal("Turn bass down from -3 dB to -6 dB", vec![muted("bass")]);
         p.heard(Answer {
@@ -886,7 +1026,7 @@ mod tests {
 
     #[test]
     fn what_a_request_asks_comes_first_each_reading_a_row_that_does_its_edits_as_one_change() {
-        let mut p = Palette { query: "mute the drums".into(), ..Palette::default() };
+        let mut p = Palette { query: "mute the drums".into(), now: SONG, ..Palette::default() };
         let mute = proposal("Mute kick and snare", vec![muted("kick"), muted("snare")]);
         p.heard(Answer {
             query: p.query.clone(),
@@ -915,7 +1055,7 @@ mod tests {
 
     #[test]
     fn a_change_a_reading_goes_back_to_before_is_not_offered_again_in_the_history() {
-        let mut p = Palette { query: "go back to before the whistles".into(), ..Palette::default() };
+        let mut p = Palette { query: "go back to before the whistles".into(), now: SONG, ..Palette::default() };
         let change = Found {
             id: "7@4f2a".into(),
             name: "track whistle".into(),
@@ -941,5 +1081,90 @@ mod tests {
                 commands: vec![Command::GoBack { to: "7@4f2a".into() }]
             })
         );
+    }
+
+    #[test]
+    fn before_a_song_is_open_the_palette_offers_and_finds_only_what_works_without_one() {
+        let rows = Palette::default().shown();
+        let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+        for id in ["new_song", "example", "open", "radio", "assistants", "docs", "tour", "keys", "look:dark"] {
+            assert!(ids.contains(&id), "{id} works with no song open: {ids:?}");
+        }
+        for id in ["play", "undo", "save", "render", "record", "add_recording", "tab:mixer", "tab:flow", "improve"] {
+            assert!(!ids.contains(&id), "{id} needs a song: {ids:?}");
+        }
+        for words in ["mixer", "save", "play", "record a take", "drums", "signal flow", "fix"] {
+            let rows = Palette { query: words.into(), ..Palette::default() }.shown();
+            assert!(
+                rows.iter().all(|r| run_of(&r.id).is_some_and(|run| works(&run, &Now::default()))),
+                "{words}: {rows:?}"
+            );
+        }
+        let rows = Palette { query: "new".into(), ..Palette::default() }.shown();
+        assert_eq!(rows.first().map(|r| r.id.as_str()), Some("new_song"), "what works is still found");
+    }
+
+    #[test]
+    fn what_the_engine_finds_and_reads_is_offered_only_where_it_works_now() {
+        let mut p = Palette { query: "a house song with the drums muted".into(), ..Palette::default() };
+        let new_song = Command::NewSong {
+            genre: "house".into(),
+            seed: None,
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+            complexity: None,
+        };
+        let change = Found {
+            id: "3@1c".into(),
+            name: "track drums".into(),
+            place: String::new(),
+            keys: String::new(),
+            score: 0.6,
+            by: By::Meaning,
+        };
+        p.heard(Answer {
+            query: p.query.clone(),
+            found: vec![act("tab:mixer"), act("new_song")],
+            done: vec![change],
+            proposed: vec![
+                proposal("Mute the drums", vec![muted("drums")]),
+                proposal("New house song", vec![new_song]),
+            ],
+            by_meaning: true,
+            ..Answer::default()
+        });
+        let names = |p: &Palette| p.shown().iter().map(|r| r.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(&p), ["New house song", "new_song"], "with no song open, what needs one is not offered");
+        p.now = SONG;
+        assert_eq!(
+            names(&p),
+            ["Mute the drums", "New house song", "tab:mixer", "new_song", "Go back to before track drums"],
+            "with a song open, all of it"
+        );
+    }
+
+    #[test]
+    fn an_action_is_offered_once_it_can_be_done_as_its_button_can_be_pressed() {
+        let song = Now { song: true, ..Now::default() };
+        let offered = |now: Now, id: &str| works(&run_of(id).expect(id), &now);
+        assert!(offered(song, "tab:mixer") && offered(song, "save") && offered(song, "add_recording"));
+        assert!(!offered(song, "play") && offered(Now { audio: true, ..song }, "play"), "play once there is audio");
+        assert!(offered(Now { recording: true, ..song }, "play"), "Space ends a take recording");
+        assert!(!offered(Now { recording: true, ..song }, "stop"), "the take plays the song, not the player");
+        assert!(!offered(song, "undo") && offered(Now { undo: true, ..song }, "undo"));
+        assert!(!offered(song, "redo") && offered(Now { redo: true, ..song }, "redo"));
+        assert!(!offered(song, "cancel") && offered(Now { busy: true, ..song }, "cancel"), "a job to stop");
+        assert!(!offered(song, "fix_all") && offered(Now { fixes: true, ..song }, "fix_all"), "fixes the critic found");
+        assert!(!offered(song, "phone") && offered(Now { phone: true, ..Now::default() }, "phone"));
+        assert!(!offered(song, "packs") && offered(Now { packs: true, ..Now::default() }, "packs"));
+        assert!(!offered(song, "chat") && offered(Now { chat: true, ..Now::default() }, "chat"));
+        let back = |commands: Vec<Command>, now: Now| works(&Run::Do { said: String::new(), commands }, &now);
+        assert!(
+            !back(vec![Command::Undo, Command::Undo], song) && back(vec![Command::Undo], Now { undo: true, ..song })
+        );
+        assert!(back(Vec::new(), Now::default()), "an answer, which changes nothing, is always shown");
     }
 }
