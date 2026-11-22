@@ -197,6 +197,14 @@ pub const ENTRIES: &[Entry] = &[
     ),
     e("docs", "Read the docs", "help, the manual, a guide, a tutorial, documentation, how to", "on the web", ""),
     e(
+        "feedback",
+        "Send feedback...",
+        "tell the makers, report a bug or a problem, suggest an idea, a feature request, a complaint, what works, what \
+         doesn't, say what you think",
+        "? menu",
+        "",
+    ),
+    e(
         "keys",
         "Keyboard shortcuts",
         "keys, hotkeys, the keyboard, what each key does, without a mouse, accessibility, a screen reader",

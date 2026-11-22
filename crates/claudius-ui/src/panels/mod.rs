@@ -4,6 +4,7 @@
 pub mod arrange;
 pub mod assistants;
 pub mod chat;
+pub mod feedback;
 pub mod graph;
 pub mod harmony;
 pub mod hears;
@@ -529,6 +530,8 @@ pub struct View {
     pub search: Search,
     /// the window of the keys the studio answers to
     pub keys: keys::Keys,
+    /// the Send feedback window
+    pub feedback: feedback::Feedback,
     /// the chat with the assistants
     pub chat: chat::Chat,
     pub phone: phone::Phone,
@@ -640,6 +643,7 @@ impl Default for View {
             palette: palette::Palette::default(),
             search: Search::default(),
             keys: keys::Keys::default(),
+            feedback: feedback::Feedback::default(),
             chat: chat::Chat::default(),
             phone: phone::Phone::default(),
             radio: radio::RadioView::default(),

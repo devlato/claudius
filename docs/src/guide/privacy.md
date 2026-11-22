@@ -6,7 +6,7 @@ for what you say to it, after you click its microphone, in a browser once you ha
 keeps the takes you record with your song, on your computer, and what you say to the palette nowhere: it is heard on
 your computer and let go. What a
 [pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
-the network for five things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
+the network for six things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
 the listening models, from Hugging Face, the command palette's three small models, from Hugging Face too, the first
 time you type in the palette or in a search field of genres or sounds, the first time it cannot make out a request and
 the first time you say something to it,
@@ -14,8 +14,8 @@ and the recordings `claudius samples` finds);
 the samples a
 [song built on samples](online-samples.md#songs-built-on-samples) gathers as it is made, from Openverse,
 Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](updates.md) check, once a day, to
-GitHub; an assistant you connect from outside your computer if you set that up; and anonymous usage statistics, which
-are off until you turn them on.
+GitHub; an assistant you connect from outside your computer if you set that up; the [feedback](#feedback) you send,
+when you send it; and anonymous usage statistics, which are off until you turn them on.
 
 What you type in the [command palette](../getting-started/studio.md#finding-an-action) or a search field stays on your
 computer: the models that find what your words mean and read your requests run in claudius's engine there (or in the
@@ -36,6 +36,21 @@ A phone [playing along with the demo](phone.md#with-the-demo) reaches the demo's
 relay (`site/worker/room.js`, a Durable Object on Cloudflare): what the tab and the phone say to each other (the song's
 sounds, the time, the takes) passes through it and is kept nowhere. A room's name is 128 random bits that the demo's QR
 code alone carries, and only the site's own pages may join one.
+
+## Feedback
+
+**Send feedback…** in the studio's **?** menu (or Cmd+K), the same in the web demo, the
+[site's form](https://claudius.devlato.com/feedback/), and an assistant you ask to pass something on (its
+`send_feedback`, which it uses once you say yes) send what you wrote to the people who make claudius. With it go, unless
+you untick them, claudius' version, your system (macOS, Linux, Windows or a browser) and the genre of the song open;
+and an email address, only if you give one for an answer. Nothing else goes: not your song, its files, your name or
+anything that tells you apart.
+
+It goes to `https://claudius-feedback.devlato.workers.dev/v1/feedback`, a Cloudflare Worker whose source is `feedback/`
+in this repository. It checks the message and keeps those fields and the day it came, in a Cloudflare D1 database; it
+keeps no IP address. Cloudflare's rate limiting sees each address to let five messages a minute through at most, and
+keeps none of them. Only the people who make claudius read what is kept. To have a message deleted, send a private report on GitHub, as
+the [security policy](https://github.com/devlato/claudius/blob/main/SECURITY.md) describes, saying what it said.
 
 ## Usage statistics
 
@@ -107,3 +122,8 @@ Deleting the file is the same as never having answered.
   in the dashboard.
 - `scripts/telemetry-report.sh [days]` sums the events of the last 30 days (or `days`) by event, command, version and
   system. It needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`, a token that can read Account Analytics.
+- `node feedback/test.mjs` checks that the feedback Worker keeps what claudius sends and refuses everything else. Once,
+  `npx wrangler d1 create claudius-feedback` (its id into `feedback/wrangler.toml`) and
+  `npx wrangler d1 execute claudius-feedback --remote --file schema.sql`; then `npx wrangler deploy` in `feedback/`
+  publishes it. `npx wrangler d1 execute claudius-feedback --remote --command "select * from feedback order by id desc
+  limit 20"` reads the latest.

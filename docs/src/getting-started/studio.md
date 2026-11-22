@@ -366,9 +366,14 @@ A small **(?)** beside a setting whose name is not plain (Intensity, Transitions
 master's loudness) says in plain words what it does when you point at it, and opens the page of these docs that says
 more when you click it. Buttons and menu items say what they do when you point at them too.
 
-**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Look**, **Check
-for updates** and **Update automatically** and the switch for anonymous usage statistics (in the app), the
-documentation, and a form to report a problem.
+**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Send feedback…**,
+**Look**, **Check for updates** and **Update automatically** and the switch for anonymous usage statistics (in the
+app), the documentation, and a form to report a problem.
+
+**Send feedback…** (or "feedback" in the command palette) opens a window to tell the people who make claudius what
+works, what doesn't and what you wish it did, in your words, with your email if you'd like an answer. claudius'
+version, your system and the song's genre go with it unless you untick them, and nothing else
+([what is kept](../guide/privacy.md#feedback)). An assistant can pass something on for you too, once you say yes.
 
 **Look** picks how the studio looks: **Dark**, the studio's own, **Light**, or **As the system is**, which follows your
 computer's appearance (in a browser, the browser's) and changes with it, at night for one. The look's name at the right

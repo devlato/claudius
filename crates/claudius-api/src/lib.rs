@@ -1341,6 +1341,42 @@ impl SongView {
     }
 }
 
+/// Where feedback on claudius goes (`feedback/` in the repository): what a person writes in the studio's Send feedback
+/// window, the web demo's or the site's form, or an assistant passes on with their yes (`send_feedback`).
+pub const FEEDBACK_ENDPOINT: &str = "https://claudius-feedback.devlato.workers.dev/v1/feedback";
+
+/// The most a message of feedback holds, in characters, as the endpoint takes it.
+pub const FEEDBACK_MOST: usize = 4000;
+
+/// A message of feedback as the endpoint takes it: what was written, where it comes from (`studio`, `demo`, `site` or
+/// `assistant`), where to answer (when given), and with `details` claudius' version, the system `os` (`macos`, `linux`,
+/// `windows` or `web`) and the song's genre (one of claudius' names, or a fusion of them: a genre of one's own named
+/// otherwise stays out, so that the message is still taken).
+pub fn feedback_message(
+    text: &str,
+    place: &str,
+    contact: &str,
+    details: Option<(&str, Option<&str>)>,
+) -> serde_json::Value {
+    let mut m = serde_json::json!({ "v": 1, "text": text.trim(), "where": place });
+    if !contact.trim().is_empty() {
+        m["contact"] = contact.trim().into();
+    }
+    if let Some((os, genre)) = details {
+        m["version"] = env!("CARGO_PKG_VERSION").into();
+        m["os"] = os.into();
+        let part = |p: &str| {
+            !p.is_empty()
+                && p.len() <= 40
+                && p.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        };
+        if let Some(g) = genre.filter(|g| g.split('+').count() <= 3 && g.split('+').all(part)) {
+            m["song"] = g.into();
+        }
+    }
+    m
+}
+
 /// The ways the auto-sampler takes a recording into a song (`Command::SampleSong`'s `how`), the first when none is
 /// said: each by name, in a few words, and what it does, as the studio and an assistant offer them.
 pub const SAMPLING_WAYS: [(&str, &str, &str); 4] = [

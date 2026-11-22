@@ -1,0 +1,12 @@
+/* The feedback page (site/feedback/): a form in the site's look. */
+.feedback { max-width: 44rem; padding-block: 3rem 4rem; }
+.feedback form { display: grid; gap: 0.5rem; margin-block: 1.5rem; }
+.feedback label { font-weight: 600; margin-top: 0.75rem; }
+.feedback .optional { font-weight: 400; opacity: 0.7; }
+.feedback textarea,
+.feedback input { font: inherit; color: inherit; background: rgb(255 255 255 / 4%); border: 1px solid rgb(255 255 255 / 14%); border-radius: 8px; padding: 0.7rem 0.8rem; }
+.feedback textarea:focus-visible,
+.feedback input:focus-visible { outline: 2px solid var(--accent, #f2994a); outline-offset: 1px; }
+.feedback .actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; }
+.feedback .said { margin: 0; }
+.feedback .small { font-size: 0.9rem; opacity: 0.8; }

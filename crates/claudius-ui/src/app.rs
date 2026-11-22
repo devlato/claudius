@@ -72,6 +72,8 @@ const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: t
                               telemetry` shows exactly what)";
 const THEME_TIP: &str = "a look of your own, or one someone made: a .json theme file, which names the colours it changes \
                          (Copy this look as a theme writes one out to start from)";
+/// what Send feedback does, on hover
+const FEEDBACK_TIP: &str = "tell the people who make claudius what works, what doesn't and what you wish it did";
 const RADIO_TIP: &str = "a station of songs claudius writes as it plays them, a genre at a time, each mixed into the next \
                          as a DJ mixes records; your song stays as it is";
 #[cfg(target_arch = "wasm32")]
@@ -1114,6 +1116,10 @@ impl Studio {
                         self.view.keys.open = true;
                         ui.close();
                     }
+                    if ui.button("Send feedback…").on_hover_text(FEEDBACK_TIP).clicked() {
+                        self.view.feedback.show();
+                        ui.close();
+                    }
                     if ui.button("Infinite Radio…").on_hover_text(RADIO_TIP).clicked() {
                         self.view.radio.open = true;
                         ui.close();
@@ -1550,6 +1556,7 @@ impl eframe::App for Studio {
             panels::phone::dialog(&ctx, &mut cx);
             panels::radio::dialog(&ctx, &mut cx);
             panels::keys::dialog(&ctx, &mut cx);
+            panels::feedback::dialog(&ctx, &mut cx);
             cx.view.chat.follow(cx.state);
             panels::chat::dialog(&ctx, &mut cx, panels::chat::now_ms());
             cx.view.palette.can_hear = can_hear;

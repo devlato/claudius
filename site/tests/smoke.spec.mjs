@@ -284,6 +284,25 @@ test.describe("assembled site", () => {
     expect(messages).toEqual([]);
   });
 
+  test("the feedback page sends what is written to claudius' feedback Worker under the site's policy, and says it went", async ({ page }) => {
+    const violations = await cspViolations(page);
+    const sent = [];
+    await page.route("https://claudius-feedback.devlato.workers.dev/v1/feedback", async (route) => {
+      sent.push(JSON.parse(route.request().postData() || "null"));
+      await route.fulfill({ status: 204, headers: { "access-control-allow-origin": new URL(page.url()).origin } });
+    });
+    await page.goto("/feedback/");
+    await page.locator("#send").click();
+    await expect(page.locator("#said")).toHaveText("Write something first.");
+    await page.locator("#text").fill("  The radio should mix when I skip.  ");
+    await page.locator("#contact").fill("me@example.com");
+    await page.locator("#send").click();
+    await expect(page.locator("#said")).toHaveText("Sent. Thank you.");
+    expect(sent).toEqual([{ v: 1, text: "The radio should mix when I skip.", where: "site", contact: "me@example.com" }]);
+    await expect(page.locator("#text")).toHaveValue("");
+    expect(await violations()).toEqual([]);
+  });
+
   test("the studio's page draws its outline and how much of it has arrived, then the studio", async ({ page }) => {
     // slow enough to watch the studio's program arrive
     const cdp = await page.context().newCDPSession(page);

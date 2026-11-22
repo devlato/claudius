@@ -355,6 +355,8 @@ pub(crate) enum Run {
     Radio,
     /// the chat with the assistants
     Chat,
+    /// the Send feedback window
+    Feedback,
     Look(Look),
     /// back to before a change made to the song: its id in the history
     GoBack(String),
@@ -428,6 +430,7 @@ pub(crate) fn works(run: &Run, now: &Now) -> bool {
         | Run::Tour
         | Run::Keys
         | Run::Radio
+        | Run::Feedback
         | Run::Look(_) => true,
         // Space ends a take recording, as it plays the song otherwise
         Run::Play => now.audio || now.recording,
@@ -526,6 +529,7 @@ pub(crate) fn run_of(id: &str) -> Option<Run> {
         "keys" => Run::Keys,
         "radio" => Run::Radio,
         "chat" => Run::Chat,
+        "feedback" => Run::Feedback,
         "look:dark" => Run::Look(Look::Dark),
         "look:light" => Run::Look(Look::Light),
         "look:system" => Run::Look(Look::System),
@@ -791,6 +795,7 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::Keys => cx.view.keys.open = !cx.view.keys.open,
         Run::Radio => cx.view.radio.toggle(),
         Run::Chat => cx.view.chat.open = true,
+        Run::Feedback => cx.view.feedback.show(),
         Run::Look(look) => {
             (cx.view.look, cx.view.theme) = (look, None);
             theme::wear(ctx, None, look);

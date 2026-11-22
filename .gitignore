@@ -32,3 +32,6 @@ __pycache__/
 .cache/
 
 .DS_Store
+
+# wrangler's local cache (the account it is signed in to), in any Worker's folder
+.wrangler/

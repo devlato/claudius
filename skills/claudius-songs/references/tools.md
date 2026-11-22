@@ -59,6 +59,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `transcribe_take` | `take`, `sounds` (presets or instruments, one part each), `name`, `role`, `chromatic`, `keep_take`, `style` (line, harmony, octaves, chords, bass, arp, pad) | |
 | `add_notes` | `from` (a section), `notes` (`[{t, d, p, v}]`: beats from its start, length, MIDI pitch, velocity), `sounds`, `name`, `role`, `style` | |
 | `install_packs` | `names` (from `catalog`; none: the default packs that are missing, about 3 GB) | `claudius-packs install` (installed next to `claudius`) |
+| `send_feedback` | `text` (what the person says about claudius, in their words), `contact` (an email address they gave, when they want an answer): to the people who make claudius, once they say yes to sending it; claudius' version, the system and the song's genre go with it | |
 | `command` | `command`: one raw API command, checked before it goes (a name or a field it does not take is not sent, and the answer says what it takes); `explain`: only say what it takes; `listen` | |
 
 ## Everything the studio does
@@ -96,6 +97,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Mixer and Signal flow: level, pan, sends, duck, drive, mute, solo, bus; effects | `command` | `set_mix`; `set_fx` |
 | Script: Run | `run_script` | `run_script` |
 | Sounds: Download the packs | `install_packs` | `install_packs` |
+| ? menu: Send feedback | `send_feedback` | |
 | Record, and a take the person sends; Not now | `request_take`, `wait_for_take`; `command` | `request_take`; `cancel_take_request` |
 | Add a recording: whole, or its pieces sampled | `add_take`; `sample_pieces`, `redraw_pieces`, `keep_pieces` | `add_take`; `sample_pieces`, `redraw_pieces`, `keep_pieces` |
 | Check my pitch, and turning it down | `request_pitch_check`, `wait_for_pitch_check`; `command` | `request_pitch_check`; `cancel_pitch_check` |

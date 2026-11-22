@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send feedback on claudius</title>
+<meta name="description" content="Tell the people who make claudius what works, what doesn't and what you wish it did.">
+<link rel="canonical" href="{{site_url}}/feedback/">
+<meta name="theme-color" content="#101217">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css?v={{version}}">
+<link rel="stylesheet" href="/assets/feedback.css?v={{version}}">
+<script type="module" src="/assets/feedback.js?v={{version}}"></script>
+</head>
+<body class="feedback-page">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="/"><img src="/assets/logo-ripples.svg" alt="Claudius" width="152" height="39"></a>
+    <ul class="top-links">
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="{{repo_url}}">GitHub</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="main" class="wrap feedback">
+  <h1>Send feedback</h1>
+  <p class="lede">What works, what doesn't, what you wish it did. It goes to the people who make claudius, who read every
+    message.</p>
+
+  <form id="feedback" novalidate>
+    <label for="text">Your message</label>
+    <textarea id="text" name="text" rows="8" maxlength="4000" required placeholder="Say it as you would to a friend"></textarea>
+    <label for="contact">Your email, if you'd like an answer <span class="optional">(optional)</span></label>
+    <input id="contact" name="contact" type="email" maxlength="200" autocomplete="email">
+    <p class="small">Nothing else goes with it: no cookies, no address kept. <a href="/docs/guide/privacy.html#feedback">What is kept</a></p>
+    <div class="actions">
+      <button id="send" class="btn btn-primary" type="submit">Send</button>
+      <p id="said" class="said" role="status" aria-live="polite"></p>
+    </div>
+  </form>
+
+  <p class="small">From inside claudius: <strong>Send feedback…</strong> in the studio's <strong>?</strong> menu, or ask
+    your assistant to pass something on.</p>
+</main>
+</body>
+</html>
