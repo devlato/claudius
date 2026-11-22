@@ -2,7 +2,7 @@
 source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
-rnb at 77.0 BPM in G minor, swing 0.55
+rnb at 104.0 BPM in G minor, swing 0.55
 prog A: i9 iv9 IIImaj9 VImaj9
 prog B: i9 IVsus4 IIImaj9 VImaj9
 prog C: VImaj9 iv9 IIImaj9 i9
@@ -23,10 +23,10 @@ drum hat main (drum closed_hat): x..x..x..x..x..x..x..x..x..x..x...........X.xx.
 drum ohat main (drum open_hat): ..............x.|................|..............x.|................
 drum perc main (drum snap): x...x.....x.....|x...x.....x.....|x...x.....x.....|x...x.....x.....
 drum perc sparse (drum snap): ....x...........|....x...........|....x...........|....x...........
-part bass (bass): walking synth pluck_bass, register 26..43, density 0.59
-part keys (keys): lofi_comp synth epiano, register 54..80, density 0.59
-part pad (pad): legato synth strings, register 50..76, density 0.56
-part lead (lead): lofi_melody synth vox_lead, register 59..81, density 0.30
+part bass (bass): walking synth rubber_bass, register 24..41, density 0.47
+part keys (keys): gospel synth epiano, register 53..79, density 0.57
+part pad (pad): sustain synth strings, register 48..74, density 0.52
+part lead (lead): horn_riff synth soft_lead, register 60..82, density 0.41
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix clap: -6.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
