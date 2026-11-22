@@ -647,8 +647,7 @@ impl App {
 
 /// about how much downloading `packs` takes, as a person reads it: in GB from one, else in MB
 fn size_words(packs: &[claudius_packs::PackInfo]) -> String {
-    let mb = packs.iter().map(|p| p.download_mb() as f64).sum::<f64>();
-    if mb >= 1000.0 { format!("{:.1} GB", mb / 1000.0) } else { format!("{:.0} MB", mb.max(1.0)) }
+    claudius_packs::size_words(packs.iter().map(|p| p.download_mb() as f64).sum::<f64>())
 }
 
 /// what `App::dug_out` knows a role's records by: the words asked for it (for any genre), else the genre's own

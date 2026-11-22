@@ -35,7 +35,7 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
         if missing.is_empty() {
             eprintln!("sample packs: the default packs are installed in {}", claudius_packs::packs_dir().display());
         } else {
-            let gb = missing.iter().map(|p| p.download_mb() as f64).sum::<f64>() / 1000.0;
+            let size = claudius_packs::size_words(missing.iter().map(|p| p.download_mb() as f64).sum::<f64>());
             let names = missing
                 .iter()
                 .map(|p| match p.lacks.len() {
@@ -44,9 +44,11 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            if !ask || confirm(&format!("Download {} sample packs ({names}), about {gb:.1} GB?", missing.len()))? {
+            if !ask || confirm(&format!("Download {} sample packs ({names}), about {size}?", missing.len()))? {
                 let last = std::sync::Mutex::new(-1);
-                match claudius_packs::install_defaults(&|f, what| progress(what, f, &mut last.lock().unwrap())) {
+                // only what it asked about: the packs missing, and of those installed, the instruments they lack
+                let wanted: Vec<String> = missing.iter().map(|p| p.name.clone()).collect();
+                match claudius_packs::install_these(&wanted, &|f, what| progress(what, f, &mut last.lock().unwrap())) {
                     Ok(()) => eprintln!("sample packs: installed in {}", claudius_packs::packs_dir().display()),
                     Err(e) => {
                         eprintln!("sample packs: {e:#}");

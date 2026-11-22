@@ -348,17 +348,33 @@ pub fn install_with(name: &str, opts: &InstallOptions, progress: &dyn Fn(f32, &s
 
 /// Install every pack marked default.
 pub fn install_defaults(progress: &dyn Fn(f32, &str)) -> Result<()> {
+    let names: Vec<String> = catalog::REGISTRY.packs.iter().filter(|p| p.default).map(|p| p.name.clone()).collect();
+    install_these(&names, progress)
+}
+
+/// Install the packs `names`, each as `install` does (a pack that lacks instruments fetches only those), going on past
+/// one that fails: the names of those that failed, in one error, when any did.
+pub fn install_these(names: &[String], progress: &dyn Fn(f32, &str)) -> Result<()> {
+    install_each(names, |n| install(n, progress))
+}
+
+fn install_each(names: &[String], install: impl Fn(&str) -> Result<()>) -> Result<()> {
     let mut failed = Vec::new();
-    for p in catalog::REGISTRY.packs.iter().filter(|p| p.default) {
-        if let Err(e) = install(&p.name, progress) {
-            eprintln!("claudius-packs: {}: {e:#}", p.name);
-            failed.push(p.name.clone());
+    for name in names {
+        if let Err(e) = install(name) {
+            eprintln!("claudius-packs: {name}: {e:#}");
+            failed.push(name.clone());
         }
     }
     if !failed.is_empty() {
         bail!("could not install: {} (run again to resume)", failed.join(", "));
     }
     Ok(())
+}
+
+/// about how much a download of `mb` megabytes is, as a person reads it: in GB from one, else in MB
+pub fn size_words(mb: f64) -> String {
+    if mb >= 1000.0 { format!("{:.1} GB", mb / 1000.0) } else { format!("{:.0} MB", mb.max(1.0)) }
 }
 
 pub fn remove(name: &str) -> Result<()> {
@@ -564,6 +580,27 @@ pub fn pack_index(name: &str) -> Result<Arc<PackIndex>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn installing_named_packs_installs_those_alone_and_names_the_ones_that_failed() {
+        let done = std::sync::Mutex::new(Vec::new());
+        let names = vec!["freepats".to_string(), "tr808".to_string(), "vcsl".to_string()];
+        let r = install_each(&names, |n| {
+            done.lock().unwrap().push(n.to_string());
+            if n == "tr808" { Err(anyhow!("the network")) } else { Ok(()) }
+        });
+        assert_eq!(*done.lock().unwrap(), names, "each named, none other, one failing leaves the rest to install");
+        let why = r.unwrap_err().to_string();
+        assert!(why.contains("tr808") && !why.contains("freepats"), "{why}");
+        assert!(install_each(&[], |_| Err(anyhow!("asked nothing"))).is_ok());
+    }
+
+    #[test]
+    fn a_download_says_its_size_in_megabytes_below_a_gigabyte() {
+        assert_eq!(size_words(31.0), "31 MB", "a pack's new instruments");
+        assert_eq!(size_words(0.2), "1 MB");
+        assert_eq!(size_words(3302.4), "3.3 GB");
+    }
 
     fn spec() -> catalog::PackSpec {
         serde_json::from_value(serde_json::json!({
