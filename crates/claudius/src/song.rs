@@ -91,13 +91,35 @@ pub fn credits_of(s: &crate::take::Sources) -> String {
     out
 }
 
+/// `s` as a file's or a folder's name: lowercase letters and digits, a letter with an accent as the letter ("Quédate
+/// Aquí", "quedate-aqui"), an apostrophe left out ("Let 'Em Talk", "let-em-talk"), and one dash for whatever else
+/// parts the words
 pub fn slug(s: &str) -> String {
-    s.to_lowercase()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string()
+    let mut out = String::new();
+    for c in s.to_lowercase().chars().filter(|c| !matches!(c, '\'' | '\u{2019}')) {
+        let c = plain(c);
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+        } else if !out.is_empty() && !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    out.trim_end_matches('-').to_string()
+}
+
+/// a Latin letter with an accent as the letter, any other character as it is
+fn plain(c: char) -> char {
+    match c {
+        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => 'a',
+        'ç' => 'c',
+        'è' | 'é' | 'ê' | 'ë' => 'e',
+        'ì' | 'í' | 'î' | 'ï' => 'i',
+        'ñ' => 'n',
+        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' => 'o',
+        'ù' | 'ú' | 'û' | 'ü' => 'u',
+        'ý' | 'ÿ' => 'y',
+        other => other,
+    }
 }
 
 pub struct Written {
@@ -486,5 +508,15 @@ mod tests {
         write_folder(&dir, &bp, &project, &rendered(&[]), &verdict, false).unwrap();
         assert!(!dir.join("stems").exists(), "{:?}", names(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_title_is_a_name_for_a_file_with_its_accents_and_apostrophes_as_plain_letters() {
+        assert_eq!(slug("Quédate Aquí"), "quedate-aqui");
+        assert_eq!(slug("Let 'Em Talk"), "let-em-talk");
+        assert_eq!(slug("Sexta à Noite"), "sexta-a-noite");
+        assert_eq!(slug("3:17"), "3-17");
+        assert_eq!(slug("  St. Ann -- "), "st-ann");
+        assert_eq!(slug("Neon Pulse"), "neon-pulse");
     }
 }

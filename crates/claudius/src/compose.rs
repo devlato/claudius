@@ -111,33 +111,6 @@ impl Default for Options {
     }
 }
 
-const ADJ: &[&str] = &[
-    "Midnight", "Neon", "Velvet", "Static", "Golden", "Hollow", "Electric", "Paper", "Glass", "Silent", "Crimson",
-    "Lunar", "Distant", "Burning", "Faded", "Liquid",
-];
-const NOUN: &[&str] = &[
-    "Signal",
-    "Avenue",
-    "Bloom",
-    "Drift",
-    "Echo",
-    "Tide",
-    "Circuit",
-    "Haze",
-    "Pulse",
-    "Mirage",
-    "Orbit",
-    "Harbor",
-    "Engine",
-    "Garden",
-    "Satellite",
-    "Rain",
-];
-
-fn title(rng: &mut Rng) -> String {
-    format!("{} {}", rng.pick(ADJ), rng.pick(NOUN))
-}
-
 fn pick_weighted<'a, T>(items: &'a [(T, f64)], rng: &mut Rng) -> &'a T {
     rng.pick_weighted(items)
 }
@@ -956,7 +929,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     }
     let mut bp = Blueprint {
         version: crate::model::BLUEPRINT_FORMAT,
-        title: title(&mut rng.fork("title")),
+        title: crate::titles::title(g, key, &mut rng.fork("title")),
         genre: g.name.clone(),
         seed,
         bpm,

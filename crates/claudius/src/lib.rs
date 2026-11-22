@@ -57,6 +57,7 @@ pub mod swap;
 pub mod synth;
 pub mod take;
 pub mod theory;
+pub mod titles;
 pub mod transcribe;
 pub mod voice;
 pub mod warp;
