@@ -56,7 +56,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   test:
-    name: tests (${{ matrix.os }})
+    name: tests (${{ matrix.os }}, half ${{ matrix.half }})
     runs-on: ${{ matrix.os }}
     # room for a build with no cache, which only main's runs save, and only a run that finishes: the dependencies,
     # then the tests (on Windows in November 2026 about 34 minutes of building and 12 of tests, and 55 minutes in all,
@@ -65,9 +65,14 @@ jobs:
     timeout-minutes: 80
     # Windows has not been verified to build yet, so it reports without blocking
     continue-on-error: ${{ matrix.experimental }}
+    # Each system's tests run in two halves side by side, each building the tests and running every other one
+    # (nextest's partitions): the tests were three quarters of the Linux job (25 minutes of 37 in November 2026, about
+    # 1,100 tests on four cores), and the slowest job decides when a pull request may merge.
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        half: [1, 2]
         include:
           - { os: ubuntu-24.04, experimental: false, features: "" }
           - { os: macos-latest, experimental: false, features: "" }
@@ -77,6 +82,7 @@ jobs:
             features: --exclude earshot --no-default-features --features claudius-cli/studio
     env:
       FEATURES: ${{ matrix.features }}
+      HALF: ${{ matrix.half }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,8 +104,10 @@ jobs:
       - name: Tests
         run: |
           read -ra features <<< "$FEATURES"
-          cargo nextest run --workspace --locked --no-fail-fast "${features[@]}" -E 'not binary(docs_examples)'
+          cargo nextest run --workspace --locked --no-fail-fast "${features[@]}" -E 'not binary(docs_examples)' \
+            --partition "count:$HALF/2"
       - name: Doctests
+        if: matrix.half == 1
         run: |
           read -ra features <<< "$FEATURES"
           cargo test --workspace --locked --doc "${features[@]}"
