@@ -3,8 +3,9 @@
 //! the bars cut them (`sampler::find`, as the auto-sampler's chops and stabs still find their phrases) and as phrases
 //! sung whole (`sampler::pieces`, the Add a recording window's, which `sample_song` samples too), and how many fall
 //! inside a word, and inside a line; and the phrases the Add a recording window shows (its boxes, which a click
-//! plays: `cuts::sung` of the voice, or of the whole mix without the ears, as the web demo has it), how many of their
-//! edges fall inside a word or a line, and how many of the songs' lines a box, or a piece cut whole, holds whole. Run
+//! plays: `cuts::sung` of the voice, or of the whole mix without the ears, as the web demo has it), as found ("shown")
+//! and as the sampler cuts each ("cut": `cuts::cut_phrases`, what the window shows now), how many of their edges fall
+//! inside a word or a line, and how many of the songs' lines a box, or a piece cut whole, holds whole. Run
 //! with `EARSHOT_HOME` an empty folder (and `EARSHOT_OFFLINE=1`), it measures as the web demo listens: no voice apart,
 //! no ears. The songs are downloaded into DIR (with curl) the first time and kept there; none of them goes into the
 //! repository.
@@ -50,12 +51,25 @@ fn main() -> Result<(), String> {
         .collect();
     let ears = claudius::ears::Ears::load(false).ok();
     eprintln!("{} songs in {language}; ears {}", songs.len(), if ears.is_some() { "on" } else { "off" });
-    let (mut bars, mut whole, mut shown) = (Count::default(), Count::default(), Count::default());
+    let (mut bars, mut whole, mut shown, mut shown_cut) =
+        (Count::default(), Count::default(), Count::default(), Count::default());
+    let mut held_cut = 0usize;
     let (mut lines_all, mut held_shown, mut held_pieces) = (0usize, 0usize, 0usize);
     let (mut boxes, mut short_boxes, mut box_secs, mut line_secs) = (0usize, 0usize, 0.0f64, 0.0f64);
     println!(
-        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
-        "song", "bars: words", "lines", "whole: words", "lines", "shown: words", "lines", "held: shown", "pieces"
+        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12} {:>14} {:>14} {:>12}",
+        "song",
+        "bars: words",
+        "lines",
+        "whole: words",
+        "lines",
+        "shown: words",
+        "lines",
+        "held: shown",
+        "pieces",
+        "cut: words",
+        "lines",
+        "held: cut"
     );
     for (name, code) in &songs {
         let (words, lines) = sung(&fetched(&dir, &format!("annotations/words/{name}.csv"))?)?;
@@ -77,6 +91,17 @@ fn main() -> Result<(), String> {
         let mut v = Count::default();
         for &(from, to) in &spans {
             v.add(&words, &lines, &[from, to]);
+        }
+        // and as the window shows them now: each phrase as the sampler cuts it (`cuts::cut_phrases`)
+        let bar_at = |t: f64| {
+            let k = ((t - a.bar_start(0)) / a.bar_secs.max(1e-3)).floor().max(0.0) as usize;
+            a.bar_start(k.min(a.bars))
+        };
+        let cut_spans: Vec<(f64, f64)> =
+            claudius::cuts::cut_phrases(sings, &found, bar_at).iter().map(|p| (p.start, p.end)).collect();
+        let mut vc = Count::default();
+        for &(from, to) in &cut_spans {
+            vc.add(&words, &lines, &[from, to]);
         }
         let heard = why.then_some(&found);
         let mut w = Count::default();
@@ -104,11 +129,11 @@ fn main() -> Result<(), String> {
                 }
             }
         }
-        let (hs, hp) = (held(&lines, &spans), held(&lines, &cut));
+        let (hs, hp, hc) = (held(&lines, &spans), held(&lines, &cut), held(&lines, &cut_spans));
         let row =
             [b.said(b.words), b.said(b.lines), w.said(w.words), w.said(w.lines), v.said(v.words), v.said(v.lines)];
         println!(
-            "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
+            "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12} {:>14} {:>14} {:>12}",
             short(name),
             row[0],
             row[1],
@@ -117,11 +142,16 @@ fn main() -> Result<(), String> {
             row[4],
             row[5],
             format!("{hs} of {}", lines.len()),
-            format!("{hp} of {}", lines.len())
+            format!("{hp} of {}", lines.len()),
+            vc.said(vc.words),
+            vc.said(vc.lines),
+            format!("{hc} of {}", lines.len())
         );
         bars.join(&b);
         whole.join(&w);
         shown.join(&v);
+        shown_cut.join(&vc);
+        held_cut += hc;
         (lines_all, held_shown, held_pieces) = (lines_all + lines.len(), held_shown + hs, held_pieces + hp);
         boxes += spans.len();
         short_boxes += spans.iter().filter(|(a, b)| b - a < 1.5).count();
@@ -138,7 +168,7 @@ fn main() -> Result<(), String> {
     ];
     let share = |n: usize, of: usize| if of == 0 { 0.0 } else { 100.0 * n as f64 / of as f64 };
     println!(
-        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
+        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12} {:>14} {:>14} {:>12}",
         "all",
         all[0],
         all[1],
@@ -147,7 +177,10 @@ fn main() -> Result<(), String> {
         all[4],
         all[5],
         format!("{:.0}%", share(held_shown, lines_all)),
-        format!("{:.0}%", share(held_pieces, lines_all))
+        format!("{:.0}%", share(held_pieces, lines_all)),
+        shown_cut.said(shown_cut.words),
+        shown_cut.said(shown_cut.lines),
+        format!("{:.0}%", share(held_cut, lines_all))
     );
     println!(
         "boxes: {boxes}, {:.0}% under 1.5 s, {:.1} s on average; the songs' lines {:.1} s on average",
