@@ -379,6 +379,12 @@ mod tests {
         let mut bp = song("house", 3);
         let reggaeton = genres::get("reggaeton").unwrap();
         let kick_mix = bp.drums.iter().find(|d| d.name == "kick").unwrap().mix.clone();
+        let drummed: Vec<String> = bp
+            .form
+            .iter()
+            .filter(|s| s.layers.iter().any(|l| bp.drums.iter().any(|d| &d.name == l)))
+            .map(|s| s.name.clone())
+            .collect();
         assert_eq!(compose::drummer(&bp).name, "house");
         let said = track(&mut bp, "drums", "reggaeton", None, None, 2).unwrap();
         assert!(said.starts_with("reggaeton's drums") && said.contains("written again: kick"), "{said}");
@@ -393,15 +399,10 @@ mod tests {
             assert!(template[step] > 0.0, "a snare on step {step}, where reggaeton plays none");
         }
         assert_eq!(bp.drums.iter().find(|d| d.name == "kick").unwrap().mix, kick_mix, "the song's mix stays");
-        let kicked: Vec<&str> =
-            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == "kick")).map(|s| s.name.as_str()).collect();
-        let snared: Vec<&str> =
-            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == "snare")).map(|s| s.name.as_str()).collect();
-        assert!(
-            snared.iter().all(|s| bp.form.iter().any(|f| f.name == *s))
-                && !snared.is_empty()
-                && kicked.len() >= snared.len()
-        );
+        // the added snare plays in every section the song's drums played in, and in no other
+        let snared: Vec<String> =
+            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == "snare")).map(|s| s.name.clone()).collect();
+        assert!(!snared.is_empty() && snared == drummed, "{snared:?} against {drummed:?}");
         // another take of a lane is written as reggaeton's drummer plays it, not as the song's genre does
         let kick = bp.drums.iter().find(|d| d.name == "kick").unwrap();
         assert_eq!(kick.genre.as_deref(), Some("reggaeton"));

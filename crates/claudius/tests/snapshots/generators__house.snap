@@ -2,28 +2,30 @@
 source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
-house at 125.0 BPM in G minor, swing 0.52
+house at 125.0 BPM in G minor, swing 0.56
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.39, prog A, sparse [filter_in]: kick hat perc top
-section groove (groove) 16 bars, energy 0.75, prog A, main [fills]: kick clap hat ohat perc bass chords top lead
-section break (break) 16 bars, energy 0.35, prog B, main [build gap]: pad lead chords
-section drop (drop) 24 bars, energy 0.91, prog A, main [impact fills]: kick clap hat ohat shaker perc bass chords lead arp top
-section outro (outro) 8 bars, energy 0.29, prog A, sparse []: kick hat
+section intro (intro) 8 bars, energy 0.39, prog A, sparse [filter_in]: kick hat shaker perc
+section groove (groove) 16 bars, energy 0.75, prog A, main [fills]: kick clap hat ohat shaker perc bass chords lead
+section break (break) 16 bars, energy 0.35, prog B, main [build gap]: pad chords lead
+section drop (drop) 32 bars, energy 0.91, prog A, main [impact fills]: kick clap hat ohat shaker perc bass chords lead
+section break2 (break) 16 bars, energy 0.39, prog B, main [build]: hat perc chords
+section drop2 (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker perc bass chords arp
+section outro (outro) 16 bars, energy 0.30, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick sparse (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
-drum hat main (drum closed_hat): x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx|x.xxx.xxx.xxx.xx
+drum hat main (drum closed_hat): ..x...xo..x...x.|..x...xo..x...x.|..x...xo..x...x.|..x...xo..x...x.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
-drum shaker main (drum shaker): ..o.oo..x.o.oo..|..o.oo..x.o.oo..|..o.oo..x.o.oo..|..o.oo..x.o.oo..
-drum perc main (drum rim): ..x..x...x..x..x|..x..x...x..x..x|..x..x...x..x..x|..x..x...x..x..x
+drum shaker main (drum shaker): xoooooooxooooooo|xoooooooxooooooo|xoooooooxooooooo|xoooooooxooooooo
+drum perc main (drum rim): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum perc sparse (drum rim): .x.......x......|.x.......x......|.x.......x......|.x.......x......
 part bass (bass): syncopated a rack of synth patch 'sub_bass', register 33..52, density 0.59
-part chords (chords): stabs synth pluck, register 55..76, density 0.59
+part chords (chords): stabs synth harp_pluck, register 55..76, density 0.59
 part pad (pad): legato synth vowel_pad, register 51..77, density 0.53
-part lead (lead): garage_chop synth vox_lead, register 64..86, density 0.53
+part lead (lead): garage_chop synth pluck, register 64..86, density 0.53
 part arp (arp): updown synth house_piano, register 56..80, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, bus drums
