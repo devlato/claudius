@@ -74,6 +74,14 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e(
+        "add_track",
+        "Add a track...",
+        "a new track, an instrument, a part, a bass line, a lead, a pad, chords, a drum lane, drums in a style, \
+         generate a track, a sampled track, a break, a texture, a recording as a track",
+        "arrangement, + Add a track under the tracks",
+        "",
+    ),
+    e(
         "radio",
         "Infinite Radio...",
         "the radio, a station of songs claudius writes as it plays them, music to listen to, one genre after another \

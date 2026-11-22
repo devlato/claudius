@@ -679,6 +679,18 @@ impl Studio {
                     self.view.new_song.set_genre(&name);
                     self.view.new_song.more = Some(name.contains('+'));
                 }
+                Step::AddTrack(kind) => {
+                    use panels::AddKind;
+                    let f = &mut self.view.add_track;
+                    f.open = true;
+                    f.kind = match kind.as_str() {
+                        "part" => AddKind::Part,
+                        "drum" => AddKind::Drum,
+                        "sampled" => AddKind::Sampled,
+                        "recording" => AddKind::Recording,
+                        _ => AddKind::Style,
+                    };
+                }
                 Step::ChangeGenre => {
                     if let Some(song) = &self.state.song {
                         self.view.change_genre.open_on(&song.genre);
@@ -1557,6 +1569,7 @@ impl eframe::App for Studio {
             };
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::transport::change_genre_dialog(&ctx, &mut cx);
+            panels::arrange::add_track_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
             panels::hears::dialog(&ctx, &mut cx);

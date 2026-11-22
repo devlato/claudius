@@ -221,7 +221,7 @@ Details that matter when you read an assistant's transcript:
   makes that have no tool: `set_tempo`, `set_key`, `set_swing`, `set_progression`, `add_section`, `remove_section`,
   `move_section`, `split_section`, `toggle_layer`, `set_section` (including `prog`), `set_drum_step`, `set_drum_pattern`, `set_trig`,
   `set_lane`, `set_part` (including `reseed`), `add_track` and `remove_track` (a drum lane or a part of any role, as
-  the arrangement's **+ Track** adds), `set_notes` (a part's notes over a progression written out, as the studio's
+  the arrangement's **+ Add a track** adds), `set_notes` (a part's notes over a progression written out, as the studio's
   **Notes** tab does), `set_mix` (including `solo`), `set_fx`, `open_text`, `add_hits` (drums played on pads, folded
   into the lanes they strike), `add_scratch` (a scratch on a bar or a few of one of the song's tracks, or of the whole
   mix, kept as a take), and `cancel_take_request` and `cancel_pitch_check` for a request no longer wanted. The
