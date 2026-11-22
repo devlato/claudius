@@ -545,15 +545,15 @@ part("fuzz", #{});
 part("keys", #{ style: "charleston" });
 ```
 
-## rnb (64-80 BPM)
+## rnb (84-108 BPM)
 
-Contemporary R&B: lush 9th chords on Rhodes and piano, an 808 or a warm sub that slides, sixteenth hats that roll, finger
-snaps and a soft clap on the backbeat, airy pads, a sung or chopped hook. The vocal chops `sampled: true` gathers
-suit it best.
+Contemporary R&B as a band plays it: a live kit beside the 808, sixteenth hats that roll, finger snaps and a soft clap
+on the backbeat, a finger bass on neo-soul and funk lines, lush 9th chords on Rhodes and piano, airy pads, a sung or
+chopped hook. The vocal chops `sampled: true` gathers suit it best. For the slow, dark kind, `alt_rnb`.
 
 ```js
 blank("rnb");
-tempo(72);
+tempo(96);
 swing(0.56);
 key("F minor");
 prog("A", "i9 iv9 VImaj9 V9");
