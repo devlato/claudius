@@ -455,6 +455,26 @@ mod tests {
     }
 
     #[test]
+    fn no_genre_names_one_of_general_midis_programs_for_its_parts() {
+        // a part's own list is drawn from as the palette is; a bare name is claudius's preset where there is one
+        let presets = crate::synth::presets::names();
+        for g in crate::genres::all().unwrap() {
+            for part in &g.parts {
+                for name in part.presets.iter().flat_map(|p| p.split('|')) {
+                    let program = if name.contains(':') {
+                        name.to_string()
+                    } else if presets.contains(&name) {
+                        continue;
+                    } else {
+                        format!("freepats:{name}")
+                    };
+                    assert!(!GENERAL_MIDI.contains(&program.as_str()), "{}'s {} names {name}", g.name, part.name);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn only_packs_free_to_publish_with_are_drawn() {
         for ok in ["CC0-1.0", "CC-BY-3.0", "Public domain", "Unlicense", "jRhodes licence: free for making music"] {
             assert!(publishable(ok), "{ok}");
