@@ -892,6 +892,7 @@ async function tuneIn() {
     try {
       await (playing ? ctx.suspend() : ctx.resume());
       button.textContent = playing ? "Play" : "Pause";
+      button.dataset.playing = String(!playing);
     } catch (e) {
       status(`The radio could not ${playing ? "pause" : "play"}: ${e.message}`);
     }
@@ -940,6 +941,7 @@ async function tuneIn() {
   status("On air");
   button.disabled = false;
   button.textContent = "Pause";
+  button.dataset.playing = "true";
   for (const id of ["skip", "download"]) $(id).disabled = false;
   $("open").removeAttribute("aria-disabled");
   queue();
@@ -959,6 +961,7 @@ $("tune").addEventListener("click", () => {
     status(`The radio could not start: ${e.message}`);
     $("tune").disabled = false;
     $("tune").textContent = "Tune in";
+    $("tune").dataset.playing = "false";
   });
 });
 $("skip").addEventListener("click", skip);

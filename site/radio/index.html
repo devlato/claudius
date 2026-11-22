@@ -43,33 +43,35 @@
     minutes before you hear it; a song of a genre built on samples plays recordings from free libraries, credited under
     it.</p>
 
-  <section class="radio-deck" aria-labelledby="now-title">
-    <p class="radio-label">On air</p>
-    <div aria-live="polite">
-      <h2 id="now-title">Not tuned in</h2>
-      <p id="now-meta" class="radio-meta">Press Tune in to start the station.</p>
+  <section class="radio-player" aria-labelledby="now-title">
+    <div class="radio-now">
+      <button id="tune" class="radio-play" type="button" data-playing="false">Tune in</button>
+      <div class="radio-onair" aria-live="polite">
+        <p class="radio-label"><span class="radio-dot" aria-hidden="true"></span>On air</p>
+        <h2 id="now-title">Not tuned in</h2>
+        <p id="now-meta" class="radio-meta">Press Tune in to start the station.</p>
+      </div>
     </div>
     <div class="radio-progress" aria-hidden="true"><div id="now-bar"></div></div>
-    <p id="now-time" class="radio-time"></p>
-    <p id="now-samples" class="radio-small"></p>
+    <div class="radio-under">
+      <p id="now-time" class="radio-time"></p>
+      <p id="now-samples" class="radio-small"></p>
+    </div>
+    <div class="radio-next">
+      <p class="radio-label" id="next-title">Up next</p>
+      <p id="next" class="radio-meta" aria-labelledby="next-title">–</p>
+    </div>
+    <div class="radio-controls">
+      <button id="skip" class="btn" type="button" disabled>Skip</button>
+      <label class="radio-volume">Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+      <span class="radio-song-links">
+        <button id="download" class="btn" type="button" title="the song on air, as a file" disabled>Download</button>
+        <a id="open" class="btn" href="/studio/?mock" aria-disabled="true" target="_blank" rel="noopener"
+          title="the song on air in the studio demo, every part of it yours to change">Open in the studio</a>
+      </span>
+    </div>
+    <p id="status" class="radio-status" role="status"></p>
   </section>
-
-  <section class="radio-next" aria-labelledby="next-title">
-    <p class="radio-label" id="next-title">Up next</p>
-    <p id="next" class="radio-meta">–</p>
-  </section>
-
-  <div class="radio-controls">
-    <button id="tune" class="btn btn-get" type="button">Tune in</button>
-    <button id="skip" class="btn" type="button" disabled>Skip</button>
-    <label class="radio-volume">Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
-  </div>
-  <div class="radio-controls radio-song">
-    <button id="download" class="btn" type="button" disabled>Download this song</button>
-    <a id="open" class="btn" href="/studio/?mock" aria-disabled="true" target="_blank" rel="noopener">Open it in the studio</a>
-  </div>
-  <p id="status" class="radio-status" role="status"></p>
-
   <details id="genres" class="radio-genres">
     <summary>Genres: <span id="genres-said">every one</span></summary>
     <p class="radio-small">Keep the station to one genre or a few: it plays the next song it writes from them, mixed

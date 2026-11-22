@@ -60,9 +60,9 @@ the list before tuning in starts the engine, which says what it plays.
   second bar, where the basses swap, and the playing song thinned and faded out under it. Another goes in after the
   playing song's last beat goes into the echo and it is cut, as an echo out ends a song. While the next song is still
   being written, it comes in as soon as it is.
-- **Download this song** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo
+- **Download** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo
   exports), and saves it.
-- **Open it in the studio** opens the [studio demo](studio.md#carrying-on-in-claudius) on the same song, which its
+- **Open in the studio** opens the [studio demo](studio.md#carrying-on-in-claudius) on the same song, which its
   engine writes again from what the station asked for: its genre, seed, tempo and key, and the recordings it sampled,
   which the studio fetches and cuts again before it writes the song. There every part of it can be changed, sampled,
   exported or carried on in claudius.
@@ -83,7 +83,7 @@ for samples in its genre. What a song samples is credited under it while it is o
 
 The studio app has Infinite Radio too: **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an
 engine of its own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the
-genres to keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open it in the studio**, which makes
+genres to keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open in the studio**, which makes
 the song on air the studio's, the very song you heard (undo brings back the song you had). Your song and the radio take
 turns: playing one pauses the other. It plays on while its window is closed
 ([design 0024](../design/0024-the-radio-in-the-app.md)).

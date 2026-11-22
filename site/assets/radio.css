@@ -1,7 +1,9 @@
-/* Infinite Radio: the station's page, on the site's palette and type (site.css) */
+/* Infinite Radio: the station's page, on the site's palette and type (site.css). One player: the play button beside
+   what is on air, its progress, what comes next and the controls, as a card; the station's genres and what it played
+   under it. */
 
 .radio {
-  max-width: 760px;
+  max-width: 820px;
   padding-top: 48px;
   padding-bottom: 64px;
 }
@@ -11,6 +13,9 @@
 }
 
 .radio-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   margin: 0 0 6px;
   color: var(--text-faint);
   font-size: 12px;
@@ -18,19 +23,136 @@
   text-transform: uppercase;
 }
 
-.radio-deck {
-  margin: 32px 0 16px;
-  padding: 20px 22px;
-  background: var(--lcd);
-  border: 1px solid var(--lcd-edge);
-  border-radius: 10px;
+/* the player */
+
+.radio-player {
+  position: relative;
+  margin: 32px 0 28px;
+  padding: 26px 28px 20px;
+  background: linear-gradient(180deg, var(--raised) 0%, var(--panel) 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
 }
 
-.radio-deck h2 {
+/* a thin line along its top, of the accent while the station plays */
+.radio-player::before {
+  position: absolute;
+  top: -1px;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--line-hi), transparent);
+  border-radius: 2px;
+}
+
+.radio-player:has(#tune[data-playing="true"])::before {
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.radio-now {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+.radio-onair {
+  min-width: 0;
+}
+
+.radio-onair h2 {
   margin: 0 0 6px;
-  color: var(--lcd-text);
-  font-family: "Hack", ui-monospace, monospace;
-  font-size: 22px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the play button: round, of the accent, its icon by the station's state and its words under it for every reader */
+.radio-play {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  color: #1b1206;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 6px 22px rgba(255, 163, 72, 0.28);
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.radio-play::before {
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  content: "";
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+  border-left: 21px solid currentColor;
+}
+
+.radio-play[data-playing="true"]::before {
+  width: 20px;
+  height: 24px;
+  margin-left: 0;
+  border: 0;
+  background: linear-gradient(90deg, currentColor 0 35%, transparent 35% 65%, currentColor 65% 100%);
+}
+
+.radio-play:hover:not(:disabled) {
+  background: var(--accent-hi);
+  transform: scale(1.03);
+}
+
+.radio-play:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
+}
+
+.radio-play:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+/* the dot of a station on air: red, and breathing, while it plays */
+.radio-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--line-hi);
+  border-radius: 50%;
+}
+
+.radio-player:has(#tune[data-playing="true"]) .radio-dot {
+  background: var(--bad);
+  animation: radio-breathe 1.8s ease-in-out infinite;
+}
+
+@keyframes radio-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radio-player:has(#tune[data-playing="true"]) .radio-dot {
+    animation: none;
+  }
 }
 
 .radio-meta {
@@ -38,93 +160,64 @@
   color: var(--text-dim);
 }
 
-.radio-deck .radio-meta {
-  color: var(--lcd-mid);
-  font-family: "Hack", ui-monospace, monospace;
-}
-
 .radio-progress {
-  height: 4px;
-  margin: 16px 0 8px;
-  background: var(--line-soft);
-  border-radius: 2px;
+  height: 6px;
+  margin: 22px 0 8px;
+  background: var(--well);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .radio-progress div {
   width: 0;
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
+  border-radius: 3px;
+}
+
+.radio-under {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  justify-content: space-between;
 }
 
 .radio-time {
   margin: 0;
-  color: var(--lcd-low);
+  color: var(--text-faint);
   font-family: "Hack", ui-monospace, monospace;
   font-size: 13px;
 }
 
+.radio-under .radio-small {
+  margin: 0;
+}
+
 .radio-next {
-  margin: 0 0 24px;
-  padding: 14px 22px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
+  margin: 18px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .radio-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px 24px;
+  gap: 12px 16px;
   align-items: center;
+  margin-top: 18px;
 }
 
-.radio-song {
-  margin-top: 12px;
+/* the song's own links, kept together at the right of the controls */
+.radio-song-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
 }
 
-.radio-song a[aria-disabled="true"] {
+.radio-controls a[aria-disabled="true"] {
   pointer-events: none;
   opacity: 0.5;
-}
-
-.radio-genres {
-  margin: 0 0 32px;
-  padding: 14px 22px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-}
-
-.radio-genres summary {
-  cursor: pointer;
-  color: var(--text-dim);
-}
-
-.radio-genre-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px 24px;
-}
-
-.radio-genre-list fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.radio-genre-list legend {
-  margin-bottom: 4px;
-  color: var(--text-faint);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.radio-genre-list label {
-  display: block;
-  color: var(--text-dim);
-  font-size: 14px;
 }
 
 .radio-volume {
@@ -134,23 +227,119 @@
   color: var(--text-dim);
 }
 
+.radio-volume input {
+  accent-color: var(--accent);
+}
+
 .radio-status {
   min-height: 1.5em;
-  margin: 12px 0 28px;
+  margin: 14px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* the station's genres: each a chip, lit when the station keeps to it */
+
+.radio-genres {
+  margin: 0 0 32px;
+  padding: 14px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+
+.radio-genres summary {
+  cursor: pointer;
   color: var(--text-dim);
 }
+
+.radio-genre-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px 24px;
+  margin-top: 8px;
+}
+
+.radio-genre-list fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.radio-genre-list legend {
+  margin-bottom: 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.radio-genre-list label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 10px 3px 8px;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.radio-genre-list label:has(input:checked) {
+  color: var(--text);
+  background: rgba(255, 163, 72, 0.14);
+  border-color: rgba(255, 163, 72, 0.7);
+}
+
+.radio-genre-list input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* what the station played */
 
 .radio-played {
   margin: 0 0 32px;
-  padding-left: 22px;
-  color: var(--text-dim);
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-soft);
 }
 
 .radio-played li {
-  margin: 4px 0;
+  padding: 10px 2px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .radio-small {
   color: var(--text-faint);
   font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .radio-player {
+    padding: 20px 18px 16px;
+  }
+
+  .radio-now {
+    gap: 16px;
+  }
+
+  .radio-play {
+    width: 72px;
+    height: 72px;
+  }
+
+  .radio-onair h2 {
+    font-size: 22px;
+  }
+
+  .radio-song-links {
+    margin-left: 0;
+  }
 }
