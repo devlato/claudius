@@ -544,7 +544,8 @@ pub fn repitch(x: &Stereo, semis: f64) -> Stereo {
     Stereo { l: resample_step(&x.l, step, out_len), r: resample_step(&x.r, step, out_len) }
 }
 
-const AUDIO_EXTS: &[&str] = &["wav", "aif", "aiff", "flac", "mp3", "m4a", "aac", "caf", "ogg", "opus"];
+/// the extensions of the audio files claudius reads: every format it writes, and CAF
+pub(crate) const AUDIO_EXTS: &[&str] = &["wav", "aif", "aiff", "flac", "mp3", "m4a", "aac", "caf", "ogg", "opus"];
 
 /// audio files among `paths` (folders are searched recursively), sorted
 pub fn list_audio(paths: &[String]) -> Vec<String> {

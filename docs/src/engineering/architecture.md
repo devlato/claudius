@@ -26,7 +26,7 @@ command lines around it.
 | crate | what it is | depends on |
 |---|---|---|
 | `claudius` | the engine: theory, composition, patterns and scripts, synthesis, effects, rendering, the critic, evolution, analysis, the Apple Loops library | `claudius-packs`, `earshot`, `claudius-decode` |
-| `claudius-decode` | audio files to samples: symphonia in pure Rust, ffmpeg as a fallback, limited to the one file and to 30 minutes; trims the encoder priming of AAC in CAF | symphonia |
+| `claudius-decode` | audio files to samples: symphonia in pure Rust, and opus-pure for the Opus symphonia finds, so every format `claudius-encode` writes reads back; ffmpeg as a fallback, limited to the one file and to 30 minutes; trims the encoder priming of AAC in CAF | symphonia, opus-pure |
 | `claudius-encode` | samples to audio files: WAV, AIFF, FLAC, MP3 and Opus in Rust, Ogg Vorbis through libvorbis, AAC and Apple Lossless through the system's encoder | `claudius-decode` |
 | `claudius-packs` | the sample packs: registry, installer, SFZ and Strudel-map readers, name resolution, the multi-sample player, credits; also the `claudius-packs` binary | `claudius-decode` |
 | `earshot` | a Rust port of the Python earshot: CLAP and the AudioSet tagger through ONNX Runtime, the calibrated vocabulary, realness, measurements | `claudius-decode`, `ort` |

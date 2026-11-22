@@ -29,7 +29,7 @@ crates/
     data/genres/             the sixty-six genres, as data
     tests/ benches/          the engine's tests and benchmarks
   claudius-packs/          sample packs: registry, installer, SFZ and Strudel maps, the player
-  claudius-decode/         audio files to samples (symphonia, ffmpeg as fallback)
+  claudius-decode/         audio files to samples (symphonia and opus-pure, ffmpeg as fallback)
   earshot/                 the ears: earshot ported to Rust, CLAP and AudioSet on ONNX Runtime
   claudius-api/            the HTTP API's types, shared with the web studio
   claudius-intent/         the command palette's actions, found by name and by meaning (static word embeddings)

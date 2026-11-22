@@ -201,8 +201,8 @@ functions.
   file in it would land outside that folder or it would unpack to more than 2 GB or 10,000 files. On a Mac the system
   hands the app its files as an Apple Event, taken by `claudius-macos`: the one crate with `unsafe` code, for its calls
   into the Objective-C runtime, each block saying why it holds (`clippy::undocumented_unsafe_blocks` is denied there).
-- **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself. When
-  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
+- **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself; the Opus
+  symphonia finds by opus-pure, a Rust decoder too, with no C. When neither can read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
   it is installed, to match the Python reference: C code, run as a separate process with the file name as an
   argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off. Every ffmpeg and ffprobe
   input goes through `claudius_decode::ffmpeg_input`, which allows only the `file` protocol and the demuxers of

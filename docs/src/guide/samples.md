@@ -429,10 +429,10 @@ track("vox", note("c4 ~ c4 [c4 c4]").s("/Users/me/Samples/vox.wav"));
 
 - The file plays like a sampler: `c4` at its recorded pitch, other notes faster or slower.
 - On a track whose role is not a drum role, each note stops at its length plus 50 ms; drum roles play the whole file.
-- A name counts as a file when it contains `/` or ends in `.wav`, `.mp3`, `.aif`, `.aiff`, `.flac`, `.caf` or
-  `.m4a`. It cannot go inside a mini-notation string, where `/` means "slower".
-- claudius decodes WAV, AIFF, FLAC, MP3, AAC and ALAC (M4A), CAF and Ogg Vorbis itself, and asks ffmpeg for anything
-  else when it is installed.
+- A name counts as a file when it contains `/` or ends in `.wav`, `.mp3`, `.aif`, `.aiff`, `.flac`, `.caf`, `.m4a`,
+  `.aac`, `.ogg` or `.opus`. It cannot go inside a mini-notation string, where `/` means "slower".
+- claudius decodes WAV, AIFF, FLAC, MP3, AAC and ALAC (M4A), CAF, Ogg Vorbis and Opus (in Ogg, WebM or MP4) itself:
+  every format it exports, and more. It asks ffmpeg for anything else when it is installed.
 
 The song stores the file's path, not its audio, so moving or deleting the file breaks the song. Every decoded file is
 cached as raw 48 kHz audio in `~/Library/Caches/claudius/decoded/` (about 23 MB per minute of stereo), keyed by its
