@@ -2,10 +2,14 @@
 //! annotated by hand (<https://huggingface.co/datasets/jamendolyrics/jamendolyrics>). It counts the cuts of the pieces as
 //! the bars cut them (`sampler::find`, as the auto-sampler's chops and stabs still find their phrases) and as phrases
 //! sung whole (`sampler::pieces`, the Add a recording window's, which `sample_song` samples too), and how many fall
-//! inside a word, and inside a line. The songs are downloaded into DIR
-//! (with curl) the first time and kept there; none of them goes into the repository.
+//! inside a word, and inside a line; and the phrases the Add a recording window shows (its boxes, which a click
+//! plays: `cuts::sung` of the voice, or of the whole mix without the ears, as the web demo has it), how many of their
+//! edges fall inside a word or a line, and how many of the songs' lines a box, or a piece cut whole, holds whole. Run
+//! with `EARSHOT_HOME` an empty folder (and `EARSHOT_OFFLINE=1`), it measures as the web demo listens: no voice apart,
+//! no ears. The songs are downloaded into DIR (with curl) the first time and kept there; none of them goes into the
+//! repository.
 //!
-//!   cargo run --release -p claudius --example eval_cuts -- DIR [--lang en|de|es|fr] [--songs N] [--why]
+//!   cargo run --release -p claudius --example eval_cuts -- DIR [--lang en|de|es|fr|all] [--songs N] [--why]
 //!
 //! `--why` says, for each cut inside a word, where in the word it falls and the words heard round it.
 
@@ -26,30 +30,36 @@ fn main() -> Result<(), String> {
     let most: usize = flag("--songs").map_or(Ok(usize::MAX), |n| n.parse().map_err(|_| "--songs takes a number"))?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let index = fetched(&dir, "JamendoLyrics.csv")?;
-    let language = match lang.as_str() {
-        "en" => "English",
-        "de" => "German",
-        "es" => "Spanish",
-        "fr" => "French",
-        other => return Err(format!("no language {other}: en, de, es or fr")),
-    };
-    let songs: Vec<String> = std::fs::read_to_string(&index)
+    const LANGUAGES: [(&str, &str); 4] = [("en", "English"), ("de", "German"), ("es", "Spanish"), ("fr", "French")];
+    if lang != "all" && !LANGUAGES.iter().any(|(code, _)| *code == lang) {
+        return Err(format!("no language {lang}: en, de, es, fr or all"));
+    }
+    let language =
+        if lang == "all" { "every language" } else { LANGUAGES.iter().find(|l| l.0 == lang).map_or("", |l| l.1) };
+    // each song, and the code of its language, whose folder holds it
+    let songs: Vec<(String, &str)> = std::fs::read_to_string(&index)
         .map_err(|e| e.to_string())?
         .lines()
         .skip(1)
         .filter_map(|l| {
             let cols: Vec<&str> = l.split(',').collect();
-            (cols.get(6) == Some(&language)).then(|| cols[1].trim_end_matches(".mp3").to_string())
+            let code = LANGUAGES.iter().find(|(_, name)| cols.get(6) == Some(name)).map(|(code, _)| *code)?;
+            (lang == "all" || code == lang).then(|| (cols[1].trim_end_matches(".mp3").to_string(), code))
         })
         .take(most)
         .collect();
     let ears = claudius::ears::Ears::load(false).ok();
     eprintln!("{} songs in {language}; ears {}", songs.len(), if ears.is_some() { "on" } else { "off" });
-    let (mut bars, mut whole) = (Count::default(), Count::default());
-    println!("{:<40} {:>14} {:>14} {:>14} {:>14}", "song", "bars: words", "lines", "whole: words", "lines");
-    for name in &songs {
+    let (mut bars, mut whole, mut shown) = (Count::default(), Count::default(), Count::default());
+    let (mut lines_all, mut held_shown, mut held_pieces) = (0usize, 0usize, 0usize);
+    let (mut boxes, mut short_boxes, mut box_secs, mut line_secs) = (0usize, 0usize, 0.0f64, 0.0f64);
+    println!(
+        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
+        "song", "bars: words", "lines", "whole: words", "lines", "shown: words", "lines", "held: shown", "pieces"
+    );
+    for (name, code) in &songs {
         let (words, lines) = sung(&fetched(&dir, &format!("annotations/words/{name}.csv"))?)?;
-        let x = claudius::audio::load(&fetched(&dir, &format!("subsets/{lang}/mp3/{name}.mp3"))?)
+        let x = claudius::audio::load(&fetched(&dir, &format!("subsets/{code}/mp3/{name}.mp3"))?)
             .map_err(|e| e.to_string())?;
         let stems = claudius::stems::of(&x, &mut |_| {});
         let a = analysis::analyze_with(&x, stems.as_deref(), None);
@@ -60,16 +70,23 @@ fn main() -> Result<(), String> {
             b.add(&words, &lines, &[a.bar_start(first), a.bar_start(first + p.bars as usize)]);
         }
         let why = args.iter().any(|a| a == "--why");
-        let heard = why.then(|| {
-            let sings = stems.as_deref().map_or(&x, |s| &s.vocals);
-            claudius::cuts::sung(sings, &claudius::analysis::melody::pitches(sings))
-        });
+        // the window's boxes: the phrases its voice sings as found, from its vocals apart or else the whole mix
+        let sings = stems.as_deref().map_or(&x, |s| &s.vocals);
+        let found = claudius::cuts::sung(sings, &claudius::analysis::melody::pitches(sings));
+        let spans: Vec<(f64, f64)> = found.phrases.iter().map(|p| (p.start, p.end)).collect();
+        let mut v = Count::default();
+        for &(from, to) in &spans {
+            v.add(&words, &lines, &[from, to]);
+        }
+        let heard = why.then_some(&found);
         let mut w = Count::default();
+        let mut cut: Vec<(f64, f64)> = Vec::new();
         if let Ok(pieces) = sampler::pieces(&x, ears.as_ref(), &opt, 0) {
             for p in pieces {
                 let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
                 w.add(&words, &lines, &[from, to]);
-                let Some(heard) = &heard else { continue };
+                cut.push((from, to));
+                let Some(heard) = heard else { continue };
                 for (end, t) in [("start", from), ("end", to)] {
                     if let Some((s, e)) = words.iter().find(|(s, e)| t > s + SLACK && t < e - SLACK) {
                         let near: Vec<String> = heard
@@ -87,14 +104,63 @@ fn main() -> Result<(), String> {
                 }
             }
         }
-        let row = [b.said(b.words), b.said(b.lines), w.said(w.words), w.said(w.lines)];
-        println!("{:<40} {:>14} {:>14} {:>14} {:>14}", short(name), row[0], row[1], row[2], row[3]);
+        let (hs, hp) = (held(&lines, &spans), held(&lines, &cut));
+        let row =
+            [b.said(b.words), b.said(b.lines), w.said(w.words), w.said(w.lines), v.said(v.words), v.said(v.lines)];
+        println!(
+            "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
+            short(name),
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            format!("{hs} of {}", lines.len()),
+            format!("{hp} of {}", lines.len())
+        );
         bars.join(&b);
         whole.join(&w);
+        shown.join(&v);
+        (lines_all, held_shown, held_pieces) = (lines_all + lines.len(), held_shown + hs, held_pieces + hp);
+        boxes += spans.len();
+        short_boxes += spans.iter().filter(|(a, b)| b - a < 1.5).count();
+        box_secs += spans.iter().map(|(a, b)| b - a).sum::<f64>();
+        line_secs += lines.iter().map(|(a, b)| b - a).sum::<f64>();
     }
-    let all = [bars.said(bars.words), bars.said(bars.lines), whole.said(whole.words), whole.said(whole.lines)];
-    println!("{:<40} {:>14} {:>14} {:>14} {:>14}", "all", all[0], all[1], all[2], all[3]);
+    let all = [
+        bars.said(bars.words),
+        bars.said(bars.lines),
+        whole.said(whole.words),
+        whole.said(whole.lines),
+        shown.said(shown.words),
+        shown.said(shown.lines),
+    ];
+    let share = |n: usize, of: usize| if of == 0 { 0.0 } else { 100.0 * n as f64 / of as f64 };
+    println!(
+        "{:<40} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>12} {:>12}",
+        "all",
+        all[0],
+        all[1],
+        all[2],
+        all[3],
+        all[4],
+        all[5],
+        format!("{:.0}%", share(held_shown, lines_all)),
+        format!("{:.0}%", share(held_pieces, lines_all))
+    );
+    println!(
+        "boxes: {boxes}, {:.0}% under 1.5 s, {:.1} s on average; the songs' lines {:.1} s on average",
+        share(short_boxes, boxes),
+        box_secs / boxes.max(1) as f64,
+        line_secs / lines_all.max(1) as f64
+    );
     Ok(())
+}
+
+/// how many of `lines` one of `spans` holds whole, from before its first word to after its last
+fn held(lines: &[(f64, f64)], spans: &[(f64, f64)]) -> usize {
+    lines.iter().filter(|(s, e)| spans.iter().any(|(a, b)| *a <= s + SLACK && *b >= e - SLACK)).count()
 }
 
 /// the cuts counted, those inside a word, and those inside a line
