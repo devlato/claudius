@@ -2475,7 +2475,22 @@ mod tests {
         // a song open before, whose words an answer saying the new one is still being made must not give
         assert!(app.command(song(3)).ok);
         let about = Some("read from the brief: house".to_string());
+        // the new song held back until it is said to be still going: a wait of nothing races it otherwise, and a quick
+        // song is done by the first look where the clock is coarse (Windows'), as it was on CI
+        let (release, released) = std::sync::mpsc::channel::<()>();
+        let (held, holding) = std::sync::mpsc::channel::<()>();
+        let holder = {
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let _session = app.held();
+                held.send(()).ok();
+                released.recv().ok();
+            })
+        };
+        holding.recv().unwrap();
         let early = studio.made_within(Duration::ZERO, song(4), about, false).await.unwrap();
+        release.send(()).ok();
+        holder.join().unwrap();
         assert!(early.starts_with("`new_song` is still going") && !early.contains("in plain words"), "{early}");
         for _ in 0..1500 {
             if studio.pending.lock().unwrap().iter().all(|p| p.task.is_finished()) {
