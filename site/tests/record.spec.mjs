@@ -105,13 +105,14 @@ test.describe("recording in the browser", () => {
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
-      // the recorder hands over the last of what it heard when it is told to stop, long before the window gives up
-      // waiting for it; the take waits to be kept, and goes once it is
+      // the recorder hands over the last of what it heard when it is told to stop, before the window gives up waiting
+      // for it (a take it gave up on says the browser held back its last moment, and its line ends otherwise); the take
+      // waits to be kept, and goes once it is
       const asked = lines.when["finishing ..."];
       const held = lines.find((l) => / s recorded: play it back, record it again, or keep it$/.test(l));
       expect(asked, "the take waited for the last of what was heard").toBeTruthy();
+      expect(lines.join("\n"), "the recorder handed over the last of the take").not.toMatch(/held back its last moment/);
       expect(held, "the take waited to be kept").toBeTruthy();
-      expect(lines.when[held] - asked).toBeLessThan(800);
       expect(lines.indexOf(lines.find((l) => l.startsWith("sending ")))).toBeGreaterThan(lines.indexOf(held));
       const state = await (await c.api("/api/state")).json();
       const take = state.song.tracks.find((t) => t.name === "take1");

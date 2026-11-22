@@ -184,10 +184,25 @@ test.describe("playing from a phone", () => {
       expect(await speed(400)).toBeLessThan(0.1);
       await touch("pointerup", { size: 40 });
       expect(await speed(300)).toBeCloseTo(1, 1);
-      // a swipe: the finger grabs, carries the record round fast, and lets go; it runs on faster, then back in time
+      // a swipe: the finger grabs, carries the record round fast, and lets go; it runs on faster, then back in time. Its
+      // moments come from the page at a screen's pace (16 ms apart), not one test step each, whose round trips on a busy
+      // computer would make the swipe slow
       await touch("pointerdown");
-      for (let i = 1; i <= 8; i++) await touch("pointermove", { turn: i * 0.25 });
-      await touch("pointerup", { turn: 2 });
+      await phone.evaluate(async () => {
+        const c = $("platter");
+        const r = c.getBoundingClientRect();
+        const rad = Math.min(r.width, r.height) * 0.4;
+        const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true, pressure: 0.5, width: 1, height: 1 };
+        const at = (turn) => ({
+          clientX: r.left + r.width / 2 + rad * Math.cos(-Math.PI / 2 + turn),
+          clientY: r.top + r.height / 2 + rad * Math.sin(-Math.PI / 2 + turn),
+        });
+        for (let i = 1; i <= 8; i++) {
+          c.dispatchEvent(new PointerEvent("pointermove", { ...init, ...at(i * 0.25) }));
+          await new Promise((done) => setTimeout(done, 16));
+        }
+        c.dispatchEvent(new PointerEvent("pointerup", { ...init, ...at(2) }));
+      });
       const flung = await speed(20);
       expect(flung, "a swipe spins it faster").toBeGreaterThan(1.3);
       expect(flung, "as fast as a finger turns one").toBeLessThanOrEqual(4);

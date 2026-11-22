@@ -725,6 +725,10 @@ const deck = {
   /** how fast the platter under the record turns, in seconds of record a second */
   platter: 0,
   target: 0,
+  /** how far behind the hand the record follows it, in ms (`hand`), or null until a grab's first block */
+  late: null,
+  /** the record's own clock, in ms on the page's, a block further each block (`spin`) */
+  clock: null,
   touching: false,
   angle: 0,
   turned: 0,
@@ -773,17 +777,20 @@ const BRAKE = 3;
 /** the fastest a swipe spins the record, in seconds of record a second: about as fast as a finger turns one */
 const FLING = 4;
 
-/** The hand on the record: where it had the record, and when (ms on the page's clock), over the last third of a
- * second, and the time between the moments the screen (or a jog wheel) says where (a phone says it 60 or 120 times a
- * second). The page hears of those moments only as each audio block begins, so a record sent to the newest place would
- * jump there and rest until the next block, starting and stopping 47 times a second, a buzz. It follows the hand's path
- * instead, a block and one such time late, between places it knows: as smoothly as the hand moved it. */
+/** The hand on the record: where it had the record, and when (ms on the page's clock), over the last second, and how
+ * long the page goes without hearing of a newer place (`gap`): a phone's screen says where 60 or 120
+ * times a second, but the page hears of those moments only as each audio block begins, and a slow or busy page hears of
+ * them late and in bursts. A record sent to the newest place would jump there and rest until the next, starting and
+ * stopping 47 times a second, a buzz; and one that runs past the newest place it knows of rests there. It follows the
+ * hand's path instead, a block and one such time late (`deck.late`), between places it knows: as smoothly as the hand
+ * moved it, on a slow phone as on a fast one. */
 const hand = { path: [], gap: 1 / 60, gaps: [] };
 
 /** a grab, or a jog wheel's first turn: the hand's path begins where the record is, at `time` (ms) */
 function handFrom(pos, time) {
   hand.path = [{ t: time, x: pos }];
   deck.target = pos;
+  deck.late = null;
 }
 
 /** the hand has the record at `target` at `time` (ms) */
@@ -792,14 +799,15 @@ function handTo(target, time) {
   const last = path[path.length - 1];
   if (!last || time > last.t) {
     if (last) {
-      hand.gaps.push((time - last.t) / 1000);
+      // how long the page went without a newer place than the last: until now, when it hears of this one (the screen's
+      // moments, stamped when it saw them, can reach a busy page in bursts long after)
+      hand.gaps.push((Math.max(time, performance.now()) - last.t) / 1000);
       if (hand.gaps.length > 8) hand.gaps.shift();
-      const sorted = [...hand.gaps].sort((a, b) => a - b);
-      hand.gap = Math.min(0.034, Math.max(0.004, sorted[sorted.length >> 1]));
+      hand.gap = Math.min(0.15, Math.max(0.004, ...hand.gaps));
     }
     path.push({ t: time, x: target });
   } else last.x = target;
-  while (path.length > 2 && path[1].t < time - 300) path.shift();
+  while (path.length > 2 && path[1].t < time - 1000) path.shift();
   deck.target = target;
 }
 
@@ -1108,14 +1116,24 @@ function spin(e) {
   const s = [0, 0];
   // where the song is as each sample is heard, for a take's moves
   const songStart = take && take.mode === "deck" ? songAt(heardAt(e.playbackTime)) : null;
-  // the hand's path, a block and the time between its moments late, so that where it was is known (`hand`)
-  const late = (n / ctx.sampleRate + hand.gap) * 1000;
+  // the record's clock: a block further each block, as its sound is heard, drawn toward the page's clock by at most a
+  // fifth of a block each block, and set to it after a long stall: a page that runs its audio late and in bursts would
+  // otherwise send the record ahead and back
+  const blockMs = (n / ctx.sampleRate) * 1000;
+  const drift = deck.clock == null ? Infinity : now - (deck.clock + blockMs);
+  const clock = (deck.clock =
+    Math.abs(drift) > 250 ? now : deck.clock + blockMs + Math.max(-0.2 * blockMs, Math.min(0.2 * blockMs, drift)));
+  // the hand's path, a block and the time between its moments late, so that where it was is known (`hand`); when that
+  // time grows or shrinks, the record moves to it at a fifth of the pace of time at most, so that it slows or hurries a
+  // little rather than jumping back or ahead
+  const want = blockMs + hand.gap * 1000;
+  const late = (deck.late = deck.late == null ? want : toward(deck.late, want, blockMs * 0.2));
   const k = { i: 0 };
   for (let i = 0; i < n; i++) {
     const speed = (deck.platter = toward(deck.platter, motor, (motor > 0 ? TORQUE : BRAKE) * dt));
     if (deck.touching && hold.grab && hand.path.length) {
       // toward where the hand had the record, and as fast: a spring that keeps up with a hand moving it
-      const [aim, v] = handAt(now + i * dt * 1000 - late, k);
+      const [aim, v] = handAt(clock + i * dt * 1000 - late, k);
       deck.vel += (SPRING * SPRING * (aim - deck.pos) + 2 * SPRING * (v - deck.vel)) * dt;
     } else if (deck.touching) deck.vel += (speed * (1 - grip) - deck.vel) * Math.min(1, dt / 0.04);
     else deck.vel = toward(deck.vel, speed, (deck.vel >= 0 && deck.vel < speed ? CATCH_UP : SLOW_DOWN) * dt);
@@ -1226,8 +1244,10 @@ function platter() {
   });
   for (const up of ["pointerup", "pointercancel"]) {
     c.addEventListener(up, () => {
-      // let go while moving, the record runs on at the finger's speed
-      if (hold.grab && performance.now() - hold.moved < 60) deck.vel = Math.max(-FLING, Math.min(FLING, hold.speed));
+      // let go while moving, the record runs on at the finger's speed: moving within the last 60 ms, or within two of
+      // the times the page goes without news of the finger, on a slow page that hears of it less often
+      const recent = Math.max(60, 2000 * hand.gap);
+      if (hold.grab && performance.now() - hold.moved < recent) deck.vel = Math.max(-FLING, Math.min(FLING, hold.speed));
       deck.touching = false;
       Object.assign(hold, { grab: false, finger: false });
     });
