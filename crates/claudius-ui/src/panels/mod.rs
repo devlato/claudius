@@ -198,14 +198,14 @@ pub struct Link {
     pub ears: Option<bool>,
 }
 
-/// The Change the genre window: whether it is open, the genre the song is to be played in and one fused with it, the
+/// The Change the genre window: whether it is open, the genre the song is to be played in and those fused with it, the
 /// search over the genres, and a seed for another take of it
 #[derive(Default)]
 pub struct ChangeGenreForm {
     pub open: bool,
     pub genre: String,
-    /// the genres fused with it, as the fusion names them after its first (`idm`, or `idm+house`)
-    pub with: Option<String>,
+    /// the genres fused with it, in the fusion's order after its first: the last plays the drums
+    pub with: Vec<String>,
     pub search: String,
     pub seed: String,
     /// the genre the song is in, which the window was opened on, and that its search is to take the keyboard
@@ -214,42 +214,47 @@ pub struct ChangeGenreForm {
 }
 
 impl ChangeGenreForm {
-    /// the window opened on the song's genre, `genre`: the one that leads it, and those fused with it (as `trip_hop+idm`
-    /// or `trip_hop+idm+house` says them), its search taking the keyboard
+    /// the window opened on the song's genre, `genre`: the one that leads it, and every one fused with it (as
+    /// `trip_hop+idm` or `trip_hop+neo_soul+dub_techno+idm` says them), its search taking the keyboard
     pub fn open_on(&mut self, genre: &str) {
-        let (lead, with) = genre.split_once('+').map_or((genre, None), |(lead, with)| (lead, Some(with)));
-        (self.genre, self.with) = (lead.to_string(), with.map(str::to_string));
+        let mut names = genre.split('+').map(str::to_string);
+        self.genre = names.next().unwrap_or_default();
+        self.with = names.collect();
         (self.open, self.search, self.seed, self.was, self.focus) =
             (true, String::new(), String::new(), genre.to_string(), true);
     }
 
     /// `genre` leading the song, no longer among those fused with it if it was
     pub fn lead(&mut self, genre: String) {
-        let rest = |with: String| with.split('+').filter(|g| *g != genre).collect::<Vec<_>>().join("+");
-        self.with = self.with.take().map(rest).filter(|w| !w.is_empty());
+        self.with.retain(|g| *g != genre);
         self.genre = genre;
-    }
-
-    /// the genres fused with the song's own lead, when there are two of them: what the window offers to keep, as its
-    /// menu of genres to fuse with offers one at a time
-    pub fn was_fused(&self) -> Option<&str> {
-        self.was.split_once('+').map(|(_, with)| with).filter(|with| with.contains('+'))
     }
 
     /// the genre as `Command::ChangeGenre` takes it: the one chosen, or it and those fused with it
     pub fn fused(&self) -> String {
-        match &self.with {
-            Some(w) => format!("{}+{w}", self.genre),
-            None => self.genre.clone(),
+        fusion(&self.genre, &self.with)
+    }
+}
+
+/// `lead` and the genres fused with it as claudius names the fusion (`trip_hop+neo_soul+idm`): each once, the lead first
+pub fn fusion(lead: &str, with: &[String]) -> String {
+    let mut names = vec![lead];
+    for g in with {
+        if !names.contains(&g.as_str()) {
+            names.push(g);
         }
     }
+    names.join("+")
 }
 
 pub struct NewSongForm {
     pub open: bool,
     pub genre: String,
-    /// the genre fused with it, which plays the drums and lends its sounds (`genres::fuse`)
-    pub with: Option<String>,
+    /// the genres fused with it, in order: each lends its sounds and styles, and the last plays the drums
+    /// (`genres::get`)
+    pub with: Vec<String>,
+    /// More options opened (or closed) once, as a plan's step asks
+    pub more: Option<bool>,
     pub seed: String,
     pub loops: bool,
     pub bpm: Option<f64>,
@@ -317,15 +322,12 @@ pub enum WithRecording {
 }
 
 impl NewSongForm {
-    /// the genre as claudius takes it: `trip_hop`, or `trip_hop+idm` for a fusion
+    /// the genre as claudius takes it: `trip_hop`, or `trip_hop+idm` (or `trip_hop+neo_soul+idm`) for a fusion
     pub fn genre_name(&self) -> String {
-        match self.with.as_ref().filter(|w| **w != self.genre) {
-            Some(w) => format!("{}+{w}", self.genre),
-            None => self.genre.clone(),
-        }
+        fusion(&self.genre, &self.with)
     }
 
-    /// set from a song's genre, a fusion's first two genres included; it samples as that genre does until asked
+    /// set from a song's genre, every genre of a fusion included; it samples as that genre does until asked
     pub fn set_genre(&mut self, name: &str) {
         let mut parts = name.split('+');
         let genre = parts.next().unwrap_or(name).to_string();
@@ -333,7 +335,7 @@ impl NewSongForm {
             self.sampled = None;
         }
         self.genre = genre;
-        self.with = parts.next().map(String::from);
+        self.with = parts.map(String::from).collect();
     }
 
     /// whether the song is built on samples, as the dialog shows it: as asked, else as the genre is by default
@@ -590,7 +592,8 @@ impl Default for View {
             new_song: NewSongForm {
                 open: false,
                 genre: "house".into(),
-                with: None,
+                with: Vec::new(),
+                more: None,
                 seed: String::new(),
                 loops: false,
                 bpm: None,
@@ -1376,16 +1379,22 @@ mod tests {
     #[test]
     fn the_change_genre_window_keeps_every_genre_of_a_fusion_and_none_twice() {
         let mut f = ChangeGenreForm::default();
-        f.open_on("trip_hop+idm+house");
-        assert_eq!((f.genre.as_str(), f.fused()), ("trip_hop", "trip_hop+idm+house".to_string()));
-        assert_eq!(f.was_fused(), Some("idm+house"));
+        f.open_on("trip_hop+neo_soul+dub_techno+idm");
+        assert_eq!((f.genre.as_str(), f.fused()), ("trip_hop", "trip_hop+neo_soul+dub_techno+idm".to_string()));
+        assert_eq!(f.with, ["neo_soul", "dub_techno", "idm"]);
         // a genre of the fusion chosen to lead it leads the rest
         f.lead("idm".into());
-        assert_eq!(f.fused(), "idm+house");
+        assert_eq!(f.fused(), "idm+neo_soul+dub_techno");
         f.lead("house".into());
-        assert_eq!(f.fused(), "house");
+        assert_eq!(f.fused(), "house+neo_soul+dub_techno");
         f.open_on("trip_hop+idm");
-        assert_eq!((f.fused(), f.was_fused()), ("trip_hop+idm".to_string(), None));
+        assert_eq!(f.fused(), "trip_hop+idm");
+        // a genre named twice, or the lead among those fused, is named once
+        f.with = vec!["idm".into(), "trip_hop".into(), "idm".into()];
+        assert_eq!(f.fused(), "trip_hop+idm");
+        let mut n = View::default().new_song;
+        n.set_genre("trip_hop+neo_soul+dub_techno+idm");
+        assert_eq!((n.genre.as_str(), n.genre_name()), ("trip_hop", "trip_hop+neo_soul+dub_techno+idm".to_string()));
     }
 
     #[test]

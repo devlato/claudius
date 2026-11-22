@@ -72,6 +72,15 @@ fn joined(between: &[String]) -> bool {
     between.iter().any(|w| matches!(w.as_str(), "with" | "and" | "meets" | "plus" | "x" | "fused" | "into" | "over"))
 }
 
+/// names as a sentence lists them: "a", "a and b", "a, b and c"
+fn listed(names: &[&str]) -> String {
+    match names.split_last() {
+        Some((last, [])) => last.to_string(),
+        Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
+        None => String::new(),
+    }
+}
+
 /// a tonic as written ("d", "F#", "eb", "Bb"), as claudius names it ("D", "F#", "Eb")
 fn tonic(w: &str) -> Option<String> {
     let mut c = w.chars();
@@ -187,12 +196,39 @@ pub fn read(text: &str, genres: &[GenreInfo]) -> Result<Brief, String> {
             b.genre = one.name.clone();
             b.read.push(format!("{}, which it names", one.name));
         }
-        [(lead, at), (drums, then), ..] if joined(&claudius_api::search_words(text)[at.end..then.start]) => {
-            b.genre = format!("{}+{}", lead.name, drums.name);
-            b.read.push(format!(
-                "{} fused with {}, which it names: the first leads, the second plays the drums",
-                lead.name, drums.name
-            ));
+        [(lead, at), (_, then), ..] if joined(&claudius_api::search_words(text)[at.end..then.start]) => {
+            // the genres joined one to the next from the first ("trip hop with neo soul and idm"): one fusion of them all
+            let between = claudius_api::search_words(text);
+            let mut fused = vec![lead.name.as_str()];
+            let mut end = at.end;
+            for (g, r) in &named[1..] {
+                if !joined(&between[end..r.start]) {
+                    break;
+                }
+                fused.push(g.name.as_str());
+                end = r.end;
+            }
+            b.genre = fused.join("+");
+            // the guard joined the second to the first, so there are two at least
+            let (drums, lent) = (fused[fused.len() - 1], &fused[1..fused.len() - 1]);
+            b.read.push(match lent {
+                [] => format!(
+                    "{} fused with {drums}, which it names: the first leads, the second plays the drums",
+                    lead.name
+                ),
+                [one] => format!(
+                    "{} fused with {one} and {drums}, which it names: the first leads, {drums} plays the drums, and \
+                     {one} lends its sounds",
+                    lead.name
+                ),
+                lent => format!(
+                    "{} fused with {}, which it names: the first leads, {drums} plays the drums, and {} lend their \
+                     sounds",
+                    lead.name,
+                    listed(&fused[1..]),
+                    listed(lent)
+                ),
+            });
         }
         several => {
             // a word that names a genre and only says what a song of another is like ("chill lo-fi", "afro house"):
@@ -301,6 +337,16 @@ mod tests {
         let b = read("trip hop with idm drums at 92, F#m, lush", &genres()).unwrap();
         assert_eq!(b.genre, "trip_hop+idm");
         assert_eq!((b.bpm, b.key.as_deref(), b.complexity), (Some(92.0), Some("F# minor"), Some(0.85)));
+        // any number joined one to the next are one fusion: the first leads, the last plays the drums
+        let b = read("house meets techno with lo-fi and idm drums", &genres()).unwrap();
+        assert_eq!(b.genre, "house+techno+lofi+idm");
+        assert!(b.read[0].contains("with techno, lofi and idm"), "{:?}", b.read);
+        assert!(b.read[0].contains("idm plays the drums, and techno and lofi lend their sounds"), "{:?}", b.read);
+        let b = read("trip hop with house and idm", &genres()).unwrap();
+        assert_eq!(b.genre, "trip_hop+house+idm");
+        assert!(b.read[0].contains("idm plays the drums, and house lends its sounds"), "{:?}", b.read);
+        let b = read("trip hop with idm, house as what it is like", &genres()).unwrap();
+        assert_eq!(b.genre, "trip_hop+idm", "a genre no word joins to the last stays out");
         let b = read("dark idm trip hop", &genres()).unwrap();
         assert_eq!(b.genre, "trip_hop", "no word joins them: the one named at length, which ends the phrase");
         assert!(b.read[0].contains("\"trip_hop with idm\" would fuse them"), "{:?}", b.read);

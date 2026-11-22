@@ -40,7 +40,7 @@ fn fills(what: &str, s: &SectionSpec) -> bool {
     }
 }
 
-/// The song `bp` in genre `g` (one, or two or three fused), made with `seed`, and what to say of it.
+/// The song `bp` in genre `g` (one, or any number fused), made with `seed`, and what to say of it.
 ///
 /// It keeps the song's title, its form (each section's name, kind, length, energy, progression and transitions, and
 /// its drum variant where the genre's drums have it), its harmony and key, the recordings it plays (takes, loops,

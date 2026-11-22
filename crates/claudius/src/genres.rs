@@ -458,19 +458,25 @@ fn own() -> Result<Vec<GenreProfile>> {
     Ok(out)
 }
 
-/// how many genres one fusion takes at most
-pub const MOST_FUSED: usize = 3;
-
-/// A genre by name, or two or three fused (`trip_hop+idm`): the first leads and each after it plays the drums
-/// (`fuse`).
+/// A genre by name, or any number of them fused (`trip_hop+idm`, `trip_hop+neo_soul+dub_techno+idm`): the first leads, the last
+/// plays the drums, and every one after the first lends its sounds, styles, harmony and parts (`fuse`, one genre after
+/// another).
 pub fn get(name: &str) -> Result<GenreProfile> {
     if name.contains('+') {
         let names: Vec<&str> = name.split('+').map(str::trim).collect();
-        if names.len() > MOST_FUSED || names.iter().any(|n| n.is_empty()) {
-            anyhow::bail!("a fusion is two or three genres joined by +, such as trip_hop+idm, not '{name}'");
+        if names.iter().any(|n| n.is_empty()) {
+            anyhow::bail!(
+                "a fusion is genres joined by +, such as trip_hop+idm or trip_hop+neo_soul+idm, not '{name}'"
+            );
         }
-        let first = get(names[0])?;
-        return names[1..].iter().try_fold(first, |g, n| Ok(fuse(&g, &get(n)?)));
+        let genres = names.iter().map(|n| get(n)).collect::<Result<Vec<_>>>()?;
+        let (lead, rest) = genres.split_first().expect("a name with a + in it names two");
+        let mut g = rest.iter().fold(lead.clone(), |g, b| fuse(&g, b));
+        if rest.len() > 1 {
+            let rest: Vec<&str> = rest.iter().map(|r| r.name.as_str()).collect();
+            g.description = fused_description(&lead.description, &rest);
+        }
+        return Ok(g);
     }
     let key = name.trim().to_ascii_lowercase().replace([' ', '-'], "_");
     let named = |n: &str| n == key || folded(n) == folded(name);
@@ -503,6 +509,24 @@ pub fn folded(name: &str) -> String {
     name.to_lowercase().replace('&', "n").chars().filter(|c| c.is_alphanumeric()).collect()
 }
 
+/// What a fusion of three genres or more is, after its lead's own description: which of `rest` plays the drums (the
+/// last) and that they all lend their sounds and styles (`fuse` says it of two).
+fn fused_description(lead: &str, rest: &[&str]) -> String {
+    let words: Vec<String> = rest.iter().map(|n| n.replace('_', " ")).collect();
+    let (last, before) = words.split_last().expect("a fusion of three or more has two after its lead");
+    const SOME: [&str; 7] = ["three", "four", "five", "six", "seven", "eight", "nine"];
+    let all = match words.len() {
+        2 => "both".to_string(),
+        n => SOME.get(n - 3).map_or("all of them".to_string(), |w| format!("all {w}")),
+    };
+    format!(
+        "{}. Fused with {} and {last}: {last} plays the drums, with their sound, and {all} lend their sounds and \
+         styles to the parts.",
+        lead.trim_end_matches('.'),
+        before.join(", ")
+    )
+}
+
 /// the lanes that are drums, for the levels a fusion takes from the genre that plays its drums
 const DRUM_ROLES: &[&str] = &["kick", "snare", "clap", "hat", "ohat", "shaker", "perc", "ride", "tom", "crash", "top"];
 
@@ -515,7 +539,7 @@ pub fn fuse(a: &GenreProfile, b: &GenreProfile) -> GenreProfile {
     g.name = format!("{}+{}", a.name, b.name);
     g.aliases = Vec::new();
     g.description = format!(
-        "{} Fused with {}: its drums and their sound, and its sounds and styles in the parts.",
+        "{}. Fused with {}: its drums and their sound, and its sounds and styles in the parts.",
         a.description.trim_end_matches('.'),
         b.name.replace('_', " ")
     );
@@ -718,11 +742,42 @@ mod tests {
     }
 
     #[test]
+    fn any_number_fuse_the_first_leading_the_last_playing_the_drums_and_each_lending_its_progressions() {
+        let g = get("trip_hop+neo_soul+dub_techno+drum and bass").unwrap();
+        let (lead, dnb) = (get("trip_hop").unwrap(), get("dnb").unwrap());
+        assert_eq!(g.name, "trip_hop+neo_soul+dub_techno+dnb", "each genre by its own name");
+        assert_eq!((g.bpm, g.forms.len(), g.query.as_str()), (lead.bpm, lead.forms.len(), lead.query.as_str()));
+        let lanes = |g: &GenreProfile| g.drums.iter().map(|d| d.name.clone()).collect::<Vec<_>>();
+        assert_eq!((lanes(&g), &g.kits), (lanes(&dnb), &dnb.kits), "the last plays the drums");
+        // each takes a quarter of the progressions from those before it: the lead keeps three quarters cubed
+        let share = |of: &GenreProfile| -> f64 {
+            g.harmony.iter().filter(|h| of.harmony.iter().any(|x| x.0 == h.0)).map(|h| h.1).sum()
+        };
+        let total: f64 = g.harmony.iter().map(|h| h.1).sum();
+        assert!((total - 1.0).abs() < 1e-9, "{total}");
+        assert!(share(&lead) >= 0.75f64.powi(3) - 1e-9, "{}", share(&lead));
+        assert!(share(&dnb) >= 0.25 - 1e-9, "{}", share(&dnb));
+        assert!(
+            g.description.contains("Fused with neo soul, dub techno and dnb: dnb plays the drums")
+                && g.description.contains("all three lend"),
+            "{}",
+            g.description
+        );
+        // what any of them is no longer counts against the song
+        for other in ["neo_soul", "dub_techno", "dnb"] {
+            let q = get(other).unwrap().query;
+            assert!(!g.alts.contains(&q), "{other}: {:?}", g.alts);
+        }
+        // two keep what they were: the description says the second plays the drums
+        assert!(get("trip_hop+idm").unwrap().description.contains(". Fused with idm: its drums"));
+    }
+
+    #[test]
     fn a_fusion_says_what_it_takes() {
         assert!(get("house+techno+dnb").unwrap().name == "house+techno+dnb");
         let e = |n: &str| get(n).unwrap_err().to_string();
-        assert!(e("house+techno+dnb+trap").contains("two or three genres"));
-        assert!(e("house+").contains("two or three genres"));
+        assert!(e("house+").contains("genres joined by +"));
+        assert!(e("house++dnb").contains("genres joined by +"));
         assert!(e("house+polka").contains("unknown genre 'polka'"));
         // what the second genre is no longer counts against the first
         let g = get("house+dnb").unwrap();

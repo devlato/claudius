@@ -303,8 +303,9 @@ pub struct NewSongArgs {
     /// progressive_house, slap_house, hardstyle, hard_techno, gabber, hyperpop, jersey_club, afro_house,
     /// melodic_techno, baile_funk, breakcore, alt_rock, pop_punk or nu_metal (catalog lists
     /// them with their tempo ranges, and any genres of the person's own; find_genre finds them by an era, a scene or a
-    /// sound), or another name of one's ("90s hip hop" is boom_bap); or two or three fused, such as trip_hop+idm: the
-    /// first leads (tempo, harmony, form, parts, mix), the last plays the drums and lends its sounds
+    /// sound), or another name of one's ("90s hip hop" is boom_bap); or any number fused, such as trip_hop+idm or
+    /// trip_hop+neo_soul+dub_techno+idm: the first leads (tempo, harmony, form, parts, mix), the last plays the drums, and every
+    /// one after the first lends its sounds and styles
     pub genre: String,
     /// random seed: the same seed and genre give the same song
     #[serde(default)]
@@ -505,7 +506,7 @@ pub struct SongLikeArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ChangeGenreArgs {
     /// the genre to play the song in, as new_song takes it (find_genre finds one by a name, an era or a sound), or
-    /// two or three fused: trip_hop+idm, the first leading and the last playing the drums
+    /// any number fused: trip_hop+idm or trip_hop+neo_soul+idm, the first leading and the last playing the drums
     pub genre: String,
     /// another take of it in that genre (none: a new one each time)
     #[serde(default)]
@@ -516,7 +517,8 @@ pub struct ChangeGenreArgs {
 pub struct RemakeArgs {
     /// the audio file to learn from
     pub path: String,
-    /// the genre for the sounds and production, one of those new_song takes (default: the open song's)
+    /// the genre for the sounds and production, one of those new_song takes, a fusion of any number too (default: the
+    /// open song's)
     #[serde(default)]
     pub genre: Option<String>,
     #[serde(default)]
@@ -1452,7 +1454,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a song from what the person asked for in their own words: \"a chill lo-fi beat around 80 bpm in D minor, minimal\", \"dark techno at 130\", \"trip hop with idm drums, lush\". claudius reads the genre from it (two named are a fusion, the first leading and the second playing the drums; one named none gets the genre nearest what it describes), a tempo, a key, how full or sparse it is and whether it is built on samples, makes the song, renders and judges it, and answers with what it read, the song in plain words to pass on to the person, and the song as get_song gives it. Say what it read, so the person can correct it; new_song takes each of these exactly."
+        description = "Make a song from what the person asked for in their own words: \"a chill lo-fi beat around 80 bpm in D minor, minimal\", \"dark techno at 130\", \"trip hop with idm drums, lush\". claudius reads the genre from it (genres named together are a fusion, \"trip hop with neo soul and idm\" trip_hop+neo_soul+idm: the first leads, the last plays the drums and the ones between lend their sounds; one named none gets the genre nearest what it describes), a tempo, a key, how full or sparse it is and whether it is built on samples, makes the song, renders and judges it, and answers with what it read, the song in plain words to pass on to the person, and the song as get_song gives it. Say what it read, so the person can correct it; new_song takes each of these exactly."
     )]
     async fn make_song(&self, Parameters(a): Parameters<MakeSongArgs>) -> Result<String, String> {
         let st = self.b.state().await?;
@@ -2261,7 +2263,7 @@ impl Studio {
     instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms.
 
 What it does, and the tools for it:
-- A song in any of its genres, or two fused (trip_hop+idm): find_genre finds one by a name, an era, a scene or a sound; catalog lists them all, with the drums, synths and instruments; new_song starts one; make_song makes one from the person's own words; examples and open_example open the example songs.
+- A song in any of its genres, or several fused (trip_hop+idm, trip_hop+neo_soul+idm): find_genre finds one by a name, an era, a scene or a sound; catalog lists them all, with the drums, synths and instruments; new_song starts one; make_song makes one from the person's own words; examples and open_example open the example songs.
 - Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; arrange makes a change asked for in the person's words, as the studio's palette reads it; change_genre plays the whole song in another genre, keeping its form, chords, melody and recordings; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
 - Hearing it: listen renders and judges it (the scores, the issues worst first, what earshot hears); graph says its signal flow in words.
 - From a recording: analyze hears its tempo, key, chords, sections and groove; song_like makes a new song on them; remake makes it again in a genre, recognizably (or flips its hook into a new song); sample_song samples it into the song (its whole voice through the song, its phrases, a passage, chops or stabs), and sample_pieces, redraw_pieces and keep_pieces let the person choose the pieces first; extract_groove takes its drums' feel; search_recordings finds recordings anyone may use.

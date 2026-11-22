@@ -22,6 +22,8 @@ const cases = [
   ['from the demo', { ...base, where: 'demo', os: 'web' }, 204],
   ['from an assistant', { ...base, where: 'assistant' }, 204],
   ['a fusion', { ...base, song: 'trip_hop+idm' }, 204],
+  ['a fusion of four', { ...base, song: 'trip_hop+neo_soul+dub_techno+idm' }, 204],
+  ['a song name too long', { ...base, song: Array(8).fill('drum_and_bass_x').join('+').repeat(2) }, 400],
   ['nothing written', { ...base, text: '   ' }, 400],
   ['too much written', { ...base, text: 'x'.repeat(4001) }, 400],
   ['from somewhere else', { ...base, where: 'email' }, 400],

@@ -108,8 +108,9 @@ the like), which every genre is measured against.
 
 ## Fusing genres
 
-Two or three genres joined by `+` are one genre: `trip_hop+idm` in `song()`, `claudius make --genre`, `new_song`, or
-**Fused with** in the studio's New song dialog. `genres::fuse` makes it from the profiles:
+Any number of genres joined by `+` are one genre: `trip_hop+idm` or `trip_hop+neo_soul+dub_techno+idm` in `song()`,
+`claudius make --genre`, `new_song`, `remake`, or **Fused with** in the studio's New song dialog, its remakes of a
+recording and Change the genre. `genres::fuse` makes two into one from their profiles:
 
 | from the first genre | from the second |
 |---|---|
@@ -119,9 +120,12 @@ Two or three genres joined by `+` are one genre: `trip_hop+idm` in `song()`, `cl
 The second genre's lanes play in the first genre's sections: a lane of the same name where that lane played, the
 others where most of the first genre's drums played. Swing is the average of the two, humanize the larger, and the
 flaws either genre accepts are accepted. Sounding like the second genre no longer counts against the song: its
-query leaves the first genre's list of confusions. With three genres the first two fuse, then the third plays the
-drums. A fusion's Apple Loops, its store genre and the demo's sounds are the first genre's. The
-[Fusions](../../cookbook/fusions.md) recipes hear three of them.
+query leaves the first genre's list of confusions. More than two fuse one after another: the first two fuse, then
+the third fuses with them and plays the drums in place of the second, and so on, so that the first leads, the last
+plays the drums, and every one between lends its sounds, its styles, its parts and some of its progressions. Each
+takes a quarter of the progressions from those before it: the last has a quarter, the one before it three sixteenths,
+and the first keeps the largest share up to five genres. A fusion's Apple Loops, its store genre and the demo's
+sounds are the first genre's. The [Fusions](../../cookbook/fusions.md) recipes hear three of them.
 
 ## What a profile contains
 

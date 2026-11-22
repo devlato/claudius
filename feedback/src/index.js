@@ -9,7 +9,7 @@
 const PLACES = new Set(["studio", "demo", "site", "assistant"]);
 const OS = new Set(["macos", "linux", "windows", "web"]);
 const VERSION = /^\d{1,3}\.\d{1,3}\.\d{1,3}(-[0-9A-Za-z.]{1,20})?$/;
-const GENRE = /^[a-z0-9_]{1,40}(\+[a-z0-9_]{1,40}){0,2}$/;
+const GENRE = /^[a-z0-9_]{1,40}(\+[a-z0-9_]{1,40})*$/;
 const FIELDS = new Set(["v", "text", "contact", "version", "os", "where", "song"]);
 /** the pages that may send it from a browser */
 const ORIGINS = new Set(["https://claudius.devlato.com"]);
@@ -23,7 +23,7 @@ function valid(m) {
   if (m.contact !== undefined && (typeof m.contact !== "string" || m.contact.length > 200)) return false;
   if (m.version !== undefined && (typeof m.version !== "string" || !VERSION.test(m.version))) return false;
   if (m.os !== undefined && !OS.has(m.os)) return false;
-  if (m.song !== undefined && (typeof m.song !== "string" || !GENRE.test(m.song))) return false;
+  if (m.song !== undefined && (typeof m.song !== "string" || m.song.length > 200 || !GENRE.test(m.song))) return false;
   return true;
 }
 

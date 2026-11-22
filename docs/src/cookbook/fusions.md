@@ -1,10 +1,11 @@
 # Fusions
 
-Two or three genres joined by `+` make one: `song("art_rock+idm", 4)`, `claudius make --genre trip_hop+idm`, or
-**Fused with** in the studio's New song dialog. The first genre leads: its tempo, keys and harmony, its form, its
-parts and its mix, and what the ears listen for. The genre after it plays the drums, with its kits and its drums
-bus, where the first genre's drums played. It lends its first sound and its writing styles to the parts of the same
-role, and brings in now and then the parts the first genre has nothing like, and a quarter of its progressions.
+Genres joined by `+` make one, as many as you like: `song("art_rock+idm", 4)`, `claudius make --genre
+trip_hop+neo_soul+idm`, or **Fused with** in the studio's New song dialog (and in its remakes of a recording, and in
+Change the genre). The first genre leads: its tempo, keys and harmony, its form, its parts and its mix, and what the
+ears listen for. The last plays the drums, with its kits and its drums bus, where the first genre's drums played.
+Every genre after the first lends its first sound and its writing styles to the parts of the same role, and brings in
+now and then the parts the genres before it have nothing like, and some of its progressions.
 [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres) has the details.
 
 A fusion is a starting point: the ears hear it as whatever it now sounds like, which is the point of fusing.

@@ -1370,7 +1370,7 @@ pub fn feedback_message(
                 && p.len() <= 40
                 && p.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         };
-        if let Some(g) = genre.filter(|g| g.split('+').count() <= 3 && g.split('+').all(part)) {
+        if let Some(g) = genre.filter(|g| g.len() <= 200 && g.split('+').all(part)) {
             m["song"] = g.into();
         }
     }
@@ -2285,7 +2285,7 @@ pub enum Command {
         #[serde(default)]
         seed: Option<u64>,
     },
-    /// the song in `genre` (one, or two or three fused: `trip_hop+idm`), as one change undo takes back: its form,
+    /// the song in `genre` (one, or any number fused: `trip_hop+idm`), as one change undo takes back: its form,
     /// chords and key, the recordings it plays, the notes written out on its parts, its lead's melody and its pattern
     /// tracks kept; the genre's drums, bass, parts, sounds, swing and mix playing it, each section by the genre's
     /// tracks of the kinds that played there (`claudius::regenre::change`). Its tempo stays when recordings play in

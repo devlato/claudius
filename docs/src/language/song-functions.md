@@ -35,8 +35,9 @@ A script downloads nothing: `sampled` and `sample_search` play what `new_song`, 
 
 The genre is one of the sixty-six that [The genres](../learn/producers/genres-and-evolution.md#the-genres)
 lists (`claudius genres` prints them, from `house` and `trap` to `hardstyle`, `jersey_club` and `afro_house`), or
-another name of one's (`"gabber"`, `"funk carioca"`, `"melodic house"`), two or three of them fused (`trip_hop+idm`:
-the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
+another name of one's (`"gabber"`, `"funk carioca"`, `"melodic house"`), any number of them fused (`trip_hop+idm`,
+`trip_hop+neo_soul+idm`: the first leads, the last plays the drums; see
+[Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
 or one of your own (see
 [Genres](../learn/producers/genres-and-evolution.md)); case, spaces and hyphens do not matter (`"deep house"`). A
 negative seed acts as 0. `bpm` and `key` change only the tempo and the key: the title, the form, progression `A` and

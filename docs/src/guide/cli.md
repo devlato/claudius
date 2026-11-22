@@ -153,7 +153,7 @@ It says what it kept, then `-> <score> (<folder>)`, as `make` does.
 | flag | default | what it does |
 |---|---|---|
 | `<blueprint>` | | the song to play in another genre |
-| `-g`, `--genre` | | the genre, or two or three fused (`trip_hop+idm`) |
+| `-g`, `--genre` | | the genre, or any number fused (`trip_hop+idm`, `trip_hop+neo_soul+idm`) |
 | `-s`, `--seed` | the clock | another take of it in that genre |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | beside the song's folder, named after it and the genre | where it goes |
