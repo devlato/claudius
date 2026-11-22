@@ -231,32 +231,43 @@ test.describe("playing from a phone", () => {
           spun(e);
           if (hold.grab) seen.push(deck.vel);
         };
-        // an event as a browser stamps it: on the page's clock, or (some web views) with the time of day
-        const send = (type, at) => {
+        // an event as a browser stamps it, with the moment the screen saw the finger (`stamp`, on the page's clock): on the
+        // page's clock, or (some web views) with the time of day
+        const send = (type, at, stamp) => {
           const ev = new PointerEvent(type, { ...init, ...at });
-          if (epoch) Object.defineProperty(ev, "timeStamp", { value: Date.now() });
+          const page = stamp ?? performance.now();
+          Object.defineProperty(ev, "timeStamp", { value: epoch ? Date.now() - (performance.now() - page) : page });
           c.dispatchEvent(ev);
         };
         send("pointerdown", where(0));
         const start = performance.now();
+        // every 16 ms the screen sees the finger; a busy page hears of those moments late and in bursts, each stamped
+        // with when it was seen, as a phone's are. How late the latest of them came, for a failure to say.
+        let ticks = 0;
+        let late = 0;
         await new Promise((done) => {
           const step = () => {
-            const t = (performance.now() - start) / 1000;
-            send("pointermove", where((t * 2 * Math.PI) / 3));
-            if (t < 1.2) setTimeout(step, 16);
+            const now = performance.now();
+            for (; ticks * 16 <= now - start; ticks++) {
+              const t = (ticks * 16) / 1000;
+              late = Math.max(late, now - (start + ticks * 16));
+              send("pointermove", where((t * 2 * Math.PI) / 3), start + ticks * 16);
+            }
+            if ((now - start) / 1000 < 1.2) setTimeout(step, 16);
             else done();
           };
           step();
         });
         deck.node.onaudioprocess = spun;
         send("pointerup", where(0.8 * Math.PI));
-        return seen;
+        return { seen, late };
       }, epoch);
       // once it has the record (a block or two), at a third of a turn a second: 0.6 s of the record a second, whichever
       // clock the browser stamps the finger's moments with
       for (const epoch of [false, true]) {
-        const held = (await pace(epoch)).slice(6, -2);
-        const stamped = epoch ? " (stamped with the time of day)" : "";
+        const { seen, late } = await pace(epoch);
+        const held = seen.slice(6, -2);
+        const stamped = `${epoch ? " (stamped with the time of day)" : ""}; the latest moment reached the page ${Math.round(late)} ms late`;
         expect(held.length, `blocks while the finger held it${stamped}`).toBeGreaterThan(20);
         expect(Math.min(...held), `it never rests between the finger's moments${stamped}`).toBeGreaterThan(0.3);
         expect(Math.max(...held), `nor races to catch up${stamped}`).toBeLessThan(1.2);

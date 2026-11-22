@@ -227,9 +227,14 @@ function latency() {
   return ctx ? ((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000 : 0;
 }
 
-/** an event's time on this page's clock */
+/** an event's time on this page's clock: as the browser stamps it, or (some web views) stamped with the time of day and
+ *  brought onto the page's clock, so that moments a busy page hears of in a burst keep their own times; never later
+ *  than now, and now where it says none */
 function when(e) {
-  return e.timeStamp > 0 && e.timeStamp < 1e11 ? e.timeStamp : performance.now();
+  const now = performance.now();
+  if (!(e.timeStamp > 0)) return now;
+  const t = e.timeStamp < 1e11 ? e.timeStamp : e.timeStamp - performance.timeOrigin;
+  return Math.min(now, Math.max(0, t));
 }
 
 /** the section the song is in at `secs` */
@@ -1506,7 +1511,7 @@ function heard(e) {
   const [status, a, b] = e.data;
   const kind = status & 0xf0;
   const ch = status & 0x0f;
-  const t = e.timeStamp > 0 && e.timeStamp < 1e11 ? e.timeStamp : performance.now();
+  const t = when(e);
   if (kind === 0x90 && b > 0) {
     if (mode === "pads") {
       const lane = laneFor(a);

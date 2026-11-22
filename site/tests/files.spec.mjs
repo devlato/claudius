@@ -71,7 +71,8 @@ test.describe("files chosen in the browser", () => {
     try {
       const analysis = heard(page, "analysis");
       // the New song dialog: Choose a file, Analyze, then Remake (as the open song's genre)
-      const plan = "wait:3;newsong;wait:1;pick:audio;wait:4;listen:analyze;wait:10;listen:remake;wait:10";
+      // the remake asked for once the analysis is back, however long a computer takes over it
+      const plan = "wait:3;newsong;wait:1;pick:audio;wait:4;listen:analyze;await:analysis;listen:remake;wait:10";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await choose(page, "audio", recording);
       await expect.poll(() => analysis.join("\n"), { timeout: 60_000 }).toMatch(/\d+\.\d BPM \(pulse clarity/);
