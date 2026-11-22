@@ -30,12 +30,20 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
     let ask = !yes && std::io::stdin().is_terminal();
     let mut packs_failed = None;
     if packs {
-        let missing: Vec<_> = claudius_packs::packs().into_iter().filter(|p| p.default && !p.installed).collect();
+        // the default packs that are missing, or lack instruments claudius has gained since they were installed
+        let missing: Vec<_> = claudius_packs::packs().into_iter().filter(|p| p.default && p.wanted()).collect();
         if missing.is_empty() {
             eprintln!("sample packs: the default packs are installed in {}", claudius_packs::packs_dir().display());
         } else {
-            let gb = missing.iter().map(|p| p.size_mb as f64).sum::<f64>() / 1000.0;
-            let names = missing.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ");
+            let gb = missing.iter().map(|p| p.download_mb() as f64).sum::<f64>() / 1000.0;
+            let names = missing
+                .iter()
+                .map(|p| match p.lacks.len() {
+                    0 => p.name.clone(),
+                    n => format!("{}'s {n} new instruments", p.name),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
             if !ask || confirm(&format!("Download {} sample packs ({names}), about {gb:.1} GB?", missing.len()))? {
                 let last = std::sync::Mutex::new(-1);
                 match claudius_packs::install_defaults(&|f, what| progress(what, f, &mut last.lock().unwrap())) {
@@ -50,7 +58,7 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
     }
     // a pack that will not install leaves claudius its ears: the models come anyway
     let models_failed = if models { download_models(ask, tags).err() } else { None };
-    let missing = || claudius_packs::packs().into_iter().find(|p| p.default && !p.installed).map(|p| p.name);
+    let missing = || claudius_packs::packs().into_iter().find(|p| p.default && p.wanted()).map(|p| p.name);
     let outcome = match (&packs_failed, &models_failed) {
         (Some(_), _) => format!("packs:{}", missing().unwrap_or_else(|| "unknown".into())),
         (None, Some(_)) => "models".to_string(),

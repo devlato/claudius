@@ -1616,11 +1616,17 @@ impl Studio {
             out.push_str(&format!("instruments: {}\n", s.instruments.join(" ")));
         }
         for p in &s.packs {
+            let state = match (p.installed, p.lacks.as_slice()) {
+                (false, _) => "not installed".to_string(),
+                (true, []) => "installed".to_string(),
+                (true, lacks) => {
+                    format!("installed, lacking {} added since (install_packs fetches them)", lacks.join(" "))
+                }
+            };
             out.push_str(&format!(
-                "  pack {} ({}, {}{}): {}\n",
+                "  pack {} ({}, {state}{}): {}\n",
                 p.name,
                 p.license,
-                if p.installed { "installed" } else { "not installed" },
                 if p.size_mb > 0.0 { format!(", {:.0} MB", p.size_mb) } else { String::new() },
                 p.description
             ));
@@ -2183,7 +2189,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Download and install sample packs, so the instruments, drum kits and loops in them play from recordings rather than synthesis (what the studio's Download the packs button does): `names` from catalog's packs, or none for the default packs that are missing (about 3 GB). It runs in the background; status follows it, and the log says when each pack is in. A claudius shared over a network does not download packs."
+        description = "Download and install sample packs, so the instruments, drum kits and loops in them play from recordings rather than synthesis (what the studio's Download the packs button does): `names` from catalog's packs, or none for the default packs that are missing (about 3 GB) and those installed before claudius gained instruments in them (catalog says what each lacks; only those download). It runs in the background; status follows it, and the log says when each pack is in. A claudius shared over a network does not download packs."
     )]
     async fn install_packs(&self, Parameters(a): Parameters<PacksArgs>) -> Result<String, String> {
         // a download takes the job slot (what `cancellable` says is taken; listening to a recording only says it is

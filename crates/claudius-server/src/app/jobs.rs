@@ -52,7 +52,8 @@ impl App {
         })
     }
 
-    /// downloads sample packs in the job slot: the default packs that are missing, or `names`
+    /// downloads sample packs in the job slot: the default packs that are missing or lack instruments claudius has
+    /// gained since they were installed, or `names`
     pub(super) fn install_packs(self: &Arc<Self>, names: Vec<String>) -> Reply {
         let v = self.version();
         // the downloads land on the computer claudius runs on, for its owner to decide
@@ -62,7 +63,7 @@ impl App {
         let all = claudius_packs::packs();
         let mut wanted = Vec::new();
         if names.is_empty() {
-            wanted.extend(all.into_iter().filter(|p| p.default && !p.installed));
+            wanted.extend(all.into_iter().filter(|p| p.default && p.wanted()));
         } else {
             for name in &names {
                 match all.iter().find(|p| &p.name == name) {
@@ -76,30 +77,30 @@ impl App {
                             v,
                         );
                     }
-                    Some(p) if !p.installed => wanted.push(p.clone()),
+                    Some(p) if p.wanted() => wanted.push(p.clone()),
                     Some(_) => {}
                 }
             }
         }
         if wanted.is_empty() {
-            return ok("those packs are installed", v);
+            return ok("those packs are installed, with every instrument", v);
         }
         if let Err(busy) = self.take_slot("downloading packs") {
             return busy;
         }
-        let what = format!("downloading {} packs, about {:.1} GB…", wanted.len(), size_gb(&wanted));
+        let what = format!("downloading {} packs, about {}…", wanted.len(), size_words(&wanted));
         self.spawn_job(move |app| app.install_packs_job(wanted));
         ok(what, self.version())
     }
 
     fn install_packs_job(self: &Arc<Self>, packs: Vec<claudius_packs::PackInfo>) {
-        let total = packs.iter().map(|p| p.size_mb.max(1.0) as f64).sum::<f64>();
+        let total = packs.iter().map(|p| p.download_mb().max(1.0) as f64).sum::<f64>();
         let (mut done, mut installed, mut failed) = (0.0, Vec::new(), Vec::new());
         for p in &packs {
             if self.cancel.load(Ordering::Relaxed) {
                 break;
             }
-            let size = p.size_mb.max(1.0) as f64;
+            let size = p.download_mb().max(1.0) as f64;
             let label = format!("downloading {}", p.name);
             let res = claudius_packs::install(&p.name, &|f, _| {
                 self.progress(&label, ((done + f as f64 * size) / total) as f32)
@@ -644,8 +645,10 @@ impl App {
     }
 }
 
-fn size_gb(packs: &[claudius_packs::PackInfo]) -> f64 {
-    packs.iter().map(|p| p.size_mb as f64).sum::<f64>() / 1000.0
+/// about how much downloading `packs` takes, as a person reads it: in GB from one, else in MB
+fn size_words(packs: &[claudius_packs::PackInfo]) -> String {
+    let mb = packs.iter().map(|p| p.download_mb() as f64).sum::<f64>();
+    if mb >= 1000.0 { format!("{:.1} GB", mb / 1000.0) } else { format!("{:.0} MB", mb.max(1.0)) }
 }
 
 /// what `App::dug_out` knows a role's records by: the words asked for it (for any genre), else the genre's own

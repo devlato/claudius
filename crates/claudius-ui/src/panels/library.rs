@@ -23,7 +23,8 @@ fn licence_color(licence: &str) -> Color32 {
     .into()
 }
 
-/// a pack's card; true when its install button was clicked (only packs that are not installed, nor opt-in, have one)
+/// a pack's card; true when its install button was clicked (only packs that are not installed or lack instruments
+/// claudius has gained since, and are not opt-in, have one)
 fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -> bool {
     let mut install = false;
     let frame = egui::Frame::new()
@@ -39,16 +40,27 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -
                     ui.label(small(format!("{instruments} sounds ·")));
                 }
                 ui.label(small(format!("{:.0} MB", p.size_mb)));
-                if !p.installed && !p.opt_in {
-                    install = ui.add_enabled(can_install, egui::Button::new("install").small()).clicked();
+                if p.wanted() && !p.opt_in {
+                    let label = if p.installed { "update" } else { "install" };
+                    install = ui.add_enabled(can_install, egui::Button::new(label).small()).clicked();
                 }
                 return;
             }
             ui.label(RichText::new(&p.name).strong().size(13.0).color(if p.installed { TEXT } else { TEXT_DIM }));
-            if p.installed {
+            if !p.installed {
+                widgets::pill(ui, "not installed", TEXT_FAINT);
+            } else if p.lacks.is_empty() {
                 widgets::pill(ui, "installed", theme::GOOD);
             } else {
-                widgets::pill(ui, "not installed", TEXT_FAINT);
+                let lacks = match p.lacks.len() {
+                    1 => "lacks 1 sound".to_string(),
+                    n => format!("lacks {n} sounds"),
+                };
+                widgets::pill(ui, &lacks, theme::WARN).on_hover_text(format!(
+                    "added to {} since it was installed, and synthesized until it is updated: {}",
+                    p.name,
+                    p.lacks.iter().map(|n| n.replace('_', " ")).collect::<Vec<_>>().join(", ")
+                ));
             }
         });
         ui.add(egui::Label::new(RichText::new(&p.description).size(11.5).color(TEXT_DIM)).wrap());

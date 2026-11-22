@@ -405,6 +405,8 @@ pub fn sounds() -> SoundList {
             size_mb: p.size_mb as f64,
             default: p.default,
             opt_in: p.opt_in,
+            lacks: p.lacks,
+            update_mb: p.update_mb as f64,
         })
         .collect();
     let kit = claudius_packs::instruments().into_iter().filter(|i| i.kind == "drum").map(|i| i.name).collect();

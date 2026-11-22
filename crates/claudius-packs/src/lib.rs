@@ -83,6 +83,23 @@ pub struct PackInfo {
     /// added with `add_sample_map`
     pub user: bool,
     pub instruments: usize,
+    /// installed before the registry gained these instruments, by name: installing it again fetches only them
+    pub lacks: Vec<String>,
+    /// about how much installing it again downloads, when it `lacks` instruments
+    pub update_mb: f32,
+}
+
+impl PackInfo {
+    /// a pack claudius should download: not installed, or installed without instruments the registry has since
+    /// gained
+    pub fn wanted(&self) -> bool {
+        !self.installed || !self.lacks.is_empty()
+    }
+
+    /// about how much downloading it takes (the whole pack, or what it lacks)
+    pub fn download_mb(&self) -> f32 {
+        if self.installed { self.update_mb } else { self.size_mb }
+    }
 }
 
 /// Where packs are installed: `$CLAUDIUS_PACKS`, else `<data dir>/claudius/packs`.
@@ -229,7 +246,32 @@ fn info_from_index(ix: &PackIndex) -> PackInfo {
         warning: ix.warning.clone(),
         user: ix.user,
         instruments: ix.instruments.len(),
+        lacks: Vec::new(),
+        update_mb: 0.0,
     }
+}
+
+/// The registry's instruments of `spec` an installed pack was not built from. An index records what it was built
+/// from; one written before it did is read by its instruments' names, a kit by any of its drums (it splits into
+/// them), and a sample map never lacks anything (it names its instruments by what it finds).
+fn lacks(spec: &catalog::PackSpec, ix: &PackIndex) -> Vec<String> {
+    spec.instruments
+        .iter()
+        .filter(|s| {
+            if !ix.built_from.is_empty() {
+                return !ix.built_from.contains(&s.name);
+            }
+            if s.map.is_some() {
+                return false;
+            }
+            let has = |name: &str| ix.instruments.iter().any(|d| d.name == name);
+            match &s.kit {
+                Some(kit) => !kit.keys().any(|k| has(k)),
+                None => !has(&s.name),
+            }
+        })
+        .map(|s| s.name.clone())
+        .collect()
 }
 
 /// Every curated pack (installed or not) and every user-added pack.
@@ -239,7 +281,15 @@ pub fn packs() -> Vec<PackInfo> {
         .packs
         .iter()
         .map(|p| match inst.iter().find(|i| i.name == p.name) {
-            Some(ix) => info_from_index(ix),
+            Some(ix) => {
+                let lacks = lacks(p, ix);
+                PackInfo {
+                    // the registry's size shared over its instruments
+                    update_mb: p.size_mb * lacks.len() as f32 / p.instruments.len().max(1) as f32,
+                    lacks,
+                    ..info_from_index(ix)
+                }
+            }
             None => PackInfo {
                 name: p.name.clone(),
                 title: p.title.clone(),
@@ -259,6 +309,8 @@ pub fn packs() -> Vec<PackInfo> {
                 warning: p.warning.clone(),
                 user: false,
                 instruments: p.instruments.len(),
+                lacks: Vec::new(),
+                update_mb: 0.0,
             },
         })
         .collect();
@@ -507,4 +559,52 @@ pub fn cache_bytes() -> usize {
 /// Read an installed pack's index directly.
 pub fn pack_index(name: &str) -> Result<Arc<PackIndex>> {
     installed().into_iter().find(|p| p.name == name).with_context(|| format!("pack {name} is not installed"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spec() -> catalog::PackSpec {
+        serde_json::from_value(serde_json::json!({
+            "name": "p", "title": "p", "description": "", "categories": [], "licence": "CC0-1.0", "licence_url": "",
+            "attribution": "", "source": "", "size_mb": 40, "version": "1",
+            "instruments": [
+                {"name": "piano", "sfz": "piano.sfz"},
+                {"name": "kit", "sfz": "kit.sfz", "kit": {"bd": [36], "sd": [38]}},
+                {"name": "loops", "map": "strudel.json"},
+                {"name": "dist_guitar", "sfz": "dist.sfz"}
+            ]
+        }))
+        .unwrap()
+    }
+
+    fn index(built_from: &[&str], instruments: &[&str]) -> PackIndex {
+        let defs: Vec<serde_json::Value> = instruments
+            .iter()
+            .map(|n| serde_json::json!({"name": n, "category": "x", "release": 0.1, "variants": []}))
+            .collect();
+        serde_json::from_value(serde_json::json!({
+            "format": model::INDEX_FORMAT, "name": "p", "title": "p", "description": "", "categories": [],
+            "licence": "CC0-1.0", "licence_url": "", "attribution": "", "attribution_required": false, "source": "",
+            "version": "1", "built_from": built_from, "files": [], "instruments": defs
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_pack_installed_before_the_registry_gained_an_instrument_lacks_it_and_only_it() {
+        // an index written before claudius kept what it was built from: read by its instruments' names, a kit by its
+        // drums, a sample map's instruments named by what it found
+        let old = index(&[], &["piano", "bd", "sd", "amen", "break"]);
+        assert_eq!(lacks(&spec(), &old), ["dist_guitar"]);
+        // one that keeps it: an instrument the install made nothing of is not asked for again
+        let new = index(&["piano", "kit", "loops"], &["piano", "bd", "sd", "amen"]);
+        assert_eq!(lacks(&spec(), &new), ["dist_guitar"]);
+        let current = index(&["piano", "kit", "loops", "dist_guitar"], &["piano", "bd", "sd", "amen"]);
+        assert!(lacks(&spec(), &current).is_empty());
+        // a kit none of whose drums came is lacking too
+        let no_kit = index(&[], &["piano", "dist_guitar"]);
+        assert_eq!(lacks(&spec(), &no_kit), ["kit"]);
+    }
 }

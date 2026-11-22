@@ -354,6 +354,7 @@ mod tests {
             lazy: false,
             installed_at: 0,
             aliases: aliases.iter().map(|s| s.to_string()).collect(),
+            built_from: Vec::new(),
             files: Vec::new(),
             instruments: insts,
         })

@@ -326,6 +326,7 @@ mod tests {
             lazy: false,
             installed_at: 0,
             aliases: Vec::new(),
+            built_from: Vec::new(),
             files,
             instruments: vec![
                 def("webtest_tone", "piano", Kind::Pitched, tone),
