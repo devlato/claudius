@@ -587,7 +587,9 @@ function cut(a, b, how) {
   const at = a.t0 + Math.ceil((now + 0.15 - a.t0) / beat) * beat;
   if (how === "blend") {
     const span = 2 * bar(a);
-    start(b, at);
+    // from two bars before the next song's beat comes in (the end of a quiet intro, or its start), so that the skip
+    // lands on its beat
+    start(b, at, Math.max(beatStarts(b) * bar(b) - span, 0));
     fade(b.fader.gain, 0, 1, at, beat);
     b.low.gain.setValueAtTime(BASS_CUT_DB, at);
     b.low.gain.setValueAtTime(BASS_CUT_DB, at + bar(a) - beat);
