@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claudius: a free, open-source beatmaker and music studio</title>
-<meta name="description" content="Make songs from real sounds, remake a favourite in another genre, and change anything in plain words. Free and open source, on your computer or in your browser.">
+<title>Claudius: a free, open-source beatmaker that listens to its own songs</title>
+<meta name="description" content="A beatmaker that writes, mixes and listens to its own songs, and makes them with Claude, ChatGPT or Cursor. Start from a song you love. Free and open source.">
 <link rel="canonical" href="{{site_url}}/">
 <meta name="theme-color" content="#101217">
 <meta name="color-scheme" content="dark">
@@ -18,16 +18,16 @@
 <script src="/assets/site.js?v={{version}}" defer></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="claudius">
-<meta property="og:title" content="Claudius: a free, open-source beatmaker and music studio">
-<meta property="og:description" content="Make songs from real synths and sampled instruments, remake a song you love in another genre, and change anything in plain words or with Claude, ChatGPT or Cursor.">
+<meta property="og:title" content="Claudius: a free, open-source beatmaker that listens to its own songs">
+<meta property="og:description" content="A beatmaker that writes, arranges, mixes and listens to its own songs, and makes them with Claude, ChatGPT or Cursor while you hear every change. Start from a song you love; every layer stays yours.">
 <meta property="og:url" content="{{site_url}}/">
 <meta property="og:image" content="{{site_url}}/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Claudius: a free, open-source beatmaker and music studio">
-<meta name="twitter:description" content="Make songs from real synths and sampled instruments, remake a song you love in another genre, and change anything in plain words or with Claude, ChatGPT or Cursor.">
+<meta name="twitter:title" content="Claudius: a free, open-source beatmaker that listens to its own songs">
+<meta name="twitter:description" content="A beatmaker that writes, arranges, mixes and listens to its own songs, and makes them with Claude, ChatGPT or Cursor while you hear every change. Start from a song you love; every layer stays yours.">
 <meta name="twitter:image" content="{{site_url}}/og.png">
 <meta name="twitter:image:alt" content="The Claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
 <script type="application/ld+json">
@@ -36,7 +36,7 @@
   "@type": "SoftwareApplication",
   "name": "Claudius",
   "alternateName": "claudius",
-  "description": "Make songs from real sounds, remake a favourite in another genre, and change anything in plain words. Free and open source, on your computer or in your browser.",
+  "description": "A beatmaker that writes, mixes and listens to its own songs, and makes them with Claude, ChatGPT or Cursor. Start from a song you love. Free and open source.",
   "applicationCategory": "MultimediaApplication",
   "applicationSubCategory": "Music production",
   "operatingSystem": "macOS, Windows, Linux, web browser",
@@ -61,12 +61,12 @@
     <nav class="nav" aria-label="Sections">
       <ul>
         <li><a href="#listen">Listen</a></li>
+        <li><a href="#assistants">Assistants</a></li>
         <li><a href="#remix">From a song</a></li>
         <li><a href="#ask">Plain words</a></li>
         <li><a href="#how">How it works</a></li>
         <li><a href="#script">Script</a></li>
         <li><a href="#studio">Studio</a></li>
-        <li><a href="#assistants">Assistants</a></li>
         <li><a href="#sounds">Sounds</a></li>
         <li><a href="#install">Install</a></li>
       </ul>
@@ -85,8 +85,8 @@
   <div class="wrap hero-grid">
     <div class="hero-copy">
       <p class="tagline"><span class="chip">v{{version}}</span> Open source, MIT licence. macOS and Linux, with Windows in preview.</p>
-      <h1 id="hero-title">Make songs from real&nbsp;sounds.</h1>
-      <p class="lede">claudius writes the drums, bass, chords and melodies with music theory, arranges and mixes them into a song, and listens to every change. Start from a genre or from a song you love, change anything in plain words or with an assistant, and keep every layer yours to edit. Every sound is real audio, synthesized in code or recorded from real instruments: no neural network makes the sound, and there is no General MIDI.</p>
+      <h1 id="hero-title">A beatmaker that listens to its own&nbsp;songs.</h1>
+      <p class="lede">claudius writes, arranges, mixes and masters a song as a producer would, then listens to it with a critic that has ears, says what to fix, and fixes it. Make songs with it in the studio, in plain words, or through Claude, ChatGPT or Cursor while you hear every change. Every layer stays yours to edit: it helps you write music, and never makes a whole song in one shot.</p>
 
       <div class="get" data-get>
         <a class="btn btn-primary btn-get" data-get-for="mac" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-aarch64-apple-darwin.dmg">Download for Mac</a>
@@ -134,6 +134,38 @@
       <p class="form-note" aria-hidden="true"><span>the whole song, 112 bars</span><span>the excerpt: bars 63 to 83</span></p>
       <figcaption>The drum lanes of the deep house song below, as the studio’s step sequencer shows them. Press play and they follow the music; lanes that sit out the build go dark.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section class="section section-alt" id="different" aria-labelledby="different-title">
+  <div class="wrap">
+    <header class="section-head">
+      <h2 id="different-title">It writes with you, and it listens</h2>
+      <p>What a DAW leaves to you, claudius does with you, and you can take over any of it.</p>
+    </header>
+
+    <ul class="chain chain-loose">
+      <li class="module">
+        <h3>It listens to every change</h3>
+        <p>A critic with ears, listening models that run on your computer, judges each render: its loudness, balance and energy, its music theory, and whether it sounds like its genre. It says what to fix, and claudius can fix it.</p>
+        <p><a href="#how">How it works</a></p>
+      </li>
+      <li class="module">
+        <h3>Your assistant makes songs with it</h3>
+        <p>claudius is an MCP server. Claude, ChatGPT, Cursor or Codex can start a song, write its parts, listen to it and revise it, and everything they do plays in the studio as they do it.</p>
+        <p><a href="#assistants">With an assistant</a></p>
+      </li>
+      <li class="module">
+        <h3>It starts from a song you love</h3>
+        <p>Give it a recording and it hears the tempo, key, chords, sections and the phrases sung, takes the voice, drums and bass apart, then makes it again in another genre, flips its hook or samples it.</p>
+        <p><a href="#remix">From a song</a></p>
+      </li>
+      <li class="module">
+        <h3>Say what you want</h3>
+        <p>Press Cmd K and type a change or a question as you would say it, slips and all. A small model on your computer reads it and shows the change it understood before anything happens.</p>
+        <p><a href="#ask">In plain words</a></p>
+      </li>
+    </ul>
   </div>
 </section>
 
@@ -498,10 +530,77 @@ Low Light — dnb at 174 BPM in C minor, 112 bars (2:34)
   </div>
 </section>
 
-<section class="section section-alt" id="remix" aria-labelledby="remix-title">
+<section class="section section-alt" id="assistants" aria-labelledby="assistants-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>02</span>From a song</p>
+      <p class="channel"><span>02</span>Assistants</p>
+      <h2 id="assistants-title">Make songs with Claude, Cursor or ChatGPT</h2>
+      <p>claudius is an MCP server. An assistant connected to it sees the song you have open, edits it with scripts, mutations, evolution or raw edits, renders and judges it, and you hear every change in the studio as it happens.</p>
+    </header>
+
+    <div class="clients">
+      <article class="client">
+        <h3>Claude Code</h3>
+        <p>The plugin brings the MCP server and the skills that teach Claude the craft:</p>
+        <pre class="code"><code class="language-sh">claude plugin marketplace add devlato/claudius
+claude plugin install claudius@claudius</code></pre>
+        <p>Or the server alone:</p>
+        <pre class="code"><code class="language-sh">claude mcp add --scope user claudius -- claudius mcp</code></pre>
+        <h3>Codex</h3>
+        <pre class="code"><code class="language-sh">codex mcp add claudius -- claudius mcp</code></pre>
+        <h3>Claude Desktop</h3>
+        <p>On a Mac, open <code>claudius-{{version}}.mcpb</code> from the <a href="{{repo_url}}/releases/latest">latest release</a>, after installing the app: Claude Desktop installs it as an extension. Or, in Claude's settings, Developer, Edit Config opens <code class="long">claude_desktop_config.json</code>: add this and restart Claude, with the full path that <code>which claudius</code> prints.</p>
+        <pre class="code"><code class="language-json">{
+  "mcpServers": {
+    "claudius": {
+      "command": "/Users/you/.local/bin/claudius",
+      "args": ["mcp"]
+    }
+  }
+}</code></pre>
+      </article>
+      <article class="client">
+        <h3>Cursor</h3>
+        <p><a class="btn" href="cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&amp;config=eyJjb21tYW5kIjoiY2xhdWRpdXMiLCJhcmdzIjpbIm1jcCJdfQ==">Add to Cursor</a></p>
+        <p>Cursor asks before it adds it. Or put the same command and arguments in <code>~/.cursor/mcp.json</code>:</p>
+        <pre class="code"><code class="language-json">{
+  "mcpServers": {
+    "claudius": { "command": "claudius", "args": ["mcp"] }
+  }
+}</code></pre>
+        <p><code>claudius connect claude-code</code> (or <code>claude-desktop</code>, <code>cursor</code>, <code>codex</code>) does the same with the full path, and adds the skills that teach the assistant claudius; so does Connect an assistant, in the studio.</p>
+        <p><code>claudius mcp</code> drives the studio when one is running on the port, so you and the assistant share the song. When none is running, it starts a session of its own and serves the web studio on the port, so you can still open it.</p>
+        <p>Clients that speak Streamable HTTP can use <code>http://127.0.0.1:7878/mcp</code> while the studio or <code>claudius serve</code> runs.</p>
+      </article>
+      <article class="client client-wide">
+        <h3>ChatGPT</h3>
+        <p>Assistants in the cloud need a public HTTPS address. Run claudius with a token behind a tunnel:</p>
+        <pre class="code"><code class="language-sh">TOKEN=$(openssl rand -hex 16)
+echo "$TOKEN"
+claudius serve --public --token "$TOKEN"
+cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
+        <p>Then add a custom connector in ChatGPT’s developer mode with the URL <code>https://&lt;tunnel&gt;/mcp?token=&lt;token&gt;</code>. The studio is at <code>https://&lt;tunnel&gt;/?token=&lt;token&gt;</code>.</p>
+      </article>
+    </div>
+
+    <div class="tools">
+      <p class="tools-label">The tools an assistant gets</p>
+      <ul class="tool-list">
+        <li><code>new_song</code></li><li><code>get_song</code></li><li><code>run_script</code></li><li><code>script_reference</code></li><li><code>listen</code></li><li><code>mutate</code></li><li><code>evolve</code></li><li><code>status</code></li><li><code>undo</code></li><li><code>redo</code></li><li><code>stop</code></li><li><code>catalog</code></li><li><code>save</code></li><li><code>open</code></li><li><code>analyze</code></li><li><code>remake</code></li><li><code>command</code></li>
+      </ul>
+      <blockquote class="prompt-example">
+        <p>Make a deep house track at 122 BPM, listen to it, and fix the critic’s top two issues.</p>
+        <footer>A good first message</footer>
+      </blockquote>
+      <p class="links"><a href="/docs/getting-started/assistants.html">Working with an assistant</a> <a href="/docs/guide/mcp.html">MCP tools reference</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="remix" aria-labelledby="remix-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>03</span>From a song</p>
       <h2 id="remix-title">Start from a song you love</h2>
       <p>Give claudius a recording, a song of yours or one you love, and it hears its tempo, key, chords and sections and the phrases sung, to the beat. The app takes it apart into its voice, drums, bass and the rest on your own computer. Then it makes something of it, the way a producer would.</p>
     </header>
@@ -527,10 +626,10 @@ Low Light — dnb at 174 BPM in C minor, 112 bars (2:34)
   </div>
 </section>
 
-<section class="section" id="ask" aria-labelledby="ask-title">
+<section class="section section-alt" id="ask" aria-labelledby="ask-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>03</span>Plain words</p>
+      <p class="channel"><span>04</span>Plain words</p>
       <h2 id="ask-title">Change anything by saying it</h2>
       <p>Press <kbd>Cmd</kbd>&nbsp;<kbd>K</kbd> in the studio and type what you want, as you would say it, or ask about the song. claudius reads it on your computer and shows the change it understood before anything happens. A word typed with a slip is read as the word meant, and every change can be undone.</p>
     </header>
@@ -551,10 +650,10 @@ Low Light — dnb at 174 BPM in C minor, 112 bars (2:34)
   </div>
 </section>
 
-<section class="section section-alt" id="how" aria-labelledby="how-title">
+<section class="section" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>04</span>How it works</p>
+      <p class="channel"><span>05</span>How it works</p>
       <h2 id="how-title">Compose, render, listen, revise</h2>
       <p>A song goes round this loop until the critic runs out of complaints or you stop it. Under each stage is what claudius printed while it made Paper Lanterns.</p>
     </header>
@@ -610,10 +709,10 @@ verdict: 94/100 (arc 0.91, genre 0.95, mix 1.00, production 0.76, theory 1.00)</
   </div>
 </section>
 
-<section class="section" id="script" aria-labelledby="script-title">
+<section class="section section-alt" id="script" aria-labelledby="script-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>05</span>Script</p>
+      <p class="channel"><span>06</span>Script</p>
       <h2 id="script-title">The song is a script</h2>
       <p>A claudius script is <a href="https://rhai.rs">Rhai</a> with mini-notation patterns borrowed from <a href="https://strudel.cc">Strudel</a>. One cycle of a pattern is one bar. This is all of Paper Lanterns:</p>
     </header>
@@ -690,10 +789,10 @@ claudius reference</code></pre>
   </div>
 </section>
 
-<section class="section section-alt" id="studio" aria-labelledby="studio-title">
+<section class="section" id="studio" aria-labelledby="studio-title">
   <div class="wrap">
     <header class="section-head">
-      <p class="channel"><span>06</span>Studio</p>
+      <p class="channel"><span>07</span>Studio</p>
       <h2 id="studio-title">A studio, native and in the browser</h2>
       <p>Three views of one song: the arrangement, the signal flow, where every track runs through its effects and buses into the master and is changed where it is, and the song as a script. A knob is heard as it moves, and every change renders and is judged in the background, a few seconds for a full song. <code>claudius studio</code> opens the native window; <code>claudius serve</code> serves the same app, compiled to WebAssembly, at <code>http://127.0.0.1:7878</code>. Both are clients of one session, so the window, a browser tab and an assistant can work on the same song at once.</p>
     </header>
@@ -721,73 +820,6 @@ claudius reference</code></pre>
     <div class="studio-cta">
       <p><a class="btn btn-primary" href="/studio/?mock">Open the studio demo</a></p>
       <p>The demo runs claudius itself in your browser: the same composer, script language and renderer as the app, on claudius' own synths. A new song plays its first bars in a few seconds and the whole of it soon after, and the download button hands it to you. The app adds the sample packs' instruments, the ears that judge a song, recording, evolution and publishing: run <code>claudius studio</code>.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="assistants" aria-labelledby="assistants-title">
-  <div class="wrap">
-    <header class="section-head">
-      <p class="channel"><span>07</span>Assistants</p>
-      <h2 id="assistants-title">Make songs with Claude, Cursor or ChatGPT</h2>
-      <p>claudius is an MCP server. An assistant connected to it sees the song you have open, edits it with scripts, mutations, evolution or raw edits, renders and judges it, and you hear every change in the studio as it happens.</p>
-    </header>
-
-    <div class="clients">
-      <article class="client">
-        <h3>Claude Code</h3>
-        <p>The plugin brings the MCP server and the skills that teach Claude the craft:</p>
-        <pre class="code"><code class="language-sh">claude plugin marketplace add devlato/claudius
-claude plugin install claudius@claudius</code></pre>
-        <p>Or the server alone:</p>
-        <pre class="code"><code class="language-sh">claude mcp add --scope user claudius -- claudius mcp</code></pre>
-        <h3>Codex</h3>
-        <pre class="code"><code class="language-sh">codex mcp add claudius -- claudius mcp</code></pre>
-        <h3>Claude Desktop</h3>
-        <p>On a Mac, open <code>claudius-{{version}}.mcpb</code> from the <a href="{{repo_url}}/releases/latest">latest release</a>, after installing the app: Claude Desktop installs it as an extension. Or, in Claude's settings, Developer, Edit Config opens <code class="long">claude_desktop_config.json</code>: add this and restart Claude, with the full path that <code>which claudius</code> prints.</p>
-        <pre class="code"><code class="language-json">{
-  "mcpServers": {
-    "claudius": {
-      "command": "/Users/you/.local/bin/claudius",
-      "args": ["mcp"]
-    }
-  }
-}</code></pre>
-      </article>
-      <article class="client">
-        <h3>Cursor</h3>
-        <p><a class="btn" href="cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&amp;config=eyJjb21tYW5kIjoiY2xhdWRpdXMiLCJhcmdzIjpbIm1jcCJdfQ==">Add to Cursor</a></p>
-        <p>Cursor asks before it adds it. Or put the same command and arguments in <code>~/.cursor/mcp.json</code>:</p>
-        <pre class="code"><code class="language-json">{
-  "mcpServers": {
-    "claudius": { "command": "claudius", "args": ["mcp"] }
-  }
-}</code></pre>
-        <p><code>claudius connect claude-code</code> (or <code>claude-desktop</code>, <code>cursor</code>, <code>codex</code>) does the same with the full path, and adds the skills that teach the assistant claudius; so does Connect an assistant, in the studio.</p>
-        <p><code>claudius mcp</code> drives the studio when one is running on the port, so you and the assistant share the song. When none is running, it starts a session of its own and serves the web studio on the port, so you can still open it.</p>
-        <p>Clients that speak Streamable HTTP can use <code>http://127.0.0.1:7878/mcp</code> while the studio or <code>claudius serve</code> runs.</p>
-      </article>
-      <article class="client client-wide">
-        <h3>ChatGPT</h3>
-        <p>Assistants in the cloud need a public HTTPS address. Run claudius with a token behind a tunnel:</p>
-        <pre class="code"><code class="language-sh">TOKEN=$(openssl rand -hex 16)
-echo "$TOKEN"
-claudius serve --public --token "$TOKEN"
-cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
-        <p>Then add a custom connector in ChatGPT’s developer mode with the URL <code>https://&lt;tunnel&gt;/mcp?token=&lt;token&gt;</code>. The studio is at <code>https://&lt;tunnel&gt;/?token=&lt;token&gt;</code>.</p>
-      </article>
-    </div>
-
-    <div class="tools">
-      <p class="tools-label">The tools an assistant gets</p>
-      <ul class="tool-list">
-        <li><code>new_song</code></li><li><code>get_song</code></li><li><code>run_script</code></li><li><code>script_reference</code></li><li><code>listen</code></li><li><code>mutate</code></li><li><code>evolve</code></li><li><code>status</code></li><li><code>undo</code></li><li><code>redo</code></li><li><code>stop</code></li><li><code>catalog</code></li><li><code>save</code></li><li><code>open</code></li><li><code>analyze</code></li><li><code>remake</code></li><li><code>command</code></li>
-      </ul>
-      <blockquote class="prompt-example">
-        <p>Make a deep house track at 122 BPM, listen to it, and fix the critic’s top two issues.</p>
-        <footer>A good first message</footer>
-      </blockquote>
-      <p class="links"><a href="/docs/getting-started/assistants.html">Working with an assistant</a> <a href="/docs/guide/mcp.html">MCP tools reference</a></p>
     </div>
   </div>
 </section>

@@ -319,6 +319,12 @@ button {
   background: var(--panel);
 }
 
+/* a card on a section of the panel's colour stands on the raised one, as it stands on the page's elsewhere */
+.section-alt .client,
+.section-alt .prompt-example {
+  background: var(--raised);
+}
+
 .section-head {
   max-width: 780px;
   margin-bottom: clamp(32px, 5vw, 56px);
@@ -1333,6 +1339,12 @@ button {
     border: 2px solid var(--accent);
     border-radius: 50%;
     background: var(--bg);
+  }
+
+  /* modules side by side that are not a signal chain: no cables */
+  .chain-loose .module::after,
+  .chain-loose .module::before {
+    content: none;
   }
 }
 
