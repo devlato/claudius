@@ -684,8 +684,11 @@ const SUNG_STRETCH: f64 = 0.10;
 /// plays at its own speed in the range (at its own tempo, half or twice it), which the song then takes as a sampler
 /// plays a record. When the nearest of those is within a stretch of `SUNG_STRETCH` of the range, the range's edge
 /// nearest it, which stretches the hook the least; further, the fastest of them that `under` reaches below the range,
-/// at which the hook plays at its own speed (a pop record of 125 as trip hop at 62); else that edge again.
-fn sung_tempo(bpm: f64, range: (f64, f64), under: f64) -> Option<f64> {
+/// at which the hook plays at its own speed (a pop record of 125 as trip hop at 62); else that edge again. Where
+/// nothing stretches (`stretches` false: the web studio), a hook meets a tempo only at its own speed or a multiple of
+/// it, so the nearest of those itself, just outside the range, takes the edge's place within a stretch of
+/// `SUNG_STRETCH`, and further, with nothing under the range, the song keeps to the genre's tempo.
+fn sung_tempo(bpm: f64, range: (f64, f64), under: f64, stretches: bool) -> Option<f64> {
     if under <= 0.0 || bpm <= 0.0 {
         return None;
     }
@@ -699,7 +702,9 @@ fn sung_tempo(bpm: f64, range: (f64, f64), under: f64) -> Option<f64> {
     let below = speeds.into_iter().filter(|t| (floor..range.0).contains(t)).max_by(f64::total_cmp);
     let t = match below {
         Some(t) if off(nearest) > SUNG_STRETCH => t,
-        _ => nearest.clamp(range.0, range.1),
+        _ if stretches => nearest.clamp(range.0, range.1),
+        _ if off(nearest) <= SUNG_STRETCH => nearest,
+        _ => return None,
     };
     Some((t * 100.0).round() / 100.0)
 }
@@ -781,7 +786,7 @@ pub fn remix(
     // tempo: in half time they would play on at the recording's over the genre's, whose own drums play instead
     let sung = crate::sampling::need(g, Role::Phrase)
         .filter(|n| opts.bpm.is_none() && sings && voice_in_it && !n.speeds_voices)
-        .and_then(|n| sung_tempo(bpm, g.bpm, n.under));
+        .and_then(|n| sung_tempo(bpm, g.bpm, n.under, cfg!(feature = "native")));
     let opts = &Options { bpm: opts.bpm.or(sung), ..opts.clone() };
     let near = sung.is_none_or(|t| (t / bpm).ln().abs() <= SUNG_STRETCH);
     let drum_bars =
@@ -1996,18 +2001,25 @@ mod tests {
     fn a_sung_hook_plays_at_its_own_speed_under_a_genres_range_as_far_as_the_genre_plays_a_record_so() {
         let trip_hop = (78.0, 94.0);
         // a pop record of 125 in half time, a fifth under trip hop's slowest, rather than stretched by a quarter
-        assert_eq!(sung_tempo(125.0, trip_hop, 0.25), Some(62.5));
-        assert_eq!(sung_tempo(120.0, trip_hop, 0.25), Some(60.0));
+        assert_eq!(sung_tempo(125.0, trip_hop, 0.25, true), Some(62.5));
+        assert_eq!(sung_tempo(120.0, trip_hop, 0.25, true), Some(60.0));
         // a ballad of 65 at its own tempo
-        assert_eq!(sung_tempo(65.0, trip_hop, 0.25), Some(65.0));
+        assert_eq!(sung_tempo(65.0, trip_hop, 0.25, true), Some(65.0));
         // a little outside, stretched to the nearest edge; 110, whose half is under the quarter, as little as it can
-        assert_eq!(sung_tempo(100.0, trip_hop, 0.25), Some(94.0));
-        assert_eq!(sung_tempo(75.0, trip_hop, 0.25), Some(78.0));
-        assert_eq!(sung_tempo(110.0, trip_hop, 0.25), Some(94.0));
+        assert_eq!(sung_tempo(100.0, trip_hop, 0.25, true), Some(94.0));
+        assert_eq!(sung_tempo(75.0, trip_hop, 0.25, true), Some(78.0));
+        assert_eq!(sung_tempo(110.0, trip_hop, 0.25, true), Some(94.0));
         // one at its own speed in the range, as it is or in half time, and a genre that does not say, as before
-        assert_eq!(sung_tempo(90.0, trip_hop, 0.25), None);
-        assert_eq!(sung_tempo(170.0, trip_hop, 0.25), None);
-        assert_eq!(sung_tempo(96.0, (120.0, 126.0), 0.0), None);
+        assert_eq!(sung_tempo(90.0, trip_hop, 0.25, true), None);
+        assert_eq!(sung_tempo(170.0, trip_hop, 0.25, true), None);
+        assert_eq!(sung_tempo(96.0, (120.0, 126.0), 0.0, true), None);
+        // where nothing stretches (the web studio), a hook a little outside plays at its own speed, which a sampler
+        // meets, rather than at the edge, which it cannot meet at the voice's own pitch; one further keeps the genre's
+        assert_eq!(sung_tempo(100.0, trip_hop, 0.25, false), Some(100.0));
+        assert_eq!(sung_tempo(75.0, trip_hop, 0.25, false), Some(75.0));
+        assert_eq!(sung_tempo(110.0, trip_hop, 0.25, false), None);
+        assert_eq!(sung_tempo(125.0, trip_hop, 0.25, false), Some(62.5));
+        assert_eq!(sung_tempo(90.0, trip_hop, 0.25, false), None);
         let need = |g: &str| crate::sampling::need(&crate::genres::get(g).unwrap(), Role::Phrase).unwrap().under;
         assert!(need("trip_hop") > 0.0 && need("house") == 0.0);
     }
