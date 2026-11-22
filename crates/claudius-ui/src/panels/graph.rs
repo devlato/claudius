@@ -25,11 +25,13 @@ pub struct GraphView {
     pub pan: egui::Vec2,
     /// the node whose JSON is being edited, and the text so far, and why it was not taken
     pub(super) json: Option<(String, String, Option<String>)>,
+    /// a block or a lane's name was clicked this frame: the lanes take the keys, even for the choice they had
+    pub(super) take_keys: bool,
 }
 
 impl Default for GraphView {
     fn default() -> Self {
-        GraphView { selected: None, scene: Rect::ZERO, zoom: 0.0, pan: egui::Vec2::ZERO, json: None }
+        GraphView { selected: None, scene: Rect::ZERO, zoom: 0.0, pan: egui::Vec2::ZERO, json: None, take_keys: false }
     }
 }
 

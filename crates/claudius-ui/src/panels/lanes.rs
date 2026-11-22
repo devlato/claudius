@@ -452,7 +452,6 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
 
     let resp = ui.interact(canvas, id, Sense::click_and_drag());
     let focused = ui.memory(|m| m.has_focus(id));
-    let chosen_before = cx.view.graph.selected.clone();
     if resp.clicked() || resp.drag_started() {
         ui.memory_mut(|m| m.request_focus(id));
         cx.view.graph.selected = None;
@@ -527,8 +526,9 @@ pub(super) fn show(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) {
         land(cx, song, &lanes, &map, d);
     }
     headers(ui, cx, song, &map, &lanes, canvas);
-    // a block or a lane's name clicked takes the keys too, as the background does: else they went to the arrangement
-    if cx.view.graph.selected != chosen_before && cx.view.graph.selected.is_some() {
+    // a block or a lane's name clicked takes the keys too, as the background does, the one already chosen as well (a
+    // setting typed in the inspector had them): else they went to the arrangement
+    if std::mem::take(&mut cx.view.graph.take_keys) {
         ui.memory_mut(|m| m.request_focus(id));
     }
     if focused {
@@ -797,6 +797,7 @@ fn chain(ui: &mut Ui, cx: &mut Cx, song: &SongView, map: &Map, lane: &Lane, lane
         if resp.clicked() {
             cx.view.graph.selected = Some(node.clone());
             cx.view.graph.json = None;
+            cx.view.graph.take_keys = true;
         }
         // its power and its ×, along its top, once it is big enough to press them
         if lane.editable() && map.zoom >= DETAIL_ZOOM {
@@ -1383,6 +1384,7 @@ fn headers(ui: &mut Ui, cx: &mut Cx, song: &SongView, map: &Map, lanes: &[Lane],
         if resp.clicked() {
             cx.view.graph.selected = Some(lane.node.clone());
             cx.view.graph.json = None;
+            cx.view.graph.take_keys = true;
         }
         let kind = match &lane.kind {
             LaneKind::Track(i) => Some(NodeKind::Track(song.tracks[*i].name.clone())),
