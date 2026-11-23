@@ -24,7 +24,9 @@ test.describe("the download button", () => {
     try {
       const toasts = heard(page, "toast");
       const download = page.waitForEvent("download", { timeout: 150_000 });
-      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:2;download;wait:120")}`);
+      // a short song (rage at 170 BPM: 88 bars, 2:04), which the demo renders and encodes in its page: the default one
+      // is twice as long, and a CI runner renders and encodes in a browser several times slower than a desktop
+      await page.goto(`${c.base}/?mock&genre=rage&seed=2&bpm=170&plan=${encodeURIComponent("wait:2;download;wait:120")}`);
       const file = await download;
       expect(file.suggestedFilename()).toMatch(/^[a-z0-9-]+\.flac$/);
       const flac = readFileSync(await file.path());
