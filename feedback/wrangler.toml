@@ -1,0 +1,23 @@
+# Where people's feedback on claudius goes (src/index.js): the studio's Send feedback window, the web demo's, the site's
+# form, and assistants passing on what a person says with their OK. Once: `npx wrangler d1 create claudius-feedback`
+# (its id below) and `npx wrangler d1 execute claudius-feedback --remote --file schema.sql`; then `npx wrangler deploy`
+# in this folder publishes it.
+name = "claudius-feedback"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "FEEDBACK"
+database_name = "claudius-feedback"
+database_id = "de51c327-baaf-420b-a6d0-8e0ecb7354c0"
+
+# five messages a minute from one address at most: the limiter sees the address, nothing keeps it
+[[ratelimits]]
+name = "LIMIT"
+namespace_id = "7001"
+simple = { limit = 5, period = 60 }
+
+[observability]
+enabled = false

@@ -383,6 +383,15 @@ fn twenty() -> usize {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FeedbackArgs {
+    /// what the person says about claudius, in their words: what works, what does not, what they wish it did
+    pub text: String,
+    /// where to answer them, when they want an answer: the email address they gave
+    #[serde(default)]
+    pub contact: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct GoBackArgs {
     /// the change to go back to before: its id, as history lists it (`12@4f2a9c81d0e3b7a6`)
     pub to: String,
@@ -1589,6 +1598,46 @@ impl Studio {
     }
 
     #[tool(
+        description = "Send what the person says about claudius (a problem, an idea, what works or doesn't, what they wish it did) to the people who make it, in their words. Only with their yes: ask them first, and read them what you will send. With `contact` (an email address they gave) when they want an answer. claudius' version, the system and the song's genre go with it; nothing else does (not the song, its files or their name). Says whether it went."
+    )]
+    async fn send_feedback(&self, Parameters(a): Parameters<FeedbackArgs>) -> Result<String, String> {
+        let text = a.text.trim().to_string();
+        if text.is_empty() {
+            return Err("nothing to send: pass on what the person said".into());
+        }
+        if text.chars().count() > claudius_api::FEEDBACK_MOST {
+            return Err(format!("too long: {} characters at most; send the heart of it", claudius_api::FEEDBACK_MOST));
+        }
+        let genre = self.b.state().await.ok().and_then(|s| s.song.map(|s| s.genre));
+        let os = match std::env::consts::OS {
+            "macos" => "macos",
+            "windows" => "windows",
+            _ => "linux",
+        };
+        let m = claudius_api::feedback_message(
+            &text,
+            "assistant",
+            a.contact.as_deref().unwrap_or(""),
+            Some((os, genre.as_deref())),
+        );
+        let sent = tokio::task::spawn_blocking(move || {
+            agent(Duration::from_secs(20))
+                .post(claudius_api::FEEDBACK_ENDPOINT)
+                .header("content-type", "application/json")
+                .send_json(&m)
+                .map(|r| r.status().as_u16())
+        })
+        .await
+        .map_err(|e| format!("it stopped halfway: {e}"))?;
+        match sent {
+            Ok(204 | 200) => Ok("sent to the people who make claudius: thank the person for it".into()),
+            Ok(429) => Err("not sent: too many at once; try again in a minute".into()),
+            Ok(status) => Err(format!("not sent: it was not taken ({status})")),
+            Err(e) => Err(format!("not sent: {e}")),
+        }
+    }
+
+    #[tool(
         description = "Stop the running job after its current step: a mutation after the candidate in progress, an evolution after its generation, a pack download after the pack in progress. A render always finishes."
     )]
     async fn stop(&self) -> Result<String, String> {
@@ -2220,6 +2269,7 @@ What it does, and the tools for it:
 - Out: save, open, export (WAV, FLAC, ALAC, MP3, AAC, Opus, Vorbis), publish (checks it for release and writes a release kit).
 - The studio's chat: wait_for_message, called again whenever it returns, and send_message.
 - status and stop follow a running job; install_packs downloads the sample packs; version says which claudius you drive and whether the person's studio follows it (call it when they say the studio does not show what you did).
+- send_feedback passes on what the person says about claudius (a problem, an idea) to the people who make it, in their words, once they say yes.
 - A call whose work takes longer than 45 s (remaking or sampling a long recording, rendering a long song) answers that it is still going instead of waiting on; status says how it goes, and gives its answer once it is done.
 
 guide reads the skills built into claudius: songs (how to make songs well), remix, setup, and the script, the verdict, the genres and the tools in full. Where the claudius skills are not installed, read guide songs before the first song. The scores guide; the person's taste decides."
