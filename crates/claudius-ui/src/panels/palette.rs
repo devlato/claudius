@@ -382,8 +382,10 @@ pub(crate) struct Now {
     /// a change to undo, and one to redo
     pub undo: bool,
     pub redo: bool,
-    /// claudius is at a job, which can be stopped
+    /// claudius is at work: a job, or a step that runs to its end (listening to a recording)
     pub busy: bool,
+    /// claudius is at a job the toolbar's Cancel stops (a step that runs to its end offers none)
+    pub cancel: bool,
     /// the critic heard what quick fixes fix, in a verdict of the song as it is
     pub fixes: bool,
     /// a phone can play along: a claudius behind the studio, or the site's relay in a browser
@@ -407,6 +409,7 @@ impl Now {
             undo: st.can_undo,
             redo: st.can_redo,
             busy: st.busy.is_some(),
+            cancel: st.busy.is_some() && st.cancellable,
             fixes: st.verdict.as_ref().is_some_and(|v| !v.fixes.is_empty()) && !cx.render_stale(),
             phone: cx.server.is_some() || cfg!(target_arch = "wasm32"),
             packs: cx.sounds.is_some_and(|l| l.packs.iter().any(|p| p.default && p.wanted())) && !downloading,
@@ -446,7 +449,7 @@ pub(crate) fn works(run: &Run, now: &Now) -> bool {
         Run::ToStart | Run::Stop => now.audio,
         Run::Undo => now.undo,
         Run::Redo => now.redo,
-        Run::Cancel => now.busy,
+        Run::Cancel => now.cancel,
         Run::FixAll => now.fixes,
         Run::Phone => now.phone,
         Run::Packs => now.packs,
@@ -470,8 +473,9 @@ pub(crate) fn works(run: &Run, now: &Now) -> bool {
 }
 
 /// Whether a command a request was read as can be done `now`: one that makes or opens a song, listens to a recording,
-/// downloads the packs or talks in the chat at any time; stopping a job while there is one; undo and redo while there
-/// is a change to take back or bring back; the rest, which change, play or keep the song, once one is open.
+/// downloads the packs or talks in the chat at any time; stopping a job while there is one the toolbar's Cancel stops,
+/// and a remake by its ticket while claudius is at work; undo and redo while there is a change to take back or bring
+/// back; the rest, which change, play or keep the song, once one is open.
 fn does(c: &Command, now: &Now) -> bool {
     match c {
         Command::NewSong { .. }
@@ -484,7 +488,8 @@ fn does(c: &Command, now: &Now) -> bool {
         | Command::ChatSay { .. }
         | Command::ChatListen { .. }
         | Command::ClearChat => true,
-        Command::Cancel | Command::StopRemake { .. } => now.busy,
+        Command::Cancel => now.cancel,
+        Command::StopRemake { .. } => now.busy,
         Command::Undo => now.undo,
         Command::Redo => now.redo,
         Command::Together { commands, .. } => commands.iter().all(|c| does(c, now)),
@@ -825,6 +830,7 @@ mod tests {
         undo: true,
         redo: false,
         busy: false,
+        cancel: false,
         fixes: false,
         phone: true,
         packs: false,
@@ -1178,7 +1184,12 @@ mod tests {
         assert!(!offered(Now { recording: true, ..song }, "stop"), "the take plays the song, not the player");
         assert!(!offered(song, "undo") && offered(Now { undo: true, ..song }, "undo"));
         assert!(!offered(song, "redo") && offered(Now { redo: true, ..song }, "redo"));
-        assert!(!offered(song, "cancel") && offered(Now { busy: true, ..song }, "cancel"), "a job to stop");
+        let job = Now { busy: true, cancel: true, ..song };
+        assert!(!offered(song, "cancel") && offered(job, "cancel"), "a job to stop");
+        assert!(
+            !offered(Now { busy: true, ..song }, "cancel"),
+            "a step that runs to its end offers no Cancel, as in the toolbar"
+        );
         assert!(!offered(song, "fix_all") && offered(Now { fixes: true, ..song }, "fix_all"), "fixes the critic found");
         assert!(!offered(song, "phone") && offered(Now { phone: true, ..Now::default() }, "phone"));
         assert!(!offered(song, "packs") && offered(Now { packs: true, ..Now::default() }, "packs"));
