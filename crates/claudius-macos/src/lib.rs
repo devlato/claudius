@@ -29,7 +29,8 @@ pub fn on_open_files(open: impl Fn(Vec<PathBuf>) + 'static) {
     let _ = open;
 }
 
-/// Keeps each window's close, minimize and zoom buttons on the line of a top bar that runs under its hidden title bar:
+/// Keeps the close, minimize and zoom buttons of each window whose content runs under a hidden title bar (the studio's,
+/// not a panel such as the Open and Save dialogs) on the line of its top bar:
 /// their middles `middle` points below the window's top, the close button's left edge `left` points from the window's,
 /// the other two after it as AppKit spaces them. AppKit puts them back where a title bar of its own has them each time
 /// it lays a window out (its first showing, a resize, a return from full screen, the window coming to the front or
@@ -206,7 +207,14 @@ mod mac {
     /// of the window that holds them (AppKit's title bar container) made twice `middle` high at the window's top, and
     /// the buttons centred in it, spaced as AppKit spaced them.
     pub(crate) fn place(window: &NSWindow, middle: f64, left: f64) {
-        if window.styleMask().contains(NSWindowStyleMask::FullScreen) {
+        // the studio's own windows only, whose content runs under a title bar they keep hidden (full-size content, a
+        // transparent title bar): a panel AppKit draws a title bar for, such as the Open and Save dialogs, keeps its
+        // buttons where AppKit put them; and none in full screen, where AppKit shows them itself
+        let style = window.styleMask();
+        if style.contains(NSWindowStyleMask::FullScreen)
+            || !style.contains(NSWindowStyleMask::FullSizeContentView)
+            || !window.titlebarAppearsTransparent()
+        {
             return;
         }
         let buttons: Vec<Retained<NSButton>> =
