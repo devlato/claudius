@@ -39,6 +39,8 @@ ron = "0.12"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # the demo's engine, on a thread of its own (a page runs it in a Web Worker: crates/claudius-web)
 claudius = { path = "../claudius", default-features = false }
+# the free libraries' terms the radio's songs built on samples gather recordings under
+claudius-packs = { path = "../claudius-packs", default-features = false }
 claudius-session = { path = "../claudius-session" }
 # the version rodio plays through: recording a take opens streams of its own
 cpal = "0.18"

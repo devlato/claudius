@@ -1,15 +1,19 @@
 //! The radio in the app (design 0024): the station (`claudius_session::radio`) on an engine of its own, a `Host` on a
 //! thread that writes and renders the station's songs while the person's song stays as it is, and the stream the
 //! radio's player plays (`audio::radio`): each song, and each change from one into the next, placed ahead of where the
-//! stream is.
+//! stream is. A song whose genre is built on samples plays recordings as the studio's do: those gathered on this
+//! computer, and a few more the engine finds in the free libraries before it writes the song.
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::time::{Duration, Instant};
 
 use claudius::audio::Stereo;
 use claudius::config::SRF;
+use claudius::library::Library;
+use claudius::model::Blueprint;
 use claudius_api::{Command, GenreInfo};
 use claudius_session::host::Host;
 use claudius_session::radio::{self, Spec, Station};
@@ -21,6 +25,10 @@ use crate::audio::radio::{Placed, RadioPlayer};
 const AHEAD: f64 = 0.5;
 /// how many songs the radio says it played
 const PLAYED: usize = 12;
+/// how long the free libraries are asked for recordings before a song built on samples: someone waits for the first
+/// song, and the others are written while the song before them plays
+const FIRST: Duration = Duration::from_secs(20);
+const LATER: Duration = Duration::from_secs(60);
 
 /// A song of the station's, as the radio shows it.
 #[derive(Clone, Debug)]
@@ -30,13 +38,18 @@ pub struct Info {
     pub bpm: f64,
     pub key: String,
     pub seconds: f64,
+    /// the recordings it samples, each as its credit says it: what, who, the licence
+    pub sampled: Vec<String>,
 }
 
-/// a song the engine wrote and rendered for the station, as it asked for it
+/// a song the engine wrote and rendered for the station, as it asked for it, the song itself (which the studio opens as
+/// it is), and its credits (which a file of it keeps beside it)
 struct Made {
     spec: Spec,
     info: Info,
     song: radio::Song,
+    bp: Blueprint,
+    credits: String,
 }
 
 enum Said {
@@ -51,7 +64,9 @@ struct Engine {
 }
 
 impl Engine {
-    fn start(ctx: Option<egui::Context>) -> Engine {
+    /// the engine, its songs built on samples played from `only` (a test's library), else from the samples gathered on
+    /// this computer (the studio's too), with more asked of the free libraries before each such song
+    fn start(ctx: Option<egui::Context>, only: Option<Arc<Library>>) -> Engine {
         let (tx, asks) = mpsc::channel::<Spec>();
         let (says, rx) = mpsc::channel::<Said>();
         let spawned = std::thread::Builder::new().name("claudius radio".into()).spawn(move || {
@@ -60,7 +75,15 @@ impl Engine {
             if let Some(c) = &ctx {
                 c.request_repaint();
             }
-            for spec in asks {
+            let (lib, online) = match only {
+                Some(lib) => (lib, false),
+                None => (Arc::new(Library::prepared_only()), true),
+            };
+            host.use_library(lib.clone());
+            for (n, spec) in asks.into_iter().enumerate() {
+                if online {
+                    gather(&lib, &spec, if n == 0 { FIRST } else { LATER });
+                }
                 if says.send(Said::Song(make(&mut host, &spec))).is_err() {
                     return;
                 }
@@ -76,7 +99,32 @@ impl Engine {
     }
 }
 
-/// the song `spec` asks for, written and rendered whole
+/// A few new recordings for the song `spec` asks for, when its genre is built on samples, as the studio gathers them
+/// before such a song: at most two for each role it samples, the song's seed choosing the order of the searches, for as
+/// long as `budget`. What the libraries said goes to the log; a song they gave nothing for plays what the library
+/// already holds, else what stands in for samples in its genre.
+fn gather(lib: &Library, spec: &Spec, budget: Duration) {
+    let Ok(g) = claudius::genres::get(&spec.genre) else { return };
+    if !claudius::sampling::sampled(&g, None, None) {
+        return;
+    }
+    let until = Instant::now() + budget;
+    let ask = claudius::sampling::Ask { seed: Some(spec.seed), search: None, most: 2 };
+    let ix = claudius::library::prepared::Index::open();
+    let policy = claudius_packs::online::Policy::default();
+    let stop = || Instant::now() > until;
+    match claudius::sampling::gather(&g, &ask, None, &policy, &ix, &stop, &mut |_| {}) {
+        Ok(got) => {
+            for note in &got.notes {
+                log::info!("the radio's sampling for {}: {note}", g.name);
+            }
+            lib.add_prepared(got.added);
+        }
+        Err(e) => log::warn!("the radio's sampling for {}: {e:#}", g.name),
+    }
+}
+
+/// the song `spec` asks for, written and rendered whole, built on samples when its genre is
 fn make(host: &mut Host, spec: &Spec) -> Result<Box<Made>, String> {
     let reply = host.command(Command::NewSong {
         genre: spec.genre.clone(),
@@ -84,7 +132,7 @@ fn make(host: &mut Host, spec: &Spec) -> Result<Box<Made>, String> {
         bpm: Some(spec.bpm),
         key: spec.key.map(|k| k.name()),
         loops: false,
-        sampled: Some(false),
+        sampled: None,
         sample_search: None,
         complexity: None,
     });
@@ -93,11 +141,19 @@ fn make(host: &mut Host, spec: &Spec) -> Result<Box<Made>, String> {
     }
     let audio = host.render().ok_or("no song to render")??;
     let song = host.state().song.ok_or("no song")?;
+    let bp = host.blueprint().cloned().ok_or("no song")?;
+    let project = claudius::compose::arrange(&bp);
+    let from = claudius::song::sources(&project, claudius::take::credited);
+    let mut sampled: Vec<String> =
+        from.recordings.iter().map(|f| format!("\"{}\" by {}, {}", f.title, f.creator, f.licence_name)).collect();
+    sampled.dedup();
+    let credits = claudius::song::credits_of(&from);
     let stereo = Arc::new(Stereo::from_interleaved(&audio.samples));
-    let info = Info { title: song.title, genre: song.genre, bpm: song.bpm, key: song.key, seconds: stereo.secs() };
+    let info =
+        Info { title: song.title, genre: song.genre, bpm: song.bpm, key: song.key, seconds: stereo.secs(), sampled };
     let sections = song.sections.iter().map(|s| (s.start_bar, s.bars, s.kind.clone())).collect();
     let song = radio::Song { audio: stereo, bpm: song.bpm, bars: song.bars, sections };
-    Ok(Box::new(Made { spec: spec.clone(), info, song }))
+    Ok(Box::new(Made { spec: spec.clone(), info, song, bp, credits }))
 }
 
 fn seed() -> u64 {
@@ -139,12 +195,12 @@ pub struct Radio {
 
 impl Radio {
     pub fn new(ctx: Option<egui::Context>) -> Radio {
-        Radio::with(ctx, RadioPlayer::new())
+        Radio::with(ctx, RadioPlayer::new(), None)
     }
 
-    fn with(ctx: Option<egui::Context>, player: RadioPlayer) -> Radio {
+    fn with(ctx: Option<egui::Context>, player: RadioPlayer, only: Option<Arc<Library>>) -> Radio {
         Radio {
-            engine: Engine::start(ctx),
+            engine: Engine::start(ctx, only),
             station: None,
             player,
             on_air: None,
@@ -373,19 +429,20 @@ impl Radio {
         Some(format!("writing a {} song at {:.0} BPM{key}{soon}…", said(&s.genre), s.bpm))
     }
 
-    /// The song on air saved as an MP3 in the songs folder's `radio`, made on a thread of its own; `tick` says where
-    /// it went.
+    /// The song on air saved as an MP3 in the songs folder's `radio`, with its credits beside it when it plays sounds
+    /// that ask for them, made on a thread of its own; `tick` says where it went.
     pub fn download(&mut self) {
         let Some(a) = &self.on_air else { return };
         if self.downloading.is_some() {
             return;
         }
-        let (audio, title) = (a.made.song.audio.clone(), a.made.info.title.clone());
+        let (audio, title, credits) = (a.made.song.audio.clone(), a.made.info.title.clone(), a.made.credits.clone());
         let (tx, rx) = mpsc::channel();
         self.downloading = Some(rx);
         self.said = format!("Making a file of {title}…");
         std::thread::spawn(move || {
-            let _ = tx.send(save(&audio, &title));
+            let dir = claudius::config::songs_dir().join("radio");
+            let _ = tx.send(save(&dir, &audio, &title, &credits));
         });
     }
 
@@ -393,32 +450,29 @@ impl Radio {
         self.downloading.is_some()
     }
 
-    /// what makes the song on air the studio's, as the station asked the engine for it
+    /// What makes the song on air the studio's: the song itself, as the engine wrote it, its samples and all (the same
+    /// genre and seed again would gather what the studio's own library holds that day, and sound otherwise).
     pub fn studio(&self) -> Option<Command> {
-        let s = &self.on_air.as_ref()?.made.spec;
-        Some(Command::NewSong {
-            genre: s.genre.clone(),
-            seed: Some(s.seed),
-            bpm: Some(s.bpm),
-            key: s.key.map(|k| k.name()),
-            loops: false,
-            sampled: Some(false),
-            sample_search: None,
-            complexity: None,
-        })
+        let bp = &self.on_air.as_ref()?.made.bp;
+        let text = serde_json::to_string(bp).ok()?;
+        Some(Command::OpenText { name: "blueprint.json".into(), text })
     }
 }
 
-/// `audio` as an MP3 named after `title` in the songs folder's `radio`: where it went
-fn save(audio: &Stereo, title: &str) -> Result<PathBuf, String> {
+/// `audio` as an MP3 named after `title` in `dir`, and `credits` beside it (`<title>.credits.txt`) when there are any:
+/// where the MP3 went
+fn save(dir: &Path, audio: &Stereo, title: &str, credits: &str) -> Result<PathBuf, String> {
     let spec: claudius::export::Spec = "mp3".parse().map_err(|e| format!("{e}"))?;
     let bytes = claudius::export::encode(audio, &spec, &claudius::export::tags(title)).map_err(|e| format!("{e:#}"))?;
-    let dir = claudius::config::songs_dir().join("radio");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let name: String = title.chars().filter(|c| c.is_alphanumeric() || " -_'".contains(*c)).collect();
     let name = if name.trim().is_empty() { "Infinite Radio".to_string() } else { name.trim().to_string() };
     let path = dir.join(format!("{name}.{}", spec.extension()));
     std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    if !credits.trim().is_empty() {
+        let beside = dir.join(format!("{name}.credits.txt"));
+        std::fs::write(&beside, credits).map_err(|e| format!("{}: {e}", beside.display()))?;
+    }
     Ok(path)
 }
 
@@ -469,7 +523,7 @@ mod tests {
 
     #[test]
     fn the_station_writes_its_first_song_places_the_next_after_a_change_and_skips_to_it_on_the_beat() {
-        let mut r = Radio::with(None, RadioPlayer::silent());
+        let mut r = Radio::with(None, RadioPlayer::silent(), Some(Arc::new(Library::with_prepared(Vec::new()))));
         r.keep_to(vec!["house".into()]);
         r.toggle();
         until(&mut r, |r| r.on_air().is_some());
@@ -499,6 +553,65 @@ mod tests {
         assert!(n.made.info.genre == "house" && n.said.starts_with("skipped to"), "{}", n.said);
         let program = r.player.program();
         assert_eq!((program.len(), program[0].at), (2, 0), "the cut from the stream's start, then the next song");
-        assert!(r.studio().is_some_and(|c| matches!(c, Command::NewSong { ref genre, .. } if genre == "house")));
+        // the studio opens the song on air itself, not the same seed again
+        let studio = r.studio().unwrap();
+        let Command::OpenText { name, text } = studio else { panic!("{studio:?}") };
+        let bp = Blueprint::from_json(&text).unwrap();
+        assert_eq!(
+            (name.as_str(), bp.genre.as_str(), bp.seed),
+            ("blueprint.json", "house", r.on_air.as_ref().unwrap().made.spec.seed)
+        );
+    }
+
+    /// sixteen bars at 90 BPM of A minor and F major, four bars each, over a kick on every beat, as a record a song may
+    /// sample, cut into a phrase for trip hop as the studio cuts one it gathered, the recording's credit beside it
+    fn gathered(dir: &Path) -> claudius::library::prepared::Prepared {
+        use claudius::library::prepared::Role;
+        let beat = 60.0 / 90.0;
+        let n = (64.0 * beat * SRF) as usize;
+        let mut x = Stereo::zeros(n);
+        for i in 0..n {
+            let t = i as f64 / SRF;
+            let minor = ((t / (16.0 * beat)) as usize).is_multiple_of(2);
+            let notes = if minor { [220.0, 261.63, 329.63] } else { [174.61, 220.0, 261.63] };
+            let held: f64 = notes.iter().map(|f| (std::f64::consts::TAU * f * t).sin()).sum::<f64>() * 0.1;
+            let tb = t % beat;
+            let kick = (std::f64::consts::TAU * 55.0 * tb).sin() * (-tb / 0.08).exp() * 0.5;
+            (x.l[i], x.r[i]) = ((held + kick) as f32, (held + kick) as f32);
+        }
+        let wav = dir.join("dusty-chords.wav");
+        std::fs::write(&wav, claudius::audio::wav_bytes(&x)).unwrap();
+        let found: claudius_packs::online::Found = serde_json::from_value(serde_json::json!({
+            "id": "freesound:7", "source": "openverse", "provider": "freesound", "title": "Dusty Chords",
+            "creator": "someone", "licence": "by", "licence_name": "CC BY 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://freesound.org/s/7/",
+            "audio": "", "filetype": "wav", "seconds": n as f64 / SRF
+        }))
+        .unwrap();
+        let g = claudius::genres::get("trip_hop").unwrap();
+        let need = claudius::sampling::need(&g, Role::Phrase).unwrap();
+        claudius::sampling::prepare(Role::Phrase, &wav, &found, &g, need, None, &dir.join("phrase")).unwrap()
+    }
+
+    #[test]
+    fn a_song_whose_genre_samples_plays_what_was_gathered_and_credits_it_on_air_and_beside_its_file() {
+        let dir = std::env::temp_dir().join(format!("claudius-radio-gathered-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let phrase = gathered(&dir);
+        let mut host = Host::new(1);
+        host.use_library(Arc::new(Library::with_prepared(vec![phrase.clone()])));
+        let spec = Spec { genre: "trip_hop".into(), bpm: 90.0, key: None, seed: 7, how: radio::How::Echo };
+        let made = make(&mut host, &spec).unwrap();
+        assert!(made.bp.files().contains(&phrase.path.as_str()), "it plays the phrase: {:?}", made.bp.files());
+        assert_eq!(made.info.sampled, ["\"Dusty Chords\" by someone, CC BY 4.0"]);
+        // a file of it keeps the credits beside it
+        let mp3 = save(&dir, &made.song.audio, &made.info.title, &made.credits).unwrap();
+        let credits = std::fs::read_to_string(mp3.with_extension("credits.txt")).unwrap();
+        assert!(credits.contains("\"Dusty Chords\" by someone, CC BY 4.0"), "{credits}");
+        // a song that samples nothing writes no credits of recordings
+        let spec = Spec { genre: "house".into(), bpm: 124.0, key: None, seed: 3, how: radio::How::Blend };
+        let house = make(&mut host, &spec).unwrap();
+        assert!(house.info.sampled.is_empty(), "{:?}", house.info.sampled);
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
