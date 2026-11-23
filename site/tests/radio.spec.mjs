@@ -162,9 +162,11 @@ test.describe("the radio", () => {
       // once the next song is written, Skip brings it in from the next beat (mixed over two bars when it was to blend),
       // and it is of the genres chosen too, or now and then the two fused
       const first = await page.locator("#now-title").textContent();
+      const firstSong = await page.locator("#open").getAttribute("href");
       await expect(page.locator("#next")).toContainText(/(mixes|comes) in .* from now/, { timeout: 240_000 });
       await page.locator("#skip").click();
-      await expect(page.locator("#now-title")).not.toHaveText(first, { timeout: 5_000 });
+      // another song on air, told by its studio link (its genre and seed): two songs of a genre can share a name
+      await expect(page.locator("#open")).not.toHaveAttribute("href", firstSong, { timeout: 5_000 });
       await expect(page.locator("#played li").first()).toContainText(first);
       await expect(page.locator("#now-meta")).toHaveText(/^(deep house|house)( \+ (deep house|house))? · /);
       await expect(page.locator("#status")).toContainText(/skipped to, (mixed in over two bars|in on the beat)/);
