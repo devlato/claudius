@@ -19,7 +19,7 @@ test.describe("the radio", () => {
       });
       page.on("pageerror", (e) => problems.push(e.message));
       await page.goto("/radio/?soon");
-      await expect(page.locator("h1")).toHaveText("claudius radio");
+      await expect(page.locator("h1")).toHaveText("Infinite Radio");
       await page.locator("#tune").click();
       // the first song: written, rendered and playing
       await expect(page.locator("#tune")).toHaveText("Pause", { timeout: 120_000 });

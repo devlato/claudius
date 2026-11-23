@@ -1114,7 +1114,7 @@ impl Studio {
                         self.view.keys.open = true;
                         ui.close();
                     }
-                    if ui.button("Radio…").on_hover_text(RADIO_TIP).clicked() {
+                    if ui.button("Infinite Radio…").on_hover_text(RADIO_TIP).clicked() {
                         self.view.radio.open = true;
                         ui.close();
                     }

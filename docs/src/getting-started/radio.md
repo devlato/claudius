@@ -1,6 +1,6 @@
-# The radio
+# Infinite Radio
 
-[claudius radio](https://claudius.devlato.com/radio/) is a station of songs claudius writes as it plays them, one
+[Infinite Radio](https://claudius.devlato.com/radio/) is a station of songs claudius writes as it plays them, one
 genre after another, each mixed into the next as a DJ mixes records. Nothing on it is recorded: the engine of the
 [studio demo](studio.md) writes and renders every song in the page, while the one before it plays, and the page plays
 them on two decks of its own (Web Audio).
@@ -55,7 +55,7 @@ starts on its genres. Opening the list before tuning in starts the engine, which
 
 ## In the app
 
-The studio app has the radio too: **Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an engine of its
+The studio app has Infinite Radio too: **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an engine of its
 own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the genres to
 keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open it in the studio**, which makes the song on
 air the studio's (undo brings back the song you had). Your song and the radio take turns: playing one pauses the other.
