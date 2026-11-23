@@ -1239,12 +1239,20 @@ pub fn vocals_into(bp: &mut Blueprint, src: &Source, g: &GenreProfile, dir: &Pat
     bp.harmony.progressions = progressions;
     bp.harmony.bars_per_chord = if per == Per::Two { 2 } else { 1 };
     (bp.bpm, bp.key, bp.swing) = (bpm, a.key, a.swing);
-    // a take of the song's own plays on from its first section, as the sections it started in are gone
+    // a take of the song's own plays on from its first section: the sections it started in are gone, and a section of
+    // the new form with an old one's name ("verse") is another stretch of the song; the first section plays it, so that
+    // it starts from its own start
     let first = bp.form.first().map(|s| s.name.clone());
-    let sections: Vec<String> = bp.form.iter().map(|s| s.name.clone()).collect();
     let takes: Vec<String> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.clone()).collect();
-    for l in bp.loops.iter_mut().filter(|l| l.from.as_ref().is_some_and(|f| !sections.contains(f))) {
+    for l in bp.loops.iter_mut().filter(|l| l.from.is_some()) {
         l.from = first.clone();
+    }
+    if let Some(s) = bp.form.first_mut() {
+        for t in &takes {
+            if !s.layers.contains(t) {
+                s.layers.push(t.clone());
+            }
+        }
     }
     bp.loops.push(LoopPart {
         name: track.clone(),
@@ -2308,6 +2316,49 @@ mod tests {
         assert_eq!((lp.role.as_str(), lp.sampled), ("vocal", true));
         // the song's own drums play on under it
         assert!(bp.form.iter().any(|f| f.layers.iter().any(|l| bp.drums.iter().any(|d| d.name == *l))));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_song_s_own_takes_play_on_from_its_first_section_though_a_new_section_has_their_old_one_s_name() {
+        let (x, s) = (recording(), recording_apart());
+        let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
+        let g = crate::genres::get("boom_bap").unwrap();
+        let mut bp = compose::generate(&g, 7, &Options::default(), None);
+        let dir = std::env::temp_dir().join(format!("claudius-vocals-takes-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
+        // the song's second section called as the new form's second will be, and a take started there
+        let mut probe = bp.clone();
+        vocals_into(&mut probe, &src, &g, &dir).unwrap();
+        let called = probe.form[1].name.clone();
+        bp.form[1].name = called.clone();
+        bp.form[1].layers.push("take1".into());
+        bp.loops.push(LoopPart {
+            name: "take1".into(),
+            role: "vocal".into(),
+            sound: Sound::Loop {
+                path: dir.join("take1.wav").to_string_lossy().into_owned(),
+                bpm: bp.bpm,
+                beats: 64.0,
+                key: None,
+                tonal: false,
+                label: "take1".into(),
+            },
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.0,
+            retime: false,
+            mix: voice_mix(),
+            from: Some(called.clone()),
+            sampled: false,
+        });
+        vocals_into(&mut bp, &src, &g, &dir).unwrap();
+        let lp = bp.loops.iter().find(|l| l.name == "take1").unwrap();
+        assert_eq!(lp.from.as_deref(), Some(bp.form[0].name.as_str()), "from the first section, not the new {called}");
+        assert!(bp.form[0].layers.iter().any(|l| l == "take1"), "the first section plays it: {:?}", bp.form[0].layers);
+        let p = compose::arrange(&bp);
+        let t = p.tracks.iter().find(|t| t.name == "take1").expect("the take plays");
+        assert_eq!((t.clips[0].t, t.clips[0].offset), (0.0, 0.0), "from its own start: {:?}", t.clips);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
