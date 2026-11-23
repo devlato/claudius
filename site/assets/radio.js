@@ -641,10 +641,14 @@ function station() {
  *  of it) and in a key of the same notes; else another tempo and key, which comes in after an echo or a stop */
 function plan(now) {
   const all = station();
-  const other = all.filter((g) => g.name !== now.genre);
+  // a fused song (`house+techno`) was each of its genres: none of them follows it while another can, and where none other
+  // can (a station of those two), the one that led it does not
+  const played = now.genre.split("+");
+  const other = all.filter((g) => !played.includes(g.name));
   // a station of a few genres plays them again sooner than every fifth song, and one of a single genre plays only it
   const fresh = other.filter((g) => !recent.includes(g.name));
-  const pool = fresh.length ? fresh : other.length ? other : all;
+  const notLead = all.filter((g) => g.name !== played[0]);
+  const pool = fresh.length ? fresh : other.length ? other : notLead.length ? notLead : all;
   const seed = 1 + Math.floor(Math.random() * 999_999);
   const fits = (g, bpm) => bpm >= g.bpm[0] * 0.98 && bpm <= g.bpm[1] * 1.02;
   const mixable = [];

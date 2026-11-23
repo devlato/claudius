@@ -198,12 +198,17 @@ impl Station {
     /// built on samples are written on its own sounds alone (`SAMPLED`).
     pub fn next(&mut self, genre: &str, bpm: f64, key: Key) -> Option<Spec> {
         let all = self.genres();
-        let other: Vec<&GenreInfo> = all.iter().copied().filter(|g| g.name != genre).collect();
+        // a fused song (`house+techno`) was each of its genres: none of them follows it while another can, and where
+        // none other can (a station of those two), the one that led it does not
+        let played: Vec<&str> = genre.split('+').collect();
+        let other: Vec<&GenreInfo> = all.iter().copied().filter(|g| !played.contains(&g.name.as_str())).collect();
         let fresh: Vec<&GenreInfo> = other.iter().copied().filter(|g| !self.recent.contains(&g.name)).collect();
-        let pool: Vec<GenreInfo> = match (fresh.is_empty(), other.is_empty()) {
-            (false, _) => fresh.into_iter().cloned().collect(),
-            (true, false) => other.into_iter().cloned().collect(),
-            (true, true) => all.into_iter().cloned().collect(),
+        let not_lead: Vec<&GenreInfo> = all.iter().copied().filter(|g| g.name != played[0]).collect();
+        let pool: Vec<GenreInfo> = match (fresh.is_empty(), other.is_empty(), not_lead.is_empty()) {
+            (false, _, _) => fresh.into_iter().cloned().collect(),
+            (true, false, _) => other.into_iter().cloned().collect(),
+            (true, true, false) => not_lead.into_iter().cloned().collect(),
+            (true, true, true) => all.into_iter().cloned().collect(),
         };
         if pool.is_empty() {
             return None;
@@ -991,6 +996,27 @@ mod tests {
         for _ in 0..60 {
             now = s.next(&now.genre, now.bpm, key).unwrap();
             assert!(!now.genre.contains('+'), "{now:?}");
+        }
+    }
+
+    #[test]
+    fn a_fused_song_is_followed_by_none_of_its_genres_while_another_can_follow_it() {
+        // as the app and the radio page call it: with the fused song's own name
+        let key = Key { tonic: 9, minor: true };
+        let mut s = Station::new(&genres(), 11);
+        s.keep_to(["house".to_string(), "techno".to_string(), "deep_house".to_string()]);
+        let _ = s.first();
+        for _ in 0..60 {
+            let next = s.next("house+techno", 124.0, key).unwrap();
+            assert_eq!(next.genre.split('+').next(), Some("deep_house"), "the third genre: {next:?}");
+        }
+        // a station of the two: the one that did not lead the fusion
+        let mut s = Station::new(&genres(), 12);
+        s.keep_to(["house".to_string(), "techno".to_string()]);
+        let _ = s.first();
+        for _ in 0..60 {
+            let next = s.next("house+techno", 124.0, key).unwrap();
+            assert_eq!(next.genre.split('+').next(), Some("techno"), "not house again: {next:?}");
         }
     }
 
