@@ -333,6 +333,8 @@ pub(crate) enum Run {
     Render,
     Record,
     AddRecording,
+    /// the Add a track window
+    AddTrack,
     Phone,
     Paint,
     Tab(Tab),
@@ -447,6 +449,7 @@ pub(crate) fn works(run: &Run, now: &Now) -> bool {
         | Run::Render
         | Run::Record
         | Run::AddRecording
+        | Run::AddTrack
         | Run::Paint
         | Run::Tab(_)
         | Run::View(_)
@@ -511,6 +514,7 @@ pub(crate) fn run_of(id: &str) -> Option<Run> {
         "render" => Run::Render,
         "record" => Run::Record,
         "add_recording" => Run::AddRecording,
+        "add_track" => Run::AddTrack,
         "phone" => Run::Phone,
         "paint" => Run::Paint,
         "flow_large" | "tab:flow" => Run::View(Main::Flow),
@@ -766,6 +770,7 @@ pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
         Run::Render => cx.out.push(Command::Render { stems: false }),
         Run::Record => cx.view.record.show(),
         Run::AddRecording => cx.view.import.open = true,
+        Run::AddTrack => cx.view.add_track.open = true,
         Run::Phone => cx.view.phone.show(cx.state.phone.is_some()),
         Run::Paint => cx.view.paint = !cx.view.paint,
         // the dock is drawn with the arrangement only: a tab picked shows it again

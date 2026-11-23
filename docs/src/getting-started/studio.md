@@ -115,17 +115,18 @@ too; the same key again, or Escape, comes back to the arrangement).
   rest the same. Drag a section to move it; right-click it to duplicate it, split it at the bar you clicked, insert
   one after it or remove it (the inspector's **Split** halves the section you have selected). A split section plays on
   as it played: the second part takes each recording from where the section had reached it, and keeps the build-up.
-  **+ Track** adds a track: one
-  [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
+  **+ Add a track**, under the tracks (or **Add a track...** in the [command palette](#asking-in-your-own-words)), opens
+  **Add a track**, a card for each kind of track: one
+  [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (**A part**: a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
-  that role) or a drum lane to fill in under Drums, its name, and its sound, from the synths made for the role, the
+  that role) or a drum lane to fill in under Drums (**A drum lane**), its name, and its sound, from the synths made for the role, the
   installed instruments, or the drum voices and kits (searched by name and by what you mean: "warm and round" finds
   sounds no word of which says so, under **near what you mean**, as the styles and the script's sounds do too); a new
   track plays in the sections with energy 0.6 or more,
-  ready for you to move. Its **Recording** tab adds a song or a sound instead: **Choose a file on this computer...**,
+  ready for you to move. Its **A recording** card adds a song or a sound instead: **Choose a file on this computer...**,
   a search of the [free libraries](../guide/online-samples.md#choosing-one-in-the-studio) to hear and choose from, or
   **Record one...**, each in the window it goes in by (Add a recording, or Record), to add it whole as a take or
-  sample its vocals. Its **Sampled** tab finds one for you: choose **A break**, **A phrase**, **A texture**, **A
+  sample its vocals. Its **Sampled** card finds one for you: choose **A break**, **A phrase**, **A texture**, **A
   voice** or **A stab**, and **Find one** searches the free libraries with the words the song's genre's producers dig
   with for that part (or yours, typed), and opens Add a recording on the first recording found, the way to sample it
   chosen (a break among its pieces, a phrase played through as a passage, a texture whole, a voice through the song, or
@@ -296,7 +297,7 @@ with its new verdict. An assistant has them as `quick_fix`.
 
 ## Writing a track in a style
 
-**+ Track**, then **In a style**, writes a track the way a genre plays it, into the song as it is: its key, its
+**+ Add a track**, then **In a style**, writes a track the way a genre plays it, into the song as it is: its key, its
 chords and its form. Choose what (drums, percussion, bass, chords, keys, pad, strings, lead or arp) and the genre,
 the song's own or any other, and press **Generate**. A part is written as that genre's own part of the role is: in its
 idiom (reggae's one drop, funk's slap, the dembow, a jazz walk, a trap 808 ...), on a sound from its palette, in its

@@ -27,6 +27,9 @@
 //! vocals button samples it; the pieces offered go out as `pieces: ...`), `import:pieces` (every kind of piece of it
 //! offered, as the Pieces of it card's button offers them), `import:hear:<n>[:treated]` (the Sample
 //! window's piece n played, as its button plays it; that it plays, or why not, goes out as `hearing: ...`),
+//! `genre:<name>` (the New song dialog's genre and those fused with it, `trip_hop+neo_soul+idm`, More options open
+//! when fused), `changegenre` (the Change the genre window, on the song's genre), `addtrack:<kind>` (the Add a track
+//! window on its `style`, `part`, `drum`, `sampled` or `recording` card),
 //! `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
 //! input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
@@ -50,6 +53,9 @@ pub enum Step {
     Genre(String),
     /// the Change the genre window, opened on the song's genre, as the genre under its title opens it
     ChangeGenre,
+    /// the Add a track window, on a kind of track (`style`, `part`, `drum`, `sampled`, `recording`), as + Add a track
+    /// and its cards open it
+    AddTrack(String),
     Close,
     Send(Command),
     Size(f32, f32),
@@ -257,6 +263,7 @@ impl Plan {
             "newsong" => Some(Step::NewSong),
             "genre" => Some(Step::Genre(arg.to_string())),
             "changegenre" => Some(Step::ChangeGenre),
+            "addtrack" => Some(Step::AddTrack(arg.to_string())),
             "tour" => Some(Step::Tour(arg.parse().unwrap_or(0))),
             "assistants" => Some(Step::Assistants),
             "publish" => Some(Step::Publish),

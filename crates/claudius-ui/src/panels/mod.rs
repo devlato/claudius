@@ -431,6 +431,8 @@ pub enum Gesture {
 /// a new track, as the arrangement's "+ Track" menu is filling it in
 #[derive(Default)]
 pub struct AddTrackForm {
+    /// the Add a track window, open
+    pub open: bool,
     pub kind: AddKind,
     /// what a generated track is (drums, bass, strings ...), and the genre it is written in (empty: the song's)
     pub what: String,
@@ -450,7 +452,7 @@ pub struct AddTrackForm {
     pub sample: String,
 }
 
-/// what the "+ Track" menu adds
+/// what the Add a track window adds
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AddKind {
     /// a track written the way a genre plays it (`Command::GenerateTrack`)
@@ -697,7 +699,7 @@ impl View {
     }
 
     /// the windows Escape closes, each by a name, and whether it is open
-    fn closable(&mut self) -> [(&'static str, &mut bool); 10] {
+    fn closable(&mut self) -> [(&'static str, &mut bool); 11] {
         [
             ("keys", &mut self.keys.open),
             ("chat", &mut self.chat.open),
@@ -709,6 +711,7 @@ impl View {
             ("record", &mut self.record.open),
             ("new song", &mut self.new_song.open),
             ("change genre", &mut self.change_genre.open),
+            ("add track", &mut self.add_track.open),
         ]
     }
 
