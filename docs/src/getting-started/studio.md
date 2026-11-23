@@ -364,7 +364,7 @@ when you have changed the song. A project that holds no `blueprint.json`, or pla
 opened.
 
 The demo opens on the song its address names, which its engine writes again from the same genre and seed:
-[Infinite Radio](radio.md)'s **Open it in the studio** links a song it plays that way
+[Infinite Radio](radio.md)'s **Open in the studio** links a song it plays that way
 (`/studio/?mock&genre=deep_house&seed=812&bpm=121.5&key=F+minor&sampled=0`, each as
 [`new_song`](../guide/mcp.md) takes it). Without a genre it opens its own first song.
 
