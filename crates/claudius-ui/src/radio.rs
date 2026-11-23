@@ -105,7 +105,7 @@ impl Engine {
 /// already holds, else what stands in for samples in its genre.
 fn gather(lib: &Library, spec: &Spec, budget: Duration) {
     let Ok(g) = claudius::genres::get(&spec.genre) else { return };
-    if !claudius::sampling::sampled(&g, None, None) {
+    if !claudius::sampling::sampled(&g, spec.sampled, None) {
         return;
     }
     let until = Instant::now() + budget;
@@ -132,7 +132,7 @@ fn make(host: &mut Host, spec: &Spec) -> Result<Box<Made>, String> {
         bpm: Some(spec.bpm),
         key: spec.key.map(|k| k.name()),
         loops: false,
-        sampled: None,
+        sampled: spec.sampled,
         sample_search: None,
         complexity: None,
     });
@@ -365,7 +365,7 @@ impl Radio {
         };
         let into_a = clock.saturating_sub(a.start) as usize;
         let c = if std::mem::take(&mut self.skipping) {
-            radio::cut(&a.made.song, &made.song, into_a)
+            radio::cut(&a.made.song, &made.song, into_a, made.spec.how)
         } else {
             radio::change(&a.made.song, &made.song, made.spec.how, into_a + (AHEAD * SRF) as usize)
         };
@@ -478,7 +478,9 @@ fn save(dir: &Path, audio: &Stereo, title: &str, credits: &str) -> Result<PathBu
 
 /// a genre's name as people say it
 pub fn said(genre: &str) -> String {
-    if genre == "dnb" { "drum and bass".into() } else { genre.replace('_', " ") }
+    let one = |g: &str| if g == "dnb" { "drum and bass".to_string() } else { g.replace('_', " ") };
+    // a fusion as its genres: "trip hop + idm"
+    genre.split('+').map(one).collect::<Vec<_>>().join(" + ")
 }
 
 /// The stream's pieces that a change at `change_at` keeps, the stream being at `clock`: those still to sound or
@@ -547,12 +549,15 @@ mod tests {
         let at = n.change_at as f64 + if echoed { bar / 4.0 } else { 0.0 };
         assert!((at / bar - (at / bar).round()).abs() < 1e-3, "on a bar line: {} bars", at / bar);
         assert!(r.coming().is_some_and(|c| c.contains("from now")), "{:?}", r.coming());
-        // a skip: the next song in on the playing one's next beat, from its start
+        // a skip: the next song in from the playing one's next beat, mixed in over two bars when it was to blend (the
+        // playing song up to the change, the change, the next from where it goes on), else after an echo, at once
         r.skip();
         let n = r.next.as_ref().unwrap();
         assert!(n.made.info.genre == "house" && n.said.starts_with("skipped to"), "{}", n.said);
+        assert_eq!(n.blended, n.said == "skipped to, mixed in over two bars", "{}", n.said);
         let program = r.player.program();
-        assert_eq!((program.len(), program[0].at), (2, 0), "the cut from the stream's start, then the next song");
+        let pieces = if n.blended { 3 } else { 2 };
+        assert_eq!((program.len(), program[0].at), (pieces, 0), "{}: from the stream's start", n.said);
         // the studio opens the song on air itself, not the same seed again
         let studio = r.studio().unwrap();
         let Command::OpenText { name, text } = studio else { panic!("{studio:?}") };
@@ -600,7 +605,8 @@ mod tests {
         let phrase = gathered(&dir);
         let mut host = Host::new(1);
         host.use_library(Arc::new(Library::with_prepared(vec![phrase.clone()])));
-        let spec = Spec { genre: "trip_hop".into(), bpm: 90.0, key: None, seed: 7, how: radio::How::Echo };
+        let spec =
+            Spec { genre: "trip_hop".into(), bpm: 90.0, key: None, seed: 7, how: radio::How::Echo, sampled: None };
         let made = make(&mut host, &spec).unwrap();
         assert!(made.bp.files().contains(&phrase.path.as_str()), "it plays the phrase: {:?}", made.bp.files());
         assert_eq!(made.info.sampled, ["\"Dusty Chords\" by someone, CC BY 4.0"]);
@@ -609,7 +615,8 @@ mod tests {
         let credits = std::fs::read_to_string(mp3.with_extension("credits.txt")).unwrap();
         assert!(credits.contains("\"Dusty Chords\" by someone, CC BY 4.0"), "{credits}");
         // a song that samples nothing writes no credits of recordings
-        let spec = Spec { genre: "house".into(), bpm: 124.0, key: None, seed: 3, how: radio::How::Blend };
+        let spec =
+            Spec { genre: "house".into(), bpm: 124.0, key: None, seed: 3, how: radio::How::Blend, sampled: None };
         let house = make(&mut host, &spec).unwrap();
         assert!(house.info.sampled.is_empty(), "{:?}", house.info.sampled);
         std::fs::remove_dir_all(&dir).ok();

@@ -40,14 +40,18 @@ no one is looking at. A song that arrives too late to blend on the outro comes i
 **Genres**, under the controls, keeps the station to the genres chosen: one, and every song is of it, at other tempos
 and in other keys within its range; or a few, each song mixed into the next as before (fewer than five come round
 again sooner than every fifth song). A choice holds from the next song the station writes, and the first song is one
-of them. The address keeps the choice (`/radio/?genres=house,deep_house`), so a station of your own can be shared and
-starts on its genres. Opening the list before tuning in starts the engine, which says what it plays.
+of them. Now and then, about one song in six, a station kept to two genres or more fuses two of them into one song
+(house + techno, as fusions are written in the studio), at the first one's tempo and in its key. The address keeps the
+choice (`/radio/?genres=house,deep_house`), so a station of your own can be shared and starts on its genres. Opening
+the list before tuning in starts the engine, which says what it plays.
 
 ## Skip, keep, open
 
-- **Skip** brings the next song in on the playing one's next beat: the playing song's last beat goes into the echo
-  and it is cut, as an echo out ends a song. While the next song is still being written, it comes in as soon as it
-  is.
+- **Skip** brings the next song in from the playing one's next beat, as a DJ cuts a record short. A song that was to
+  blend in (at the playing one's tempo, in a key of its notes) is mixed in over two bars: its bass held back until the
+  second bar, where the basses swap, and the playing song thinned and faded out under it. Another goes in after the
+  playing song's last beat goes into the echo and it is cut, as an echo out ends a song. While the next song is still
+  being written, it comes in as soon as it is.
 - **Download this song** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo
   exports), and saves it.
 - **Open it in the studio** opens the [studio demo](studio.md#carrying-on-in-claudius) on the same song, which its
@@ -57,8 +61,9 @@ starts on its genres. Opening the list before tuning in starts the engine, which
 
 ## Samples
 
-The station samples as each genre does. Before the engine writes a song of a genre built on samples (trip hop, boom
-bap, lo-fi, phonk and the others whose producers dig for records), the page looks for a few recordings through the
+The station samples as each genre does, but not every song: about two songs in three of a genre built on samples (trip
+hop, boom bap, lo-fi, phonk and the others whose producers dig for records) are built on samples, and the rest on the
+genre's own sounds alone. Before the engine writes a song built on samples, the page looks for a few recordings through the
 site's search of Freesound, Jamendo and Wikimedia Commons (under CC0 or CC BY, as the studio demo does): two of each of
 the genre's searches for each part it samples, in an order of the song's own. The engine chooses which of each search's
 finds are worth fetching (of a length the part takes, and none whose own words say it was cut from someone's record),

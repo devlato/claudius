@@ -31,6 +31,10 @@ const MINOR: [&str; 8] =
 const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 /// how many genres the station keeps from coming round again too soon
 const RECENT: usize = 4;
+/// how many of the songs of a genre built on samples sample, the rest written on the genre's own sounds alone
+const SAMPLED: f64 = 2.0 / 3.0;
+/// how often a station that keeps to two genres or more plays a song fusing two of them
+const FUSED: f64 = 1.0 / 6.0;
 
 /// A key as the station hears one: its tonic and whether its third is minor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,11 +106,15 @@ pub enum How {
 /// A song the station asks the engine for, as `new_song` takes it, and how it comes in.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Spec {
+    /// a genre, or two fused (`house+techno`)
     pub genre: String,
     pub bpm: f64,
     pub key: Option<Key>,
     pub seed: u64,
     pub how: How,
+    /// whether it samples: none, as its genre does; `Some(false)` for the songs of a genre built on samples written
+    /// on its own sounds alone, a third of them (`SAMPLED`)
+    pub sampled: Option<bool>,
 }
 
 /// The station: the genres it plays, those it keeps to, and those it played last.
@@ -154,12 +162,14 @@ impl Station {
         let openers: Vec<&GenreInfo> = genres.iter().filter(|g| OPENERS.contains(&g.name.as_str())).collect();
         let all: Vec<&GenreInfo> = genres.iter().collect();
         let g = (*self.rng.pick(if openers.is_empty() { &all } else { &openers })).clone();
+        let sampled = self.sampled(&g);
         let spec = Spec {
             genre: g.name.clone(),
             bpm: ((g.bpm.0 + g.bpm.1) / 2.0).round(),
             key: None,
             seed: self.seed(),
             how: How::Echo,
+            sampled,
         };
         self.remember(&g.name);
         Some(spec)
@@ -168,7 +178,9 @@ impl Station {
     /// What to play after a song of `genre` at `bpm` in `key`: most of the time a genre whose tempo range takes it (or
     /// twice or half of it), written at exactly that tempo and in a key of the same notes, which blends in; else
     /// another genre at a tempo of its own and any key, which comes in after an echo or a stop. A station of a few
-    /// genres plays them again sooner, and one of a single genre plays only it.
+    /// genres plays them again sooner, and one of a single genre plays only it. Now and then (`FUSED`), a station that
+    /// keeps to two genres or more fuses the genre chosen with another of them; and a third of the songs of a genre
+    /// built on samples are written on its own sounds alone (`SAMPLED`).
     pub fn next(&mut self, genre: &str, bpm: f64, key: Key) -> Option<Spec> {
         let all = self.genres();
         let other: Vec<&GenreInfo> = all.iter().copied().filter(|g| g.name != genre).collect();
@@ -187,24 +199,43 @@ impl Station {
             .iter()
             .flat_map(|g| [1.0, 2.0, 0.5].into_iter().filter(move |f| fits(g, bpm * f)).map(move |f| (g, bpm * f)))
             .collect();
-        let spec = if !mixable.is_empty() && self.rng.chance(BLEND) {
+        let (g, mut spec) = if !mixable.is_empty() && self.rng.chance(BLEND) {
             let (g, bpm) = *self.rng.pick(&mixable);
-            Spec {
+            let spec = Spec {
                 genre: g.name.clone(),
                 bpm: (bpm * 10.0).round() / 10.0,
                 key: Some(key.next(&g.family, &mut self.rng)),
                 seed,
                 how: How::Blend,
-            }
+                sampled: None,
+            };
+            (g.clone(), spec)
         } else {
             let g = self.rng.pick(&pool).clone();
             let bpm = self.rng.range(g.bpm.0, g.bpm.1).round();
             let key = Key { tonic: self.rng.below(12) as u8, minor: MINOR.contains(&g.family.as_str()) };
             let how = if self.rng.chance(BRAKE) { How::Brake } else { How::Echo };
-            Spec { genre: g.name, bpm, key: Some(key), seed, how }
+            let spec = Spec { genre: g.name.clone(), bpm, key: Some(key), seed, how, sampled: None };
+            (g, spec)
         };
-        self.remember(&spec.genre);
+        spec.sampled = self.sampled(&g);
+        self.remember(&g.name);
+        // another of the genres it keeps to, fused into it now and then
+        let kept: Vec<String> =
+            self.genres().iter().filter(|o| self.keep.contains(&o.name)).map(|o| o.name.clone()).collect();
+        let others: Vec<&String> = kept.iter().filter(|o| **o != g.name).collect();
+        if kept.len() >= 2 && !others.is_empty() && self.rng.chance(FUSED) {
+            let with = (*self.rng.pick(&others)).clone();
+            spec.genre = format!("{}+{with}", g.name);
+        }
         Some(spec)
+    }
+
+    /// whether a song of `g` samples: as the genre does, but for a third of the songs of a genre built on samples,
+    /// written on its own sounds alone
+    fn sampled(&mut self, g: &GenreInfo) -> Option<bool> {
+        let built_on_samples = g.sampling.as_ref().is_some_and(|s| s.by_default);
+        (built_on_samples && !self.rng.chance(SAMPLED)).then_some(false)
     }
 
     fn seed(&mut self) -> u64 {
@@ -271,13 +302,39 @@ pub fn change(a: &Song, b: &Song, how: How, soonest: usize) -> Change {
     }
 }
 
-/// The change for a skip: `a` let go of on its next beat from frame `now` (and a little after, for the change to be
-/// heard where it is made), and `b` in on that beat from its start.
-pub fn cut(a: &Song, b: &Song, now: usize) -> Change {
+/// The change for a skip, from `a`'s next beat after frame `now` (and a little after, for the change to be heard where
+/// it is made): `b`, when it was to blend in (at `a`'s tempo, in a key of its notes), mixed in over two bars as a DJ
+/// cuts a song short (`quick`); else `a`'s last beat into the echo and cut, and `b` in on that beat from its start.
+pub fn cut(a: &Song, b: &Song, now: usize, how: How) -> Change {
     let beat = a.bar() / 4.0;
     let soonest = now as f64 + 0.15 * SRF;
     let at = ((soonest / beat).ceil() * beat).round() as usize;
-    echo_out(a, b, at, 0.0, true)
+    match how {
+        How::Blend => quick(a, b, at),
+        _ => echo_out(a, b, at, 0.0, true),
+    }
+}
+
+/// `b` mixed in under `a` over two of `a`'s bars from `at`, as a DJ cuts a song short: `b` from its start, faded in
+/// over a beat, its bass held back until the second bar, where the basses swap; `a` thinned by a rising high-pass and
+/// faded out over the two bars
+fn quick(a: &Song, b: &Song, at: usize) -> Change {
+    let bar = a.bar();
+    let span = (2.0 * bar).round() as usize;
+    let half = bar.round() as usize;
+    let beat = (bar / 4.0).round() as usize;
+    let swap = half.saturating_sub(beat);
+    let mut b_part = window(&b.audio, 0, span);
+    bass(&mut b_part, |i| ramp_db(i, swap, half, BASS_CUT_DB, 0.0));
+    gain(&mut b_part, |i| if i < beat { power(i as f64 / beat.max(1) as f64, true) } else { 1.0 });
+    let mut a_part = window(&a.audio, at, span);
+    bass(&mut a_part, |i| ramp_db(i, swap, half, 0.0, BASS_CUT_DB));
+    thin(&mut a_part, |i| 10.0 * 80f64.powf(i as f64 / span.max(1) as f64));
+    gain(&mut a_part, |i| power(i as f64 / span.max(1) as f64, false));
+    let mut mixed = Stereo::zeros(span);
+    mixed.mix(&a_part, 1.0);
+    mixed.mix(&b_part, 1.0);
+    Change { at, mixed, then: span, said: "skipped to, mixed in over two bars".into(), blended: true }
 }
 
 /// `b` faded in under `a`'s last `left` bars from `at`, its bass cut, the basses swapping halfway, and `a` thinned out
@@ -527,7 +584,8 @@ mod tests {
         s.keep_to(["house".to_string(), "techno".to_string()]);
         for _ in 0..10 {
             now = s.next(&now.genre, now.bpm, key).unwrap();
-            assert!(now.genre == "house" || now.genre == "techno", "{now:?}");
+            // now and then the two fused
+            assert!(now.genre.split('+').all(|g| g == "house" || g == "techno"), "{now:?}");
         }
     }
 
@@ -607,7 +665,91 @@ mod tests {
     }
 
     fn cut_now(a: &Song, b: &Song, now: usize) -> Change {
-        cut(a, b, now)
+        cut(a, b, now, How::Echo)
+    }
+
+    #[test]
+    fn a_skip_into_a_song_that_was_to_blend_mixes_it_in_over_two_bars_its_basses_swapping_on_the_second() {
+        let a = song(55.0, 120.0, 32, vec![(0, 32, "drop")]);
+        let b = song(82.0, 120.0, 32, vec![(0, 8, "intro"), (8, 24, "drop")]);
+        let (bar, beat) = (2.0 * SRF, 0.5 * SRF);
+        let c = cut(&a, &b, (5.1 * bar) as usize, How::Blend);
+        let beat_at = ((5.1 * bar + 0.15 * SRF) / beat).ceil() * beat;
+        assert_eq!(c.at, beat_at as usize, "from the next beat after the playhead");
+        assert_eq!((c.mixed.len(), c.then), ((2.0 * bar).round() as usize, (2.0 * bar).round() as usize));
+        assert!(c.blended && c.said == "skipped to, mixed in over two bars", "{}", c.said);
+        let n = (beat / 2.0) as usize;
+        // its first bar: the outgoing bass, the next song's top coming in, its bass held back
+        assert!(level(&c.mixed.l, 55.0, (0.25 * bar) as usize, n) > 0.2, "the outgoing bass");
+        assert!(level(&c.mixed.l, 82.0, (0.25 * bar) as usize, n) < 0.03, "the next bass held back");
+        assert!(level(&c.mixed.l, 656.0, (0.5 * bar) as usize, n) > 0.1, "the next song's top");
+        // the second: the basses swapped, and at the end the next song alone
+        assert!(level(&c.mixed.l, 82.0, (1.25 * bar) as usize, n) > 0.35, "the next bass");
+        assert!(level(&c.mixed.l, 55.0, (1.25 * bar) as usize, n) < 0.03, "the outgoing bass cut");
+        let tail = (0.1 * SRF) as usize;
+        assert!(level(&c.mixed.l, 440.0, c.mixed.len() - tail, tail) < 0.01, "the outgoing top faded out");
+        // a song that was not to blend comes in on the beat after an echo, as before
+        assert!(!cut(&a, &b, (5.1 * bar) as usize, How::Echo).blended);
+    }
+
+    /// `genres()` with lofi built on samples, as the engine says trip hop and lo-fi are
+    fn sampling_genres() -> Vec<GenreInfo> {
+        let mut all = genres();
+        for g in all.iter_mut().filter(|g| g.name == "lofi") {
+            g.sampling = Some(claudius_api::GenreSampling { by_default: true, roles: Vec::new() });
+        }
+        all
+    }
+
+    #[test]
+    fn a_third_of_the_songs_of_a_genre_built_on_samples_play_without_and_the_rest_as_their_genres_do() {
+        let mut s = Station::new(&sampling_genres(), 3);
+        s.keep_to(["lofi".to_string()]);
+        let (mut now, mut without) = (s.first().unwrap(), 0);
+        let key = Key { tonic: 9, minor: true };
+        for _ in 0..300 {
+            now = s.next(&now.genre, now.bpm, key).unwrap();
+            assert_eq!(now.genre, "lofi");
+            assert!(matches!(now.sampled, None | Some(false)), "{now:?}");
+            without += (now.sampled == Some(false)) as usize;
+        }
+        assert!((70..=130).contains(&without), "a third without samples: {without} of 300");
+        s.keep_to(["house".to_string()]);
+        for _ in 0..50 {
+            now = s.next(&now.genre, now.bpm, key).unwrap();
+            assert_eq!(now.sampled, None, "house as house does");
+        }
+    }
+
+    #[test]
+    fn a_station_of_two_genres_or_more_fuses_two_of_them_now_and_then_and_one_of_a_single_genre_never() {
+        let mut s = Station::new(&genres(), 5);
+        s.keep_to(["house".to_string(), "techno".to_string(), "deep_house".to_string()]);
+        let (mut now, mut fused) = (s.first().unwrap(), 0);
+        let key = Key { tonic: 9, minor: true };
+        for _ in 0..300 {
+            now = s.next(&now.genre, now.bpm, key).unwrap();
+            let names: Vec<&str> = now.genre.split('+').collect();
+            assert!(names.len() <= 2 && names.iter().all(|n| ["house", "techno", "deep_house"].contains(n)), "{now:?}");
+            if let [a, b] = names[..] {
+                assert_ne!(a, b, "two genres, not one twice");
+                fused += 1;
+            }
+            // what follows it follows the genre it was written at the tempo of
+            now.genre = names[0].to_string();
+        }
+        assert!((25..=80).contains(&fused), "now and then: {fused} of 300");
+        s.keep_to(["house".to_string()]);
+        for _ in 0..60 {
+            now = s.next(&now.genre, now.bpm, key).unwrap();
+            assert_eq!(now.genre, "house", "a single genre is never fused");
+        }
+        // every genre: none kept to, none fused
+        s.keep_to(Vec::<String>::new());
+        for _ in 0..60 {
+            now = s.next(&now.genre, now.bpm, key).unwrap();
+            assert!(!now.genre.contains('+'), "{now:?}");
+        }
     }
 
     #[test]

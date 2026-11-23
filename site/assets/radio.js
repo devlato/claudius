@@ -24,6 +24,10 @@ const LEAVE_OUT = new Set(["ambient", "breakcore", "gabber", "hard_techno", "har
 const OPENERS = ["house", "deep_house", "nu_disco", "hip_hop", "lofi", "afrobeats", "dnb", "synthwave", "trap", "funk"];
 // how often the next song is one that mixes into the playing one beat for beat
 const BLEND = 0.75;
+// how many of the songs of a genre built on samples sample (the rest are written on its own sounds alone), and how
+// often a station kept to two genres or more plays a song fusing two of them
+const SAMPLED = 2 / 3;
+const FUSED = 1 / 6;
 // the bass of a song coming in is cut this far, and the outgoing one's once they swap
 const BASS_CUT_DB = -26;
 // for its tests: the first song starts 20 s before it gives way, so that the next comes in as soon as it is made
@@ -41,7 +45,8 @@ const keepTo = new Set(
 
 const $ = (id) => document.getElementById(id);
 const pick = (xs) => xs[Math.floor(Math.random() * xs.length)];
-const said = (g) => (g === "dnb" ? "drum and bass" : g.replace(/_/g, " "));
+// a genre as people say it, a fusion as its genres: "trip hop + idm"
+const said = (g) => g.split("+").map((x) => (x === "dnb" ? "drum and bass" : x.replace(/_/g, " "))).join(" + ");
 const clock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
 // ---- keys ----
@@ -197,6 +202,8 @@ class Engine {
       // built on samples as its genre is: on the recordings `gather` had cut, else on what stands in for them
       const command = { cmd: "new_song", genre: spec.genre, seed: spec.seed, bpm: spec.bpm };
       if (spec.key) command.key = keyName(spec.key);
+      // a song of a genre built on samples the station writes on the genre's own sounds alone
+      if (spec.sampled === false) command.sampled = false;
       this.post({ what: "new_song", command });
     });
   }
@@ -228,7 +235,7 @@ function seeded(seed) {
  *  song plays what stands in for samples in its genre. */
 async function gather(g, spec, ms) {
   const sampling = g && g.sampling;
-  if (!sampling || !sampling.by_default) return [];
+  if (!sampling || !sampling.by_default || spec.sampled === false) return [];
   const until = performance.now() + ms;
   const r = seeded(spec.seed);
   const kept = [];
@@ -274,7 +281,8 @@ async function gather(g, spec, ms) {
  *  most), then written and rendered (`preview` hears its first bars before); `{ state, audio, samples }`, `samples`
  *  being those of the gathered recordings the song plays (`sampled_from`), each with its role and its record. */
 async function written(spec, ms, preview) {
-  const g = engine.genres.find((x) => x.name === spec.genre);
+  // a fusion samples as its first genre does
+  const g = engine.genres.find((x) => x.name === spec.genre.split("+")[0]);
   const kept = await gather(g, spec, ms);
   const song = await engine.song(spec, preview);
   let samples = [];
@@ -468,9 +476,11 @@ function mix(a, b, how) {
   return { at: next, label: "in as the last song echoed out" };
 }
 
-/** The playing song `a` let go of now and `b` in on its next beat: `a`'s last beat into the echo and cut, as an echo
- *  out does, `b` from its start. What was scheduled for `a` is taken back first. */
-function cut(a, b) {
+/** The playing song `a` let go of from its next beat: `b`, when it was to blend in (`how`: at `a`'s tempo, in a key of
+ *  its notes), mixed in over two bars as a DJ cuts a song short, its bass held back until the second bar, where the
+ *  basses swap, `a` thinned and faded out; else `a`'s last beat into the echo and cut, as an echo out does, `b` from its
+ *  start. What was scheduled for `a` is taken back first. */
+function cut(a, b, how) {
   const now = ctx.currentTime;
   for (const p of [a.fader.gain, a.low.gain, a.thin.frequency, a.send.gain, a.src.playbackRate]) {
     p.cancelScheduledValues(now);
@@ -478,6 +488,21 @@ function cut(a, b) {
   }
   const beat = bar(a) / 4;
   const at = a.t0 + Math.ceil((now + 0.15 - a.t0) / beat) * beat;
+  if (how === "blend") {
+    const span = 2 * bar(a);
+    start(b, at);
+    fade(b.fader.gain, 0, 1, at, beat);
+    b.low.gain.setValueAtTime(BASS_CUT_DB, at);
+    b.low.gain.setValueAtTime(BASS_CUT_DB, at + bar(a) - beat);
+    b.low.gain.linearRampToValueAtTime(0, at + bar(a));
+    a.low.gain.setValueAtTime(0, at + bar(a) - beat);
+    a.low.gain.linearRampToValueAtTime(BASS_CUT_DB, at + bar(a));
+    fade(a.fader.gain, 1, 0, at, span);
+    a.thin.frequency.setValueAtTime(10, at);
+    a.thin.frequency.exponentialRampToValueAtTime(800, at + span);
+    halt(a, at + span + 0.05);
+    return { at, label: "skipped to, mixed in over two bars", blend: true };
+  }
   echo.delay.delayTime.setValueAtTime(0.75 * beat, now);
   a.send.gain.linearRampToValueAtTime(1, at);
   a.fader.gain.setValueAtTime(a.fader.gain.value, at);
@@ -516,14 +541,28 @@ function plan(now) {
   for (const g of pool) {
     for (const f of [1, 2, 0.5]) if (fits(g, now.bpm * f)) mixable.push({ g, bpm: Math.round(now.bpm * f * 10) / 10 });
   }
+  let spec;
   if (mixable.length && Math.random() < BLEND) {
     const m = pick(mixable);
-    return { genre: m.g.name, bpm: m.bpm, key: nextKey(now.key, m.g.family), seed, how: "blend" };
+    spec = { genre: m.g.name, bpm: m.bpm, key: nextKey(now.key, m.g.family), seed, how: "blend" };
+  } else {
+    const g = pick(pool);
+    const bpm = Math.round(g.bpm[0] + Math.random() * (g.bpm[1] - g.bpm[0]));
+    const key = { tonic: Math.floor(Math.random() * 12), minor: MINOR.has(g.family) };
+    spec = { genre: g.name, bpm, key, seed, how: Math.random() < 0.2 ? "brake" : "echo" };
   }
-  const g = pick(pool);
-  const bpm = Math.round(g.bpm[0] + Math.random() * (g.bpm[1] - g.bpm[0]));
-  const key = { tonic: Math.floor(Math.random() * 12), minor: MINOR.has(g.family) };
-  return { genre: g.name, bpm, key, seed, how: Math.random() < 0.2 ? "brake" : "echo" };
+  return touched(spec);
+}
+
+/** `spec` as the station plays it: a third of the songs of a genre built on samples written on its own sounds alone,
+ *  and now and then, on a station kept to two genres or more, its genre fused with another of them */
+function touched(spec) {
+  const g = engine.genres.find((x) => x.name === spec.genre);
+  if (g && g.sampling && g.sampling.by_default && Math.random() >= SAMPLED) spec.sampled = false;
+  const kept = engine.genres.filter((x) => keepTo.has(x.name)).map((x) => x.name);
+  const others = kept.filter((n) => n !== spec.genre);
+  if (kept.length >= 2 && others.length && Math.random() < FUSED) spec.genre = `${spec.genre}+${pick(others)}`;
+  return spec;
 }
 
 function remember(genre) {
@@ -547,12 +586,12 @@ async function queue() {
   if (!onAir) return;
   const spec = plan(onAir);
   planned = spec;
-  remember(spec.genre);
+  remember(spec.genre.split("+")[0]);
   try {
     const song = await written(spec, GATHER);
     const b = deck(song.state, song.audio, spec);
     b.samples = song.samples;
-    const m = skipping ? cut(onAir, b) : mix(onAir, b, spec.how);
+    const m = skipping ? cut(onAir, b, spec.how) : mix(onAir, b, spec.how);
     skipping = false;
     next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: m.blend };
     planned = null;
@@ -637,8 +676,9 @@ function skip() {
   // its source was scheduled to start later: it never starts, and a fresh deck plays the song
   halt(next.deck, ctx.currentTime);
   const b = again(next.deck);
-  const m = cut(onAir, b);
-  next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: false };
+  // a song that was to blend in mixes in over two bars; one that was not echoes in on the beat
+  const m = cut(onAir, b, next.deck.spec.how);
+  next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: !!m.blend };
 }
 
 /** the song on air as a file to keep: its audio, as it plays, encoded in the engine's worker */
