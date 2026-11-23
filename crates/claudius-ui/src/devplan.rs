@@ -5,7 +5,8 @@
 //! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, what the What claudius hears window shows (its
 //! tempo, key and bars, and what plays where) as `hears: ...`, each toast as `toast: ...`, the graph's node chosen as
-//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, and what
+//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, that the
+//! player holds the song as it is, ready to play, as `audio: loaded`, and what
 //! the command palette shows as `palette: ...` (that it listens, that it hears what was said, or the words in its field
 //! and the first row they find).
 //! Steps: `wait:<s>`, `await:<thing>` (on once the plan has said something new of it, as `analysis: ...`; two minutes
