@@ -9,6 +9,7 @@ extend-ignore-re = [
 [default.extend-words]
 arange = "arange"     # numpy.arange, in the earshot port
 caf = "caf"           # Core Audio Format, the Apple Loops container
+calle = "calle"       # Spanish "street", in song names (titles.rs: "Calle 9")
 existant = "existant" # mdBook's own CSS variable, --sidebar-non-existant
 fo = "fo"             # fade-out length
 formant = "formant"   # a resonance of the vocal tract, which shapes a voice's timbre
@@ -17,11 +18,13 @@ lsat = "lsat"         # a slip the palette reads as "last", in its tests
 nam = "nam"           # Juhan Nam, who made All-In-One with Taejun Kim (Kim and Nam 2023), cited in design record 0022
 nd = "nd"             # a new scale degree; the ordinal suffix
 seeked = "seeked"     # the media element event
+som = "som"           # Portuguese "sound", in song names (titles.rs: "Sobe o Som")
 stlye = "stlye"       # a misspelled option in a test of the error it gives
 tak = "tak"           # TAK, a lossless audio format, as ffmpeg names its demuxer
 thr = "thr"           # threshold
 tpe = "tpe"           # TPE1, ID3's frame for the artist
 trak = "trak"         # a misspelled function in an example of an error
+vai = "vai"           # Portuguese "goes", in song names (titles.rs: "Vai Descendo")
 weeknd = "weeknd"     # The Weeknd, an artist alternative R&B is searched by
 whistel = "whistel"   # a slip the palette reads as "whistle", in its tests and docs
 
