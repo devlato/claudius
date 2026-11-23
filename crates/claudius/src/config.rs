@@ -215,9 +215,17 @@ pub mod cache {
 
 pub const APPLE_LOOP_DIRS: &[&str] = &["/Library/Audio/Apple Loops"];
 
-/// where songs are saved unless told otherwise: ~/Music/claudius (./out without a Music folder)
+/// where songs are saved unless told otherwise: the computer's Music folder's `claudius` (`songs_dir_of`)
 pub fn songs_dir() -> PathBuf {
-    dirs::audio_dir().map(|d| d.join("claudius")).unwrap_or_else(|| PathBuf::from("out"))
+    songs_dir_of(dirs::audio_dir(), dirs::home_dir())
+}
+
+/// The songs' folder with `music` the computer's Music folder and `home` its home: `claudius` in the Music folder; on
+/// a computer that says of none (a Linux computer whose user folders were never set up: a server, a container, a
+/// fresh account), in `~/Music`, as everywhere else and as the docs say; `out` in the working folder only with no home
+/// at all.
+pub fn songs_dir_of(music: Option<PathBuf>, home: Option<PathBuf>) -> PathBuf {
+    music.or_else(|| home.map(|h| h.join("Music"))).map_or_else(|| PathBuf::from("out"), |d| d.join("claudius"))
 }
 
 /// the folders a claudius shared beyond this computer may read and write: saved songs, its own caches, and the sound
@@ -401,5 +409,17 @@ mod tests {
         assert_eq!(e, "there is not room for it on the disk: it takes about 1.0 GB, and 1.1 GB is free");
         assert!(room_for(&std::env::temp_dir().join("not yet/made"), u64::MAX / 4).is_err());
         assert_eq!([size(340_400_000), size(1_234_000_000), size(4_200_000)], ["340 MB", "1.2 GB", "4.2 MB"]);
+    }
+
+    #[test]
+    fn songs_go_in_the_music_folder_and_in_home_s_music_where_the_computer_says_of_none() {
+        let (music, home) = (PathBuf::from("/Users/me/Music"), PathBuf::from("/home/me"));
+        assert_eq!(songs_dir_of(Some(music.clone()), Some(home.clone())), music.join("claudius"));
+        assert_eq!(
+            songs_dir_of(None, Some(home)),
+            PathBuf::from("/home/me/Music/claudius"),
+            "user folders never set up"
+        );
+        assert_eq!(songs_dir_of(None, None), PathBuf::from("out"), "no home at all");
     }
 }
