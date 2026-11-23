@@ -45,6 +45,11 @@ pub enum Step {
     Pause,
     Seek(f64),
     NewSong,
+    /// the New song dialog's genre and those fused with it, by the fusion's name (`trip_hop+neo_soul+idm`), its More
+    /// options open when there are some fused, as choosing them there does
+    Genre(String),
+    /// the Change the genre window, opened on the song's genre, as the genre under its title opens it
+    ChangeGenre,
     Close,
     Send(Command),
     Size(f32, f32),
@@ -250,6 +255,8 @@ impl Plan {
             "pause" => Some(Step::Pause),
             "seek" => Some(Step::Seek(arg.parse().unwrap_or(0.0))),
             "newsong" => Some(Step::NewSong),
+            "genre" => Some(Step::Genre(arg.to_string())),
+            "changegenre" => Some(Step::ChangeGenre),
             "tour" => Some(Step::Tour(arg.parse().unwrap_or(0))),
             "assistants" => Some(Step::Assistants),
             "publish" => Some(Step::Publish),

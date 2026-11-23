@@ -675,6 +675,15 @@ impl Studio {
                 Step::Pause => self.player.pause(),
                 Step::Seek(s) => self.player.seek(s),
                 Step::NewSong => self.view.new_song.open = true,
+                Step::Genre(name) => {
+                    self.view.new_song.set_genre(&name);
+                    self.view.new_song.more = Some(name.contains('+'));
+                }
+                Step::ChangeGenre => {
+                    if let Some(song) = &self.state.song {
+                        self.view.change_genre.open_on(&song.genre);
+                    }
+                }
                 Step::Close => self.view.new_song.open = false,
                 Step::Send(c) => self.out.push(c),
                 Step::Size(w, h) => ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(vec2(w, h))),

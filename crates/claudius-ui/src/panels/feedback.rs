@@ -193,6 +193,10 @@ mod tests {
         assert!(left_out.get("version").is_none() && left_out.get("os").is_none() && left_out.get("song").is_none());
         // a fusion goes as it is named; a genre of one's own named otherwise stays out, so the message is still taken
         assert_eq!(message("x", "", Some(Some("trip_hop+idm")), false)["song"], "trip_hop+idm");
+        assert_eq!(
+            message("x", "", Some(Some("trip_hop+neo_soul+dub_techno+idm")), false)["song"],
+            "trip_hop+neo_soul+dub_techno+idm"
+        );
         assert!(message("x", "", Some(Some("My Genre!")), false).get("song").is_none());
         assert!(message("x", "", Some(None), false).get("song").is_none(), "no song open");
     }

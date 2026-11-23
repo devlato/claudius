@@ -39,8 +39,9 @@ past what the words find, the genres near what they mean come under **near what 
 that reads meaning is on your computer, as for the [command palette](#asking-in-your-own-words). Under **More
 options**, which says what of it is set, it asks for a seed, tempo
 and key and the rest below. The same genre and seed always give the same
-song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads
-the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). **Samples**,
+song, so a seed is a way to come back to one you liked. **Fused with** fuses other genres into it, as many as you
+like (a click on one takes it out): the first leads the song, the last fused plays the drums (**Drums from** chooses
+which, once there are two), and each lends its sounds ([Fusions](../cookbook/fusions.md)). **Samples**,
 **auto-sample from free libraries**, builds the song on recordings from free libraries, as records built on samples
 are: a phrase it takes its key, tempo and chords from, a drum break, a texture. It starts ticked for the genres built
 on samples (trip-hop, boom bap, lo-fi, jungle, big beat, filter house), and for any other genre you tick it. Its field
@@ -53,7 +54,8 @@ percussion; ticked, it is as the genre writes it ([How layered a song is](../lea
 and it goes on as a recording chosen does, with the same choices below (in a browser, allow the page to use the
 microphone when it asks). **From a recording**: **Choose a file**, then what to do with it, and the button under the
 choices does it. **Remake
-it as** the genre (chosen beside it) reworks it so that it stays the song it is: all of it plays through, its voice
+it as** the genre (chosen beside it, with any fused with it under **Fused with**) reworks it so that it stays the song
+it is: all of it plays through, its voice
 and its chords as they are without its drums and its bass, in its own sections and on its chords, with the genre's
 drums and bass under it. **Flip it into** a song of the genre makes a new one on its sound instead: its hook and passage
 after passage of it, each section on as many of its bars on end as it has, its voice in them, its drums and a flip cut
@@ -205,7 +207,8 @@ without the ears, so they take a while longer.
 ### Changing the genre
 
 The genre under the song's title, or **Change the genre…** at the foot of **Variations**, opens **Change the genre**:
-choose a genre, or two fused (a song fused of three offers its three), and **Play it as …** plays the same song in it.
+choose a genre, and under **Fused with** any others to fuse with it (a fused song opens with its own), and **Play it
+as …** plays the same song in it.
 The song stays: its form (each section's name, length, intensity and transitions), its chords and key, its lead's
 melody note for note, the recordings it plays (takes, sampled phrases, loops), the notes written on its parts, and the
 tracks a script wrote. The genre plays it: its drums, bass, chords, pads and the rest, their sounds, its swing and its

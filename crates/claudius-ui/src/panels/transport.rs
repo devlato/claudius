@@ -690,7 +690,67 @@ fn variations_menu(ui: &mut Ui, cx: &mut Cx) {
     }
 }
 
-/// The Change the genre window: the genre to play the song in (and one fused with it), what of the song stays and
+/// what a fusion is, on the menu that adds a genre to one
+const FUSION_TIP: &str = "a fusion: the genre chosen above leads (its tempo, harmony, form, parts and mix), the genre \
+    fused last plays the drums, and every genre fused lends its sounds, its styles and some of its chords to the parts";
+
+/// "Fused with": the genres fused with `lead`, as many as wanted, each a chip a click takes out, a menu that adds
+/// another, and, when there are two or more, which of them plays the drums (the last, as `genres::get` fuses them in
+/// order).
+fn fused_with(ui: &mut Ui, id: &str, genres: &[GenreInfo], lead: &str, with: &mut Vec<String>) {
+    ui.horizontal_wrapped(|ui| {
+        let mut out = None;
+        for (i, g) in with.iter().enumerate().filter(|(_, g)| *g != lead) {
+            let words = super::genre_words(g);
+            let chip = widgets::chip(ui, true, &format!("{words}  \u{d7}"), ACCENT);
+            if chip.on_hover_text(format!("take {words} out of the fusion")).clicked() {
+                out = Some(i);
+            }
+        }
+        if let Some(i) = out {
+            with.remove(i);
+        }
+        let shown = if with.iter().all(|g| g == lead) { "nothing" } else { "add another" };
+        let offered: Vec<&GenreInfo> = genres.iter().filter(|g| g.name != lead && !with.contains(&g.name)).collect();
+        egui::ComboBox::from_id_salt(id)
+            .width(140.0)
+            .height(320.0)
+            .selected_text(shown)
+            .show_ui(ui, |ui| {
+                for g in offered {
+                    if ui.selectable_label(false, super::genre_words(&g.name)).clicked() {
+                        with.push(g.name.clone());
+                    }
+                }
+            })
+            .response
+            .on_hover_text(FUSION_TIP);
+    });
+    let fused: Vec<String> = with.iter().filter(|g| *g != lead).cloned().collect();
+    if let Some(last) = fused.last().filter(|_| fused.len() >= 2) {
+        ui.horizontal(|ui| {
+            ui.label(small("Drums from"));
+            egui::ComboBox::from_id_salt((id, "drums"))
+                .width(140.0)
+                .selected_text(super::genre_words(last))
+                .show_ui(ui, |ui| {
+                    for g in &fused {
+                        if ui.selectable_label(g == last, super::genre_words(g)).clicked() && g != last {
+                            with.retain(|w| w != g);
+                            with.push(g.clone());
+                        }
+                    }
+                })
+                .response
+                .on_hover_text(
+                    "which of the genres fused plays the drums, with its kits and its drums bus; the others lend \
+                     their sounds and styles",
+                );
+        });
+    }
+}
+
+/// The Change the genre window: the genre to play the song in (and any fused with it), what of the song stays and
 /// what the genre brings, and a button that plays it so, one change undo takes back (`Command::ChangeGenre`).
 pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !cx.view.change_genre.open {
@@ -714,26 +774,12 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
             f.lead(g);
         }
         ui.add_space(6.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_top(|ui| {
             ui.label("Fused with");
-            let shown = f.with.as_ref().map_or("nothing".to_string(), |w| super::genre_words(w));
-            let was = f.was_fused().filter(|w| !w.split('+').any(|g| g == f.genre)).map(str::to_string);
-            egui::ComboBox::from_id_salt("cg_with")
-                .width(150.0)
-                .selected_text(shown)
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut f.with, None, "nothing");
-                    if let Some(was) = was {
-                        let words = super::genre_words(&was);
-                        ui.selectable_value(&mut f.with, Some(was), words);
-                    }
-                    for g in genres.iter().filter(|g| g.name != f.genre) {
-                        ui.selectable_value(&mut f.with, Some(g.name.clone()), super::genre_words(&g.name));
-                    }
-                })
-                .response
-                .on_hover_text("a fusion: the genre above leads, and this one plays the drums and lends its sounds");
-            ui.add_space(12.0);
+            ui.vertical(|ui| fused_with(ui, "cg_with", genres, &f.genre, &mut f.with));
+        });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
             ui.label("Seed");
             ui.add(egui::TextEdit::singleline(&mut f.seed).desired_width(90.0).hint_text("random"))
                 .on_hover_text("another take of it in that genre; the same seed gives the same take");
@@ -1181,27 +1227,15 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
         set if set.is_empty() => "More options".to_string(),
         set => format!("More options: {set}"),
     };
-    egui::CollapsingHeader::new(RichText::new(more).strong()).id_salt("new_song_more").default_open(false).show(
-        ui,
-        |ui| {
+    egui::CollapsingHeader::new(RichText::new(more).strong())
+        .id_salt("new_song_more")
+        .default_open(false)
+        .open(f.more.take())
+        .show(ui, |ui| {
             egui::Grid::new("new_song_opts").num_columns(2).spacing(vec2(10.0, 8.0)).show(ui, |ui| {
                 if !genres.is_empty() {
                     ui.label("Fused with");
-                    let shown = f.with.as_ref().map_or("nothing".to_string(), |w| super::genre_words(w));
-                    egui::ComboBox::from_id_salt("ns_with")
-                    .width(150.0)
-                    .selected_text(shown)
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut f.with, None, "nothing");
-                        for g in genres.iter().filter(|g| g.name != f.genre) {
-                            ui.selectable_value(&mut f.with, Some(g.name.clone()), super::genre_words(&g.name));
-                        }
-                    })
-                    .response
-                    .on_hover_text(
-                        "a fusion: the genre above leads (tempo, harmony, form, parts and mix), and this one plays the \
-                         drums and lends its sounds and styles to the parts",
-                    );
+                    ui.vertical(|ui| fused_with(ui, "ns_with", genres, &f.genre, &mut f.with));
                     ui.end_row();
                 }
                 ui.label("Seed");
@@ -1276,8 +1310,7 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
                 ui.vertical(|ui| sample_options(ui, f, sampling.as_ref(), cx.server.is_none(), cx.now));
                 ui.end_row();
             });
-        },
-    );
+        });
     let mut create = false;
     widgets::foot(ui, |ui| {
         let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
@@ -1305,8 +1338,10 @@ fn two_lines(painter: &egui::Painter, text: String, width: f32) -> std::sync::Ar
 /// what of the New song dialog's options is asked for, in a line ("fused with idm, seed 42, 124 BPM"); empty: none
 fn options_set(f: &super::NewSongForm) -> String {
     let mut set = Vec::new();
-    if let Some(w) = &f.with {
-        set.push(format!("fused with {}", super::genre_words(w)));
+    let with: Vec<String> = f.with.iter().filter(|g| **g != f.genre).map(|g| super::genre_words(g)).collect();
+    if let Some((last, before)) = with.split_last() {
+        let all = if before.is_empty() { last.clone() } else { format!("{} and {last}", before.join(", ")) };
+        set.push(format!("fused with {all}"));
     }
     if !f.seed.trim().is_empty() {
         set.push(format!("seed {}", f.seed.trim()));
@@ -1574,15 +1609,15 @@ fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::p
             egui::ComboBox::from_id_salt("ns_recording_genre")
                 .width(180.0)
                 .height(320.0)
-                .selected_text(super::genre_words(&f.genre_name()))
+                .selected_text(super::genre_words(&f.genre))
                 .show_ui(ui, |ui| {
                     for g in genres {
                         if ui.selectable_label(f.genre == g.name, super::genre_words(&g.name)).clicked()
                             && f.genre != g.name
                         {
-                            // the genre a remake or a flip is in, whole: not fused with one chosen before
+                            // the genre the remake is in leads it, and is no longer among those fused with it
                             f.genre = g.name.clone();
-                            f.with = None;
+                            f.with.retain(|w| *w != g.name);
                             f.sampled = None;
                         }
                     }
@@ -1590,6 +1625,10 @@ fn recording_body(ui: &mut Ui, cx: &mut Cx, file: Option<std::sync::Arc<crate::p
             if !f.seed.trim().is_empty() {
                 ui.label(small(format!("seed {}", f.seed.trim())));
             }
+        });
+        ui.horizontal_top(|ui| {
+            ui.label("Fused with");
+            ui.vertical(|ui| fused_with(ui, "ns_recording_with", genres, &f.genre, &mut f.with));
         });
     }
     if cx.view.analyzing {

@@ -462,9 +462,14 @@ fn a(word: &str) -> &'static str {
     if an { "an" } else { "a" }
 }
 
-/// a genre as people write it: "deep house", "UK drill", "IDM", "R&B", "drum and bass", "trip hop fused with IDM"
+/// a genre as people write it: "deep house", "UK drill", "IDM", "R&B", "drum and bass", "trip hop fused with IDM",
+/// "trip hop fused with neo soul and IDM"
 fn genre_in_words(genre: &str) -> String {
-    genre.split('+').map(claudius_api::words::name_in_words).collect::<Vec<_>>().join(" fused with ")
+    let names: Vec<String> = genre.split('+').map(claudius_api::words::name_in_words).collect();
+    match names.as_slice() {
+        [lead, rest @ .., last] if !rest.is_empty() => format!("{lead} fused with {} and {last}", rest.join(", ")),
+        names => names.join(" fused with "),
+    }
 }
 
 /// The song in a few sentences for a person, in the words the studio uses rather than a producer's: what it is, how
@@ -707,6 +712,7 @@ mod tests {
         assert_eq!(said("dnb"), "a drum and bass");
         assert_eq!(said("ambient"), "an ambient");
         assert_eq!(said("trip_hop+idm"), "a trip hop fused with IDM");
+        assert_eq!(said("trip_hop+neo_soul+dub_techno+idm"), "a trip hop fused with neo soul, dub techno and IDM");
         assert_eq!(a("intro"), "an");
         assert_eq!(a("outro"), "an");
         assert_eq!(a("drop"), "a");

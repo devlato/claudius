@@ -214,7 +214,7 @@ pub(crate) enum Cmd {
     /// swing and mix play it (its tempo stays when recordings play in it, else moves to the nearest the genre plays)
     ChangeGenre {
         blueprint: PathBuf,
-        /// the genre, or two or three fused: trip_hop+idm
+        /// the genre, or any number fused: trip_hop+idm, trip_hop+neo_soul+idm
         #[arg(short, long)]
         genre: String,
         #[arg(short, long)]
