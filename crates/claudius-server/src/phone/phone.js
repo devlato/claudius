@@ -1410,7 +1410,12 @@ async function send() {
   const round = (x, by = 1e4) => Math.round(x * by) / by;
   let cmd;
   if (t.mode === "pads") {
-    const played = t.hits.filter((h) => h.at >= start).map((h) => ({ lane: h.lane, t: round(beats(h.at)), v: round(h.v, 100) }));
+    // in the song's order: the song's clock the page follows can step back a little when the demo's transport comes in
+    // late, so a hit can be kept after one struck later
+    const played = t.hits
+      .filter((h) => h.at >= start)
+      .map((h) => ({ lane: h.lane, t: round(beats(h.at)), v: round(h.v, 100) }))
+      .sort((a, b) => a.t - b.t);
     if (!played.length) return say("nothing was played", "no");
     const [first, last] = [played[0].t, played[played.length - 1].t];
     const until = round(Math.max(end === null ? 0 : beats(end), last + 0.25));
