@@ -105,17 +105,25 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
     widgets::fitting(ui, "top_row", TOP_LEVELS, |ui, level| ((), top_row_at(ui, cx, level)));
 }
 
+/// how high the top bar is: on a Mac it is the window's title bar, and the window's buttons sit on its middle line
+pub const TOP_BAR: f32 = 58.0;
+/// how far the window's close button is from the window's left edge, on a Mac (`claudius_macos::window_buttons_at`)
+pub const BUTTONS_LEFT: f32 = 20.0;
+/// how much of the bar's width AppKit's three buttons span, the close button's left edge to the zoom button's right
+/// (macOS 27; less on the macOS before it)
+const BUTTONS_SPAN: f32 = 60.0;
+
 /// The room the window's close, minimize and zoom buttons take at the left of the top bar, on a Mac, where the top bar
-/// is the window's title bar (`run_native_with`): AppKit puts them 9 to 69 points from the window's edge (macOS 27, and
-/// within that on the macOS before it), and the bar's own margin is 12. None in full screen, where they hide, nor in a
-/// browser or on another system, whose windows have title bars of their own.
+/// is the window's title bar (`run_native_with`): from `BUTTONS_LEFT` across their span, and as much again as the bar's
+/// own margin (12) before the logo. None in full screen, where they hide, nor in a browser or on another system, whose
+/// windows have title bars of their own.
 pub fn window_buttons(ui: &Ui) -> f32 {
     let mac = cfg!(all(target_os = "macos", not(target_arch = "wasm32")));
     room_for_buttons(mac, ui.input(|i| i.viewport().fullscreen.unwrap_or(false)))
 }
 
 fn room_for_buttons(mac: bool, full_screen: bool) -> f32 {
-    if mac && !full_screen { 70.0 } else { 0.0 }
+    if mac && !full_screen { BUTTONS_LEFT + BUTTONS_SPAN } else { 0.0 }
 }
 
 /// the top bar at a level of detail (`TOP_LEVELS`), and the width it needed
@@ -1866,7 +1874,8 @@ mod tests {
     #[test]
     fn the_top_bar_leaves_room_for_the_window_buttons_on_a_mac_unless_in_full_screen() {
         // AppKit's buttons end 69 points from the window's edge; the bar's margin is 12 of them
-        assert!(12.0 + super::room_for_buttons(true, false) >= 69.0 + 12.0);
+        // the bar's margin and the room reach past the zoom button's right edge by as much as the margin again
+        assert!(12.0 + super::room_for_buttons(true, false) >= super::BUTTONS_LEFT + super::BUTTONS_SPAN + 12.0);
         assert_eq!(super::room_for_buttons(true, true), 0.0, "in full screen they hide");
         assert_eq!(super::room_for_buttons(false, false), 0.0, "a browser's or another system's window has its own");
     }
