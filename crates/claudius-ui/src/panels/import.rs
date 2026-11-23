@@ -127,6 +127,8 @@ pub struct Import {
     /// the search's recording to use now, by its place in the list, as its Choose button chooses it (a scripted run's
     /// `import:use:<n>`)
     pub use_nth: Option<usize>,
+    /// the first recording the search offers to be taken up once it is listed (+ Track's Sampled)
+    take_first: bool,
     /// a piece to hear now, by its id, treated or as it was cut, as its button plays it (a scripted run's
     /// `import:hear:<n>[:treated]`)
     pub hear_now: Option<(u32, bool)>,
@@ -287,6 +289,25 @@ impl Import {
         (self.open, self.browse) = (true, true);
         self.query = words.to_string();
         (self.search, self.searching, self.hits) = (Some(self.query.clone()), true, None);
+    }
+
+    /// The free libraries searched for `words` (+ Track's Sampled), the first recording they offer taken up as soon as
+    /// it is listed, to go in as `how` says: the window then holds it, the way chosen, for its button to sample it.
+    pub fn sample_for(&mut self, words: &str, how: &'static str) {
+        self.search_for(words);
+        (self.how, self.take_first) = (how, true);
+    }
+
+    /// the first recording a search offered, taken up once it is listed, when + Track's Sampled asked for one
+    fn took_first(&mut self) {
+        if !self.take_first {
+            return;
+        }
+        match &self.hits {
+            Some(Ok(hits)) if !hits.is_empty() => (self.use_nth, self.take_first) = (Some(0), false),
+            Some(_) => self.take_first = false,
+            None => {}
+        }
     }
 
     /// what the last search offered, for a scripted run to read: the titles, or why nothing
@@ -779,6 +800,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     let demo = cx.server.is_none();
     let server = cx.server.map(str::to_string);
     let im = &mut cx.view.import;
+    im.took_first();
     if let Some(n) = im.use_nth.take_if(|_| im.hits.is_some())
         && let Some(Ok(hits)) = im.hits.clone()
         && let Some(h) = hits.get(n)
@@ -1671,5 +1693,30 @@ mod tests {
         im.heard_it(Box::new(Listened { name: file.name.clone(), ..heard() }));
         assert!(im.heard.is_some(), "what was heard in the one held");
         assert_eq!(im.offer_heard.as_ref().map(|h| &h.name), Some(&file.name), "and the Sample window's timeline");
+    }
+
+    #[test]
+    fn a_sampled_track_takes_up_the_first_recording_its_search_offers_once_and_goes_in_as_asked() {
+        let hit = |id: &str| LibraryHit { id: id.into(), title: id.into(), ..LibraryHit::default() };
+        let mut im = Import::default();
+        im.sample_for("funk drum break", "pieces");
+        assert!(im.open && im.browse && im.searching, "the window opens on the search");
+        assert_eq!((im.query.as_str(), im.how), ("funk drum break", "pieces"));
+        im.took_first();
+        assert_eq!(im.use_nth, None, "nothing listed yet");
+        im.hits = Some(Ok(vec![hit("freesound:1"), hit("freesound:2")]));
+        im.took_first();
+        assert_eq!(im.use_nth, Some(0), "the first find, as its Choose button takes it");
+        im.use_nth = None;
+        im.took_first();
+        assert_eq!(im.use_nth, None, "once");
+        // a search that found nothing takes nothing, and leaves nothing waiting for the next search
+        im.sample_for("nothing at all", "stabs");
+        im.hits = Some(Ok(Vec::new()));
+        im.took_first();
+        assert!(!im.take_first && im.use_nth.is_none());
+        im.hits = Some(Ok(vec![hit("freesound:3")]));
+        im.took_first();
+        assert_eq!(im.use_nth, None, "a later search by hand is the person's to choose from");
     }
 }

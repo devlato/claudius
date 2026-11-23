@@ -123,7 +123,11 @@ too; the same key again, or Escape, comes back to the arrangement).
   ready for you to move. Its **Recording** tab adds a song or a sound instead: **Choose a file on this computer...**,
   a search of the [free libraries](../guide/online-samples.md#choosing-one-in-the-studio) to hear and choose from, or
   **Record one...**, each in the window it goes in by (Add a recording, or Record), to add it whole as a take or
-  sample its vocals. Right-click a row to mute or solo it, [swap its sound](#swapping-a-sound), switch it on or
+  sample its vocals. Its **Sampled** tab finds one for you: choose **A break**, **A phrase**, **A texture**, **A
+  voice** or **A stab**, and **Find one** searches the free libraries with the words the song's genre's producers dig
+  with for that part (or yours, typed), and opens Add a recording on the first recording found, the way to sample it
+  chosen (a break among its pieces, a phrase played through as a passage, a texture whole, a voice through the song, or
+  its phrases in a browser, a stab struck as a drum), to hear before its button puts it in. Right-click a row to mute or solo it, [swap its sound](#swapping-a-sound), switch it on or
   off everywhere, or remove it (Undo brings it back). A part's row also offers **Add chords under it**: chords that fit its melody and the song's
   chords, a chord on each of its notes, a pad under it, stabs or offbeats, as a new part that
   [follows the melody](../language/song-functions.md#part) as it changes. Right-click a [take](../guide/samples.md#takes)'s row

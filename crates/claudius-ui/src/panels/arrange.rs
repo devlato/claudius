@@ -47,9 +47,22 @@ enum Added {
     Send(Command),
     /// the Add a recording window, searching the free libraries for these words
     Search(String),
+    /// the Add a recording window, searching the free libraries for these words and taking up the first recording they
+    /// offer, to go in as `how` says (+ Track's Sampled)
+    Sample { words: String, how: &'static str },
     /// the Record window
     Record,
 }
+
+/// What + Track's Sampled samples: its name, its label, the part of a genre's searches its words come from, how the
+/// Add a recording window samples it, in the app and in a browser (which cannot take a voice apart), and what it is.
+const SAMPLED: [(&str, &str, &str, &str, &str, &str); 5] = [
+    ("break", "A break", "break", "pieces", "pieces", "a drum break, chosen among the pieces of a recording"),
+    ("phrase", "A phrase", "phrase", "passage", "passage", "a phrase of a record played through as a section's own"),
+    ("texture", "A texture", "texture", "whole", "whole", "a texture or an atmosphere under the song, whole"),
+    ("vocal", "A voice", "vocal", "vocals", "phrases", "a singer's voice through the song, or its phrases"),
+    ("stab", "A stab", "phrase", "stabs", "stabs", "one short hit of a record, struck as a drum"),
+];
 
 /// The "+ Track" menu: a track written the way a genre plays it, a drum lane or a part of a role of your own (its
 /// name, and its sound from those installed), or a recording. What it does once a button is pressed.
@@ -60,6 +73,7 @@ fn add_track_menu(
     song: &SongView,
     genres: &[claudius_api::GenreInfo],
     sounds: Option<&claudius_api::SoundList>,
+    demo: bool,
 ) -> Option<Added> {
     use super::AddKind;
     ui.set_min_width(320.0);
@@ -77,6 +91,11 @@ fn add_track_menu(
                 "Recording",
                 "a song or a sound: a file of yours, one a free library offers, or one you record",
             ),
+            (
+                AddKind::Sampled,
+                "Sampled",
+                "a break, a phrase, a texture, a voice or a stab from the free libraries, found for this song's genre",
+            ),
         ] {
             ui.selectable_value(&mut f.kind, kind, label).on_hover_text(tip);
         }
@@ -84,6 +103,7 @@ fn add_track_menu(
     match f.kind {
         AddKind::Style => return generate_menu(ui, f, search, song, genres).map(Added::Send),
         AddKind::Recording => return recording_menu(ui, f),
+        AddKind::Sampled => return sampled_menu(ui, f, song, genres, demo),
         AddKind::Part | AddKind::Drum => {}
     }
     let drum = f.kind == AddKind::Drum;
@@ -224,6 +244,58 @@ fn recording_menu(ui: &mut Ui, f: &mut super::AddTrackForm) -> Option<Added> {
     if record.clicked() {
         ui.close();
         return Some(Added::Record);
+    }
+    None
+}
+
+/// The "+ Track" menu's sampled track: what it samples (a break, a phrase, a texture, a voice, a stab) and the words to
+/// look for it with, those the song's genre's producers dig with for that part unless typed (`GenreSampling`). Find
+/// opens Add a recording on the first recording the free libraries offer for them, the way to sample it chosen.
+fn sampled_menu(
+    ui: &mut Ui,
+    f: &mut super::AddTrackForm,
+    song: &SongView,
+    genres: &[claudius_api::GenreInfo],
+    demo: bool,
+) -> Option<Added> {
+    ui.label(small("a recording from the free libraries (CC0, public domain, CC BY), found for this song's genre"));
+    ui.add_space(2.0);
+    ui.horizontal_wrapped(|ui| {
+        for (name, label, .., about) in SAMPLED {
+            ui.selectable_value(&mut f.sample, name.to_string(), label).on_hover_text(about);
+        }
+    });
+    let (_, label, part, app_how, page_how, _) =
+        SAMPLED.iter().find(|s| s.0 == f.sample).copied().unwrap_or(SAMPLED[1]);
+    // the genre's own searches for that part: one of them, as the song's seed and the minute choose, unless typed
+    let first = song.genre.split('+').next().unwrap_or(&song.genre);
+    let digs: Vec<String> = genres
+        .iter()
+        .find(|g| g.name == first)
+        .and_then(|g| g.sampling.as_ref())
+        .and_then(|s| s.roles.iter().find(|r| r.role == part))
+        .map(|r| r.search.clone())
+        .unwrap_or_default();
+    let minute = (ui.input(|i| i.time) / 60.0) as u64;
+    let theirs = match digs.len() {
+        0 => format!("{} {}", super::genre_words(first), label.trim_start_matches("A ").to_lowercase()),
+        n => digs[((song.seed ^ minute) % n as u64) as usize].clone(),
+    };
+    let typed = ui
+        .horizontal(|ui| {
+            let words =
+                ui.add(egui::TextEdit::singleline(&mut f.query).hint_text(theirs.as_str()).desired_width(220.0));
+            let enter = words.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let find = ui
+                .button("Find one")
+                .on_hover_text("searches the free libraries and holds the first find, to hear first");
+            find.clicked() || enter
+        })
+        .inner;
+    if typed {
+        ui.close();
+        let words = if f.query.trim().is_empty() { theirs } else { f.query.trim().to_string() };
+        return Some(Added::Sample { words, how: if demo { page_how } else { app_how } });
     }
     None
 }
@@ -378,6 +450,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut search = std::mem::take(&mut cx.view.search);
     let sounds = cx.sounds;
     let genres = &cx.state.genres;
+    // a browser cannot take a recording's voice apart: + Track's Sampled samples its phrases there
+    let demo = cx.server.is_none();
     let Some(song) = cx.state.song.as_ref() else {
         (cx.view.add_track, cx.view.search) = (add_form, search);
         empty(ui, "No song yet: make one with New song.");
@@ -1251,7 +1325,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 // a form: choosing its role or sound keeps it open
                 egui::Popup::from_toggle_button_response(&add)
                     .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                    .show(|ui| match add_track_menu(ui, &mut add_form, &mut search, song, genres, sounds) {
+                    .show(|ui| match add_track_menu(ui, &mut add_form, &mut search, song, genres, sounds, demo) {
                         Some(Added::Send(c)) => out.push(c),
                         Some(a) => opened = Some(a),
                         None => {}
@@ -1405,6 +1479,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     }
     match opened {
         Some(Added::Search(words)) => cx.view.import.search_for(&words),
+        Some(Added::Sample { words, how }) => cx.view.import.sample_for(&words, how),
         Some(Added::Record) => cx.view.record.show(),
         Some(Added::Send(_)) | None => {}
     }
