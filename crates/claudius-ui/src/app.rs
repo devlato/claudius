@@ -1584,6 +1584,13 @@ impl eframe::App for Studio {
                         self.view.new_song.open = true;
                     }
                     ui.add_space(6.0);
+                    if widgets::tool_button(ui, Icon::Radio, "Listen to Infinite Radio", true, false)
+                        .on_hover_text(RADIO_TIP)
+                        .clicked()
+                    {
+                        self.view.radio.open = true;
+                    }
+                    ui.add_space(6.0);
                     if widgets::tool_button(ui, Icon::Plus, "Connect an assistant", true, false).clicked() {
                         self.view.assistants.show();
                     }
