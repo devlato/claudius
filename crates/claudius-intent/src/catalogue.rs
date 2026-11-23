@@ -29,7 +29,7 @@ const fn e(
 pub const ENTRIES: &[Entry] = &[
     e("play", "Play or pause", "start listen hear the song, pause playback", "transport", "Space"),
     e("to_start", "Back to the start", "rewind to the beginning, home, go to the top", "transport", "Home"),
-    e("stop", "Stop", "halt playback and rewind", "transport", ""),
+    e("stop", "Stop", "halt playback and rewind", "transport", "Shift+Space"),
     e("loop", "Loop", "repeat a section over and over, play a part on repeat, cycle the loop region", "transport", "L"),
     e("undo", "Undo", "go back, revert, take back the last change", "toolbar", "Cmd+Z"),
     e("redo", "Redo", "again, forward, bring back the change undone", "toolbar", "Shift+Cmd+Z"),
@@ -45,7 +45,7 @@ pub const ENTRIES: &[Entry] = &[
         "Open an example song...",
         "examples, a library of demo songs to learn from, a study of a style",
         "New song, From an example",
-        "",
+        "Shift+N",
     ),
     e("open", "Open a song...", "load a file, a blueprint, a script, a project", "toolbar", "Cmd+O"),
     e("save", "Save or download", "download, export, keep the song as a file, wav mp3 flac audio", "toolbar", "Cmd+S"),
@@ -55,7 +55,7 @@ pub const ENTRIES: &[Entry] = &[
         "listen to the latest version, judge it, how good is it, rate it, the verdict and its score out of 100, what \
          the critic thinks, bounce, mix and master",
         "status bar",
-        "",
+        "Cmd+Enter",
     ),
     e(
         "record",
@@ -71,7 +71,7 @@ pub const ENTRIES: &[Entry] = &[
         "import a file, bring in a recording, an mp3 or a wav, sample vocals, search free libraries, freesound \
          jamendo, a track to chop, a passage, a stab, remake a song",
         "transport, the + button",
-        "",
+        "I",
     ),
     e(
         "add_track",
@@ -79,7 +79,7 @@ pub const ENTRIES: &[Entry] = &[
         "a new track, an instrument, a part, a bass line, a lead, a pad, chords, a drum lane, drums in a style, \
          generate a track, a sampled track, a break, a texture, a recording as a track",
         "arrangement, + Add a track under the tracks",
-        "",
+        "T",
     ),
     e(
         "radio",
@@ -87,14 +87,14 @@ pub const ENTRIES: &[Entry] = &[
         "the radio, a station of songs claudius writes as it plays them, music to listen to, one genre after another \
          mixed like a dj set, background music, skip a song, keep one",
         "the ? menu",
-        "",
+        "Shift+R",
     ),
     e(
         "phone",
         "Play from a phone...",
         "mobile, pads, keys, a turntable to scratch, a controller",
         "transport, the phone button",
-        "",
+        "P",
     ),
     e("paint", "Paint tool", "draw cells in the arrangement, switch parts on and off", "arrangement", "B"),
     e("tab:drums", "Drums", "the beat, steps, the sequencer, kick snare hat, drum pattern", "tab", "1"),
@@ -131,21 +131,21 @@ pub const ENTRIES: &[Entry] = &[
         "Try variations",
         "mutate, alternatives, other versions, ideas, suggestions, change it a little, surprise me",
         "status bar, Try",
-        "",
+        "Shift+V",
     ),
     e(
         "improve",
         "Improve the song",
         "evolve, generations, make it better, optimise for the critic",
         "status bar, Improve",
-        "",
+        "Shift+E",
     ),
     e(
         "fix_all",
         "Fix what the critic found",
         "quick fix, the issues, problems, repair the verdict, fix the mix",
         "status bar, Fix them all",
-        "",
+        "Shift+F",
     ),
     e(
         "cancel",
@@ -173,7 +173,7 @@ pub const ENTRIES: &[Entry] = &[
         "Release the song...",
         "publish, distribute to stores, spotify apple music, artwork, check it for release, isrc",
         "toolbar",
-        "",
+        "Shift+Cmd+E",
     ),
     e(
         "assistants",
@@ -187,7 +187,7 @@ pub const ENTRIES: &[Entry] = &[
         "Chat with an assistant",
         "write to the agent, talk to it, messages, a conversation, start an agent to talk to, what it answers",
         "status bar",
-        "",
+        "C",
     ),
     e(
         "reference",
