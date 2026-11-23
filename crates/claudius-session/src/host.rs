@@ -192,6 +192,21 @@ impl Host {
         self.lib = Some(lib);
     }
 
+    /// The recordings a free library offered that the song plays, those the page fetched and this engine cut for it
+    /// (`sample`), each once, in the order the song's files name them: what the song credits.
+    pub fn sampled_from(&self) -> Vec<Found> {
+        let Some(bp) = &self.bp else { return Vec::new() };
+        let mut out: Vec<Found> = Vec::new();
+        for path in bp.files() {
+            if let Some((f, _)) = self.cuts.get(path)
+                && !out.contains(f)
+            {
+                out.push(f.clone());
+            }
+        }
+        out
+    }
+
     /// a new song like the recording analyzed last, in `genre` (the song's, when none)
     fn song_like(&mut self, genre: Option<String>, seed: Option<u64>) -> Reply {
         let Some((name, a)) = self.heard.clone() else {
@@ -1626,6 +1641,47 @@ fn sampled(bp: &Blueprint) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
+/// The recordings worth fetching for a song of `genre` that samples `role` (`phrase`, `break` ...), of those the site's
+/// search found (`results`, each as its Worker gives one: `id`, `provider`, `title`, `creator`, `license` (`cc0` or
+/// `by`), `license_version`, `license_url`, `page`, `audio`, `ext`, `seconds`, `tags`): those of a length the role
+/// takes, and whose own words do not say they were cut from someone's record (`claudius_packs::online::suspect`), in the
+/// order found, each as `Host::sample` takes one (a `Recording`, as JSON). None when the genre samples no such role.
+pub fn worth_trying(genre: &str, role: &str, results: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    let Ok(g) = genres::get(genre) else { return Vec::new() };
+    let roles = [Role::Phrase, Role::Break, Role::Texture, Role::Vocal, Role::Bass];
+    let Some(role) = roles.into_iter().find(|r| r.name() == role) else { return Vec::new() };
+    let Some(need) = sampling::need(&g, role) else { return Vec::new() };
+    let (lo, hi) = need.seconds;
+    results
+        .iter()
+        .filter_map(|r| {
+            let s = |k: &str| r[k].as_str().unwrap_or_default().to_string();
+            let seconds = r["seconds"].as_f64().filter(|x| (lo..=hi).contains(x))?;
+            let cc0 = s("license") == "cc0";
+            let name =
+                if cc0 { "CC0 1.0".to_string() } else { format!("CC BY {}", s("license_version")).trim().to_string() };
+            let found = serde_json::json!({
+                "id": s("id"),
+                "source": "openverse",
+                "provider": s("provider"),
+                "title": s("title"),
+                "creator": s("creator"),
+                "licence": if cc0 { "cc0" } else { "by" },
+                "licence_name": name,
+                "licence_url": s("license_url"),
+                "page": s("page"),
+                "audio": s("audio"),
+                "filetype": s("ext"),
+                "seconds": seconds,
+                "tags": r["tags"].as_array().cloned().unwrap_or_default(),
+            });
+            let f: Found = serde_json::from_value(found.clone()).ok()?;
+            (!claudius_packs::online::suspect(&f) && matches!(s("license").as_str(), "cc0" | "by"))
+                .then(|| serde_json::json!({ "role": role.name(), "genre": g.name, "found": found, "ext": s("ext") }))
+        })
+        .collect()
+}
+
 /// what a recording a free library offered credits, from its record (`LibraryHit::found`)
 fn credit(found: &Option<serde_json::Value>) -> Option<take::Sources> {
     let f: Found = serde_json::from_value(found.clone()?).ok()?;
@@ -2096,6 +2152,40 @@ mod tests {
             "creator": "someone", "licence": licence, "licence_name": "CC BY 4.0", "page": format!("https://freesound.org/s/{id}/"),
             "licence_url": "https://creativecommons.org/licenses/by/4.0/", "audio": "", "filetype": "mp3", "seconds": 4.0}))
         .unwrap()
+    }
+
+    #[test]
+    fn of_what_the_sites_search_found_those_of_the_roles_length_not_cut_from_a_record_are_worth_trying() {
+        let r = |id: &str, title: &str, secs: f64, licence: &str| {
+            json!({"id": id, "provider": "freesound", "title": title, "creator": "someone", "license": licence,
+                "license_version": "4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                "page": "https://freesound.org/s/1/", "audio": "0/1_2.ogg", "ext": "ogg", "seconds": secs, "tags": ["drums"]})
+        };
+        let results = [
+            r("freesound:1", "Funk Drum Break 90", 6.0, "by"),
+            r("freesound:2", "drums sampled from my favourite record", 6.0, "by"),
+            r("freesound:3", "A Whole Drum Session", 400.0, "cc0"),
+            r("freesound:4", "Break, not to sell", 6.0, "by-nc"),
+            r("freesound:5", "Another Break", 8.0, "cc0"),
+        ];
+        let tried = worth_trying("trip_hop", "break", &results);
+        let ids: Vec<&str> = tried.iter().map(|t| t["found"]["id"].as_str().unwrap()).collect();
+        assert_eq!(
+            ids,
+            ["freesound:1", "freesound:5"],
+            "a break's length, not cut from a record, free to use, in order"
+        );
+        let t = &tried[0];
+        assert_eq!(
+            (t["role"].as_str(), t["genre"].as_str(), t["ext"].as_str()),
+            (Some("break"), Some("trip_hop"), Some("ogg"))
+        );
+        assert_eq!(t["found"]["licence_name"].as_str(), Some("CC BY 4.0"));
+        assert_eq!(tried[1]["found"]["licence_name"].as_str(), Some("CC0 1.0"));
+        // each as the engine takes one to cut
+        assert!(serde_json::from_value::<Recording>(t.clone()).is_ok());
+        assert!(worth_trying("trip_hop", "drums", &results).is_empty(), "no such role");
+        assert!(worth_trying("no_such_genre", "break", &results).is_empty());
     }
 
     #[test]

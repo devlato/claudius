@@ -11,7 +11,10 @@
 //
 // The station keeps to the genres chosen (`?genres=house,techno`, or the page's list), skips to the next song on the
 // next beat, hands the song on air over as a file (encoded in the engine's worker, as the studio exports), and opens it
-// in the studio demo, which writes the same song again from what the station asked for.
+// in the studio demo, which writes the same song again from what the station asked for, on the same recordings when it
+// samples. A song of a genre built on samples (trip hop, boom bap, lo-fi ...) is: before the engine writes it, the page
+// finds a few recordings through the site's search, the engine chooses those worth fetching and cuts them, and the song
+// on air credits those it plays.
 
 const ENGINE = "/studio/claudius-engine_loader.js";
 const RATE = 48000;
@@ -78,6 +81,9 @@ class Engine {
     this.held = [];
     this.waiting = null;
     this.genres = [];
+    // what the page asked the engine (`ask`) and is waiting to hear, by its id
+    this.asked = new Map();
+    this.asks = 0;
     // files asked for (`encode`), by their ids
     this.encoding = new Map();
     this.encodes = 0;
@@ -94,27 +100,49 @@ class Engine {
     };
   }
 
-  /** `json` to the engine, with `audio` handed over rather than copied */
-  post(json, audio) {
+  /** `json` to the engine, with `audio` (samples) or `bytes` (a file) handed over rather than copied */
+  post(json, audio, bytes) {
     if (!this.listening) {
-      this.held.push([json, audio]);
+      this.held.push([json, audio, bytes]);
       return;
     }
     if (audio) this.worker.postMessage({ json: JSON.stringify(json), audio }, [audio.buffer]);
+    else if (bytes) this.worker.postMessage({ json: JSON.stringify(json), bytes }, [bytes.buffer]);
     else this.worker.postMessage({ json: JSON.stringify(json) });
+  }
+
+  /** The engine asked `kind` of `body` and its answer: `choose` (which of a search's finds are worth fetching), a
+   *  `recording` to cut (`bytes`, the file) or `sampled_from` (the recordings the song plays). */
+  ask(kind, body, bytes) {
+    return new Promise((resolve) => {
+      const id = ++this.asks;
+      this.asked.set(id, resolve);
+      if (kind === "recording") this.post({ recording: body, id }, null, bytes);
+      else this.post({ [kind]: { ...body, id } });
+    });
   }
 
   heard(data) {
     // a message sent before the worker first speaks would be lost: what was held goes now
     if (!this.listening) {
       this.listening = true;
-      for (const [j, audio] of this.held.splice(0)) this.post(j, audio);
+      for (const [j, audio, bytes] of this.held.splice(0)) this.post(j, audio, bytes);
     }
     let v;
     try {
       v = JSON.parse(data.json);
     } catch {
       return;
+    }
+    // an answer to `ask`: a recording's cut comes with the state, which says nothing new of a song being made
+    for (const kind of ["chosen", "sampled_from", "sampled"]) {
+      const answer = v[kind];
+      if (answer && this.asked.has(answer.id)) {
+        const done = this.asked.get(answer.id);
+        this.asked.delete(answer.id);
+        done(answer);
+        return;
+      }
     }
     if (v.encoded) {
       const asked = this.encoding.get(v.encoded.id);
@@ -166,11 +194,95 @@ class Engine {
   song(spec, preview) {
     return new Promise((resolve, reject) => {
       this.waiting = { resolve, reject, preview };
-      const command = { cmd: "new_song", genre: spec.genre, seed: spec.seed, bpm: spec.bpm, sampled: false };
+      // built on samples as its genre is: on the recordings `gather` had cut, else on what stands in for them
+      const command = { cmd: "new_song", genre: spec.genre, seed: spec.seed, bpm: spec.bpm };
       if (spec.key) command.key = keyName(spec.key);
       this.post({ what: "new_song", command });
     });
   }
+}
+
+// ---- the samples a song built on them plays ----
+
+// how long the libraries are searched for a song's samples: the first song is waited for, the others are written while
+// one plays
+const GATHER_FIRST = 20_000;
+const GATHER = 45_000;
+
+/** numbers in [0, 1) that `seed` fixes (mulberry32): each song tries its genre's searches in an order of its own */
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** A few recordings for the song `spec` asks for, when its genre `g` is built on samples (`g.sampling`, as the engine
+ *  says it), for as long as `ms`: for each role, two of its searches in an order the song's seed picks, the engine
+ *  choosing of each search's finds those worth fetching (`choose`: a length the role takes, not cut from someone's
+ *  record), and two of those fetched and cut, until one is. Those it cut, each with its role and the search's record of
+ *  it (what the studio is handed to cut again). A role nothing is found for goes without; with no search at all, the
+ *  song plays what stands in for samples in its genre. */
+async function gather(g, spec, ms) {
+  const sampling = g && g.sampling;
+  if (!sampling || !sampling.by_default) return [];
+  const until = performance.now() + ms;
+  const r = seeded(spec.seed);
+  const kept = [];
+  for (const role of sampling.roles) {
+    const terms = [...role.search];
+    for (let i = terms.length - 1; i > 0; i--) {
+      const j = Math.floor(r() * (i + 1));
+      [terms[i], terms[j]] = [terms[j], terms[i]];
+    }
+    let cut = false;
+    for (const q of terms.slice(0, 2)) {
+      if (cut || performance.now() > until) break;
+      let results;
+      try {
+        const res = await fetch(`/studio/samples/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) continue;
+        results = (await res.json()).results || [];
+      } catch {
+        continue;
+      }
+      const chosen = (await engine.ask("choose", { genre: g.name, role: role.role, results })).recordings || [];
+      for (const rec of chosen.slice(0, 2)) {
+        if (performance.now() > until) break;
+        try {
+          const res = await fetch(`/studio/samples/${rec.found.audio}`);
+          if (!res.ok) continue;
+          const answer = await engine.ask("recording", rec, new Uint8Array(await res.arrayBuffer()));
+          if (answer.ok) {
+            kept.push({ role: role.role, found: results.find((x) => x.id === rec.found.id) });
+            cut = true;
+            break;
+          }
+        } catch {
+          // a recording that does not come is passed over for the next
+        }
+      }
+    }
+  }
+  return kept;
+}
+
+/** The song `spec` asks for, written, with the recordings it plays: gathered first when its genre samples (`ms` at
+ *  most), then written and rendered (`preview` hears its first bars before); `{ state, audio, samples }`, `samples`
+ *  being those of the gathered recordings the song plays (`sampled_from`), each with its role and its record. */
+async function written(spec, ms, preview) {
+  const g = engine.genres.find((x) => x.name === spec.genre);
+  const kept = await gather(g, spec, ms);
+  const song = await engine.song(spec, preview);
+  let samples = [];
+  if (kept.length) {
+    const played = new Set(((await engine.ask("sampled_from", {})).found || []).map((f) => f.id));
+    samples = kept.filter((k) => k.found && played.has(k.found.id));
+  }
+  return { ...song, samples };
 }
 
 // ---- the decks ----
@@ -437,8 +549,9 @@ async function queue() {
   planned = spec;
   remember(spec.genre);
   try {
-    const song = await engine.song(spec);
+    const song = await written(spec, GATHER);
     const b = deck(song.state, song.audio, spec);
+    b.samples = song.samples;
     const m = skipping ? cut(onAir, b) : mix(onAir, b, spec.how);
     skipping = false;
     next = { deck: b, at: m.at, label: `${said(b.genre)}, ${m.label}`, blend: m.blend };
@@ -481,6 +594,8 @@ function tick() {
   show("now-meta", `${said(onAir.genre)} · ${Math.round(onAir.bpm * 10) / 10} BPM · ${onAir.keyText}`);
   $("now-bar").style.width = `${Math.min(100, (100 * at) / onAir.seconds)}%`;
   show("now-time", `${clock(at)} / ${clock(onAir.seconds)}`);
+  const sampled = credits(onAir);
+  show("now-samples", sampled ? `Samples ${sampled}` : "");
   if (next) {
     const d = next.deck;
     const how = next.blend ? "mixes in" : "comes in";
@@ -491,11 +606,21 @@ function tick() {
   }
 }
 
-/** where the studio demo writes the song on deck `d` again, as the station asked the engine for it */
+/** where the studio demo writes the song on deck `d` again, as the station asked the engine for it: on the recordings it
+ *  sampled, which the studio fetches and cuts again, else built on none */
 function studio(d) {
-  const q = new URLSearchParams({ genre: d.spec.genre, seed: String(d.spec.seed), bpm: String(d.spec.bpm), sampled: "0" });
+  const samples = d.samples || [];
+  const sampled = samples.length ? "1" : "0";
+  const q = new URLSearchParams({ genre: d.spec.genre, seed: String(d.spec.seed), bpm: String(d.spec.bpm), sampled });
   if (d.spec.key) q.set("key", keyName(d.spec.key));
+  if (samples.length) q.set("recordings", JSON.stringify(samples));
   return `/studio/?mock&${q}`;
+}
+
+/** what the song on deck `d` samples, as its credits say it: "title" by creator, licence */
+function credits(d) {
+  const licence = (f) => (f.license === "cc0" ? "CC0 1.0" : `CC BY ${f.license_version || ""}`.trim());
+  return (d.samples || []).map(({ found: f }) => `"${f.title}" by ${f.creator}, ${licence(f)}`).join("; ");
 }
 
 /** the next song in now, on the playing one's next beat; or, while it is still being written, as soon as it is */
@@ -643,9 +768,10 @@ async function tuneIn() {
   const g = pick(openers.length ? openers : station());
   const spec = { genre: g.name, bpm: Math.round((g.bpm[0] + g.bpm[1]) / 2), seed: 1 + Math.floor(Math.random() * 999_999) };
   remember(spec.genre);
-  status(`Writing a ${said(spec.genre)} song at ${spec.bpm} BPM…`);
+  const samples = g.sampling && g.sampling.by_default;
+  status(`${samples ? "Finding recordings for" : "Writing"} a ${said(spec.genre)} song at ${spec.bpm} BPM…`);
   let early = null;
-  const song = await engine.song(spec, (state, audio) => {
+  const song = await written(spec, GATHER_FIRST, (state, audio) => {
     // the first bars, to play while the rest renders
     if (early || SOON) return;
     early = deck(state, audio, spec);
@@ -655,6 +781,7 @@ async function tuneIn() {
     status("On air while the rest of it renders");
   });
   const whole = deck(song.state, song.audio, spec);
+  whole.samples = song.samples;
   if (early) {
     // the whole song takes over where its first bars are (or where they ended, when they ran out before it came),
     // with a crossfade too short to hear

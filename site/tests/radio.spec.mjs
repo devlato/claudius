@@ -5,6 +5,37 @@ import { siteRoot } from "./serve.mjs";
 
 const site = siteRoot();
 
+/** A recording as a library might offer one, as a WAV file: sixteen bars at 90 BPM, A minor and F major four bars each
+ *  over a kick on every beat (mono, 16-bit, 22 050 Hz). */
+function chords() {
+  const rate = 22_050;
+  const beat = 60 / 90;
+  const n = Math.round(64 * beat * rate);
+  const wav = Buffer.alloc(44 + 2 * n);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(36 + 2 * n, 4);
+  wav.write("WAVEfmt ", 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24);
+  wav.writeUInt32LE(2 * rate, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(2 * n, 40);
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    const minor = Math.floor(t / (16 * beat)) % 2 === 0;
+    const notes = minor ? [220, 261.63, 329.63] : [174.61, 220, 261.63];
+    const held = notes.reduce((sum, f) => sum + Math.sin(2 * Math.PI * f * t), 0) * 0.1;
+    const tb = t % beat;
+    const kick = Math.sin(2 * Math.PI * 55 * tb) * Math.exp(-tb / 0.08) * 0.5;
+    wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, held + kick)) * 32_000), 44 + 2 * i);
+  }
+  return wav;
+}
+
 test.describe("the radio", () => {
   test.skip(!site.assembled, "needs target/site from cargo xtask site");
 
@@ -33,6 +64,54 @@ test.describe("the radio", () => {
       await expect(page.locator("#played li")).toHaveCount(1, { timeout: 240_000 });
       await expect(page.locator("#played li").first()).toContainText(first);
       await expect(page.locator("#now-title")).not.toHaveText(first);
+      expect(problems).toEqual([]);
+    } finally {
+      await b.close();
+    }
+  });
+
+  test("samples a song as its genre does: the recordings found and cut, credited on air and handed to the studio", async ({ baseURL }) => {
+    test.setTimeout(300_000);
+    const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const page = await b.newPage({ baseURL });
+      const problems = [];
+      page.on("pageerror", (e) => problems.push(e.message));
+      // the site's search and its recordings, as its Worker answers them: for every search, one recording of chords
+      // over a kick, as a library might offer one
+      const record = (id) => ({
+        id: `freesound:${id}`,
+        provider: "freesound",
+        title: `Dusty Chords ${id}`,
+        creator: "someone",
+        license: "by",
+        license_version: "4.0",
+        license_url: "https://creativecommons.org/licenses/by/4.0/",
+        page: `https://freesound.org/s/${id}/`,
+        audio: `audio/1/${id}_1.wav`,
+        ext: "wav",
+        seconds: 20,
+        tags: [],
+      });
+      let searches = 0;
+      await page.route("**/studio/samples/search*", (r) => {
+        searches += 1;
+        return r.fulfill({ contentType: "application/json", body: JSON.stringify({ results: [record(100 + searches)] }) });
+      });
+      const wav = chords();
+      await page.route("**/studio/samples/audio/**", (r) => r.fulfill({ contentType: "audio/wav", body: wav }));
+      await page.goto("/radio/?genres=trip_hop");
+      await page.locator("#tune").click();
+      await expect(page.locator("#tune")).toHaveText("Pause", { timeout: 180_000 });
+      // the song on air credits what it samples
+      await expect(page.locator("#now-samples")).toHaveText(/^Samples "Dusty Chords \d+" by someone, CC BY 4\.0/);
+      expect(searches).toBeGreaterThan(0);
+      // the studio is handed the song with the recordings it sampled, to cut them again
+      const q = new URL(await page.locator("#open").getAttribute("href"), baseURL).searchParams;
+      expect(q.get("sampled")).toBe("1");
+      const handed = JSON.parse(q.get("recordings"));
+      expect(handed.length).toBeGreaterThan(0);
+      expect(handed.map((h) => h.found.title)).toEqual(expect.arrayContaining([expect.stringMatching(/^Dusty Chords \d+$/)]));
       expect(problems).toEqual([]);
     } finally {
       await b.close();
