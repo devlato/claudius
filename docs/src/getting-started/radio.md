@@ -29,7 +29,11 @@ no song is heard out of its key.
   song is thinned out by a rising high-pass and faded out over the second half. Between two songs of the genres DJs
   blend over long intros and outros of beats alone (house, techno and trance, drum and bass, EDM, bass music, hard
   dance), the mix runs as long as the next song's intro, up to 32 bars; between songs that sing from their first bars,
-  over a phrase of 8.
+  over a phrase of 8. When the outgoing song's beat stops before its end (an outro without drums) or the next one's
+  starts after a quiet intro, laying the one over the other would leave the music without a beat for as long as the
+  mix lasts, so the beat is handed over instead: the next song's intro runs under the outgoing one's last bars with a
+  beat (up to 8 of them, its start left out to fit; at least 2, its bass held back), and its beat comes in on the
+  downbeat where the other's ended, the outgoing song faded over its last beat and its quiet outro left out.
 - **An echo out.** A song in another tempo: the outgoing song's last beat goes into a feedback echo on a dotted
   eighth, the song is cut on the bar, and the next one comes in on its own downbeat a bar later while the echoes die
   away, its bass held back for two bars.

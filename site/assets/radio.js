@@ -416,13 +416,77 @@ function start(d, at, offset = 0) {
   };
 }
 
-/** where a song starts to give way to the next: its outro when it has one of 8 bars or more, else its last 16 bars,
- *  never before its middle; and how many bars of it are left from there */
+/** the layers a song's beat is (`radio::BEAT` in the app): a section plays it when one of them plays there (a hat or
+ *  a shaker alone keeps time over an intro, and is not the beat a DJ hands over) */
+const BEAT = new Set(["kick", "snare", "clap", "break"]);
+/** how many of the outgoing song's bars the next one's intro runs under, at most and at least, when the beat is handed
+ *  over on a downbeat (`handOver`) */
+const HAND_OVER_MOST = 8;
+const HAND_OVER_LEAST = 2;
+const beatIn = (s) => (s.layers || []).some((l) => BEAT.has(l));
+
+/** the bar where a song's beat stops for good: the end of its last section that plays it (its end when none does) */
+function beatEnds(d) {
+  const on = d.sections.filter(beatIn);
+  if (!on.length) return d.bars;
+  const last = on[on.length - 1];
+  return last.start_bar + last.bars;
+}
+
+/** how many bars a song plays before its beat first comes in: its intro without drums */
+function beatStarts(d) {
+  const first = d.sections.find(beatIn);
+  return first ? first.start_bar : 0;
+}
+
+/** where a song starts to give way to the next: its outro when it has one of 8 bars or more, else its last 16 bars, or
+ *  8 bars before its beat stops for good where that is sooner (the most the next song's intro runs under it), never
+ *  before its middle; and how many bars of it are left from there */
 function leaving(d) {
   const last = d.sections[d.sections.length - 1];
   let from = last && last.kind === "outro" && last.bars >= 8 ? last.start_bar : d.bars - 16;
+  const end = beatEnds(d);
+  if (end < d.bars) from = Math.min(from, end - HAND_OVER_MOST);
   from = Math.max(from, Math.ceil(d.bars / 2));
   return { at: from * bar(d), bars: d.bars - from };
+}
+
+/** When the playing song's beat stops before its end (an outro without drums) or the next one's starts after its
+ *  beginning (an intro without them), a blend of the one over the other would leave the music without a beat while it
+ *  lasts: instead the next comes in under the playing one's last bars with a beat, so that its beat lands on the
+ *  downbeat where the other's ends, as a DJ lets the next record's intro run under the outgoing song's last bars and
+ *  drops its beat on the one (the app's `hand_over`). Null when both beats run on through the change, or too late. */
+function handOver(a, b) {
+  const end = beatEnds(a);
+  const begins = beatStarts(b);
+  if (end >= a.bars && begins === 0) return null;
+  // the next song's bars counted in the playing one's, and its intro so
+  const ratio = bar(b) / bar(a);
+  const intro = begins * ratio;
+  const lead = Math.min(HAND_OVER_MOST, Math.max(HAND_OVER_LEAST, Math.round(intro)));
+  const atBar = end - lead;
+  const at = a.t0 + atBar * bar(a);
+  if (atBar < Math.ceil(a.bars / 2) || at < ctx.currentTime + 1) return null;
+  const span = lead * bar(a);
+  const beat = bar(a) / 4;
+  const last = at + span - beat;
+  // its intro's start left out, so that its beat lands on the downbeat; its fader up over the first half, its bass
+  // held back until the downbeat and its mids until just before it
+  start(b, at, Math.max(intro - lead, 0) * bar(a));
+  fade(b.fader.gain, 0, 1, at, span / 2);
+  b.low.gain.setValueAtTime(BASS_CUT_DB, at);
+  b.low.gain.setValueAtTime(BASS_CUT_DB, last);
+  b.low.gain.linearRampToValueAtTime(0, at + span);
+  b.mid.gain.setValueAtTime(MIDS_CUT_DB, at);
+  b.mid.gain.setValueAtTime(MIDS_CUT_DB, at + span - 2 * beat);
+  b.mid.gain.linearRampToValueAtTime(0, last);
+  // the playing song whole until its last beat, thinned and faded over it; what it would have played after (its
+  // outro) is left out
+  fade(a.fader.gain, 1, 0, last, beat);
+  a.thin.frequency.setValueAtTime(10, last);
+  a.thin.frequency.exponentialRampToValueAtTime(300, at + span);
+  halt(a, at + span + 0.05);
+  return { at, label: `its intro under the last ${lead} bars, its beat in on the downbeat where the other's ended`, blend: true };
 }
 
 /** an equal-power fade of `param` from `from` to `to` over `secs` from `at` */
@@ -439,6 +503,10 @@ function fade(param, from, to, at, secs) {
 /** The next song `b` mixed into the playing one `a` as `how` says; when it comes in, in the audio clock's seconds. A
  *  song that came too late to blend on the outgoing one's outro comes in on its next bar line, after an echo. */
 function mix(a, b, how) {
+  if (how === "blend") {
+    const handed = handOver(a, b);
+    if (handed) return handed;
+  }
   const out = leaving(a);
   const soonest = Math.max(a.t0 + out.at, ctx.currentTime + 1);
   // on the outgoing song's bar lines, so that its last beat and the next song's first fall together

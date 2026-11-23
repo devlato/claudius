@@ -31,7 +31,8 @@ fn song(genre: &str, seed: u64, bpm: f64, key: &str) -> Result<Song, String> {
     let audio = host.render().ok_or("no song to render")??;
     let s = host.state().song.ok_or("no song")?;
     let club = claudius::genres::get(genre).is_ok_and(|g| radio::CLUB.contains(&g.family.as_str()));
-    let sections = s.sections.iter().map(|x| (x.start_bar, x.bars, x.kind.clone())).collect();
+    let beat = |x: &claudius_api::SectionView| x.layers.iter().any(|l| radio::BEAT.contains(&l.as_str()));
+    let sections = s.sections.iter().map(|x| (x.start_bar, x.bars, x.kind.clone(), beat(x))).collect();
     Ok(Song { audio: Arc::new(Stereo::from_interleaved(&audio.samples)), bpm: s.bpm, bars: s.bars, sections, club })
 }
 
