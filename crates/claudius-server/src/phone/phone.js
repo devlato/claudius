@@ -786,7 +786,7 @@ const FLING = 4;
  * long the page goes without hearing of a newer place (`gap`): a phone's screen says where 60 or 120
  * times a second, but the page hears of those moments only as each audio block begins, and a slow or busy page hears of
  * them late and in bursts. A record sent to the newest place would jump there and rest until the next, starting and
- * stopping 47 times a second, a buzz; and one that runs past the newest place it knows of rests there. It follows the
+ * stopping 47 times a second, a buzz; and one that runs past the newest place it knows of would rest there. It follows the
  * hand's path instead, a block and one such time late (`deck.late`), between places it knows: as smoothly as the hand
  * moved it, on a slow phone as on a fast one. */
 const hand = { path: [], gap: 1 / 60, gaps: [] };
@@ -816,15 +816,29 @@ function handTo(target, time) {
   deck.target = target;
 }
 
+/** how long past the newest place it knows of the record goes on as the hand was moving it, in ms, slowing to a stop: a
+ * moment can reach a busy page a frame or two later than the ones before it, and a record held at the newest place
+ * would rest there until it came, a stutter; a hand that has stopped is passed by at most half this time of its pace */
+const COAST_MS = 50;
+
 /** where the hand had the record at `t` (ms), and how fast it moved it then (seconds of record a second), from the place
  * at or before `t` that `k` points at (moved on as `t` goes): between two places it knows, along the line between them;
- * before the first and after the last, held there */
+ * before the first, held there; past the newest, on at the pace between the last two, slowing to a stop over
+ * `COAST_MS`, and held there */
 function handAt(t, k) {
   const path = hand.path;
   while (k.i + 1 < path.length && path[k.i + 1].t <= t) k.i++;
   const a = path[Math.min(k.i, path.length - 1)];
   const b = path[k.i + 1];
-  if (!b || t < a.t) return [a.x, 0];
+  if (t < a.t) return [a.x, 0];
+  if (!b) {
+    const p = path[path.length - 2];
+    if (!p || a.t <= p.t) return [a.x, 0];
+    const v = (a.x - p.x) / ((a.t - p.t) / 1000);
+    // the pace falls from v to nothing across the coast, and the record goes the area under it
+    const s = Math.min(t - a.t, COAST_MS);
+    return [a.x + (v * (s - (s * s) / (2 * COAST_MS))) / 1000, v * (1 - s / COAST_MS)];
+  }
   const v = (b.x - a.x) / ((b.t - a.t) / 1000);
   return [a.x + (v * (t - a.t)) / 1000, v];
 }
