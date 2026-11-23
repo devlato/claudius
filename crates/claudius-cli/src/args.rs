@@ -252,8 +252,9 @@ pub(crate) enum Cmd {
         /// the song to sample them into (a blueprint.json or a folder written by make / save)
         #[arg(long)]
         on: PathBuf,
-        /// how it goes in: phrases, passage (4 to 16 bars as a verse or chorus, the chords following it), chops (its
-        /// voice cut in eighths and played in a new rhythm) or stabs (a syllable struck on a drum lane)
+        /// how it goes in: phrases, vocals (its whole voice through the song, the song's sections following the
+        /// recording's), passage (4 to 16 bars as a verse or chorus, the chords following it), chops (its voice cut in
+        /// eighths and played in a new rhythm) or stabs (a syllable struck on a drum lane)
         #[arg(long, default_value = "phrases")]
         how: String,
         /// how many phrases (1 to 4)

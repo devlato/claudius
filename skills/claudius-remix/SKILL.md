@@ -272,8 +272,15 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   play (once where a lead or a voice sings already, every other time round in a genre built on samples, every 8 bars
   in the others), and the reply says which and why: when the person finds it repeats too much, or not enough, sample
   again with another `every`.
+- **Its whole voice through the song** (`how: "vocals"`): "put this song's vocals over my beat", "sample the vocals
+  and place them in the right sections". claudius takes the voice apart from the band and sings it through the song
+  from its first downbeat: the song's sections follow the recording's bar for bar, its verses over the song's verses
+  and its choruses over its hooks, whole, each section built from the song's own of its kind, on the recording's
+  chords, at its tempo (or a multiple of it) and in its key; the song's drums, sounds and mix stay its own. It needs
+  the ears; without them the reply says so.
 - **The way to sample it** (`how`), from what the person describes:
   - `phrases` (the default): short sung phrases that come round as loops.
+  - `vocals`: its whole voice sung through the song, the song's sections following the recording's (above).
   - `passage`: a whole verse or chorus of the recording (4, 8 or 16 `bars`) played through in the drops and hooks,
     the song's chords there following it. Use it for "build the song on that chorus" or "use their verse as my hook",
     as trance and hip-hop producers do.
