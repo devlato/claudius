@@ -11,8 +11,8 @@ publish = false
 # the logo and its icons (`cargo xtask icons`): drawn, encoded, and the wordmark outlined from the studio's font
 epaint_default_fonts = "0.37"
 png = "0.18"
-skrifa = "0.44"
-tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+skrifa = "0.50"
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd"] }
 anyhow = "1"
 claudius-intent = { path = "../crates/claudius-intent" }
 serde_json = "1"
