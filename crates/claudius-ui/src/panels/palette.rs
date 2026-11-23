@@ -400,7 +400,6 @@ impl Now {
         let st = &*cx.state;
         let recording = cx.view.record.recording();
         let downloading = st.busy.as_deref().is_some_and(|b| b.starts_with("downloading"));
-        let chat = &st.chat;
         Now {
             song: st.song.is_some(),
             audio: cx.player.has_audio() && !recording,
@@ -411,11 +410,19 @@ impl Now {
             fixes: st.verdict.as_ref().is_some_and(|v| !v.fixes.is_empty()) && !cx.render_stale(),
             phone: cx.server.is_some() || cfg!(target_arch = "wasm32"),
             packs: cx.sounds.is_some_and(|l| l.packs.iter().any(|p| p.default && p.wanted())) && !downloading,
-            chat: super::chat::listening(st, super::chat::now_ms()).is_some()
-                || !chat.messages.is_empty()
-                || chat.starts_agents,
+            chat: chat_works(st),
         }
     }
+}
+
+/// Whether the chat is worth opening: an assistant listens in it, it holds messages, or claudius starts assistants for it;
+/// and before claudius's first state, which says whether it does, it is offered, as its window says what it can do
+/// (the studio is drawn, and a person may press Cmd+K, before that state comes)
+fn chat_works(st: &claudius_api::State) -> bool {
+    st.version == 0
+        || super::chat::listening(st, super::chat::now_ms()).is_some()
+        || !st.chat.messages.is_empty()
+        || st.chat.starts_agents
 }
 
 /// Whether an action works `now`, as the button that does it in the studio would let it be pressed: those that need a
@@ -1154,6 +1161,16 @@ mod tests {
             ["Mute the drums", "New house song", "tab:mixer", "new_song", "Go back to before track drums"],
             "with a song open, all of it"
         );
+    }
+
+    #[test]
+    fn the_chat_is_offered_before_claudius_says_whether_it_starts_assistants() {
+        let mut st = claudius_api::State::default();
+        assert!(chat_works(&st), "no state from claudius yet");
+        st.version = 4;
+        assert!(!chat_works(&st), "claudius said it starts no assistants, and none listens");
+        st.chat.starts_agents = true;
+        assert!(chat_works(&st), "claudius starts assistants");
     }
 
     #[test]
