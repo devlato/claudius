@@ -24,15 +24,20 @@ const offered = (page) => heard(page, "midi");
  * keyboard plays `pitch` (middle C) every half second, held a fifth of a second, to whatever listens, its messages
  * stamped where they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
  */
-function fakeMidi({ state, stamped = true, slow = 0, pitch = 60 }) {
+function fakeMidi({ state, stamped = true, slow = 0, gate = false, pitch = 60 }) {
   if (state === "absent") {
     delete Navigator.prototype.requestMIDIAccess;
     return;
   }
   const input = { id: "fake", name: "Fake Keyboard", type: "input", state: "connected", connection: "open", onmidimessage: null };
   const access = { inputs: new Map([["fake", input]]), outputs: new Map(), sysexEnabled: false, onstatechange: null };
-  // a browser that takes `slow` ms to give access, as one that looks into its devices first
-  const later = (f) => new Promise((ok, no) => setTimeout(() => f(ok, no), slow));
+  // a browser that takes `slow` ms to give access, as one that looks into its devices first. With `gate`, it begins
+  // to look only when the test calls `__listMidi()`, so that a test can choose a keyboard before the browser lists it
+  // however long the page takes to load the song
+  let open = () => {};
+  const opened = gate ? new Promise((ok) => (open = ok)) : Promise.resolve();
+  window.__listMidi = () => open();
+  const later = (f) => new Promise((ok, no) => opened.then(() => setTimeout(() => f(ok, no), slow)));
   Navigator.prototype.requestMIDIAccess = () =>
     later((ok, no) => (state === "denied" ? no(new DOMException("blocked", "NotAllowedError")) : ok(access)));
   const query = navigator.permissions.query.bind(navigator.permissions);
@@ -261,11 +266,15 @@ test.describe("recording in the browser", () => {
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
-      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen
-      await page.addInitScript(fakeMidi, { state: "granted", slow: 4_500 });
+      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen. The
+      // browser begins to look once the window is open, however long the song took to load
+      await page.addInitScript(fakeMidi, { state: "granted", gate: true, slow: 1_500 });
       const lines = said(page);
+      const windows = heard(page, "windows");
       const plan = "await:audio;wait:1;record;rec:midi:Fake Keyboard;rec:grid:0;wait:3;rec:start;wait:7;rec:stop;wait:4";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => windows.join("\n"), { timeout: 180_000, intervals: [50] }).toMatch(/\brecord\b/);
+      await page.evaluate(() => window.__listMidi());
       await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/\d+ notes from the start of intro, C4 to C4, played by played/);
       // about four and a half seconds after the count-in, two notes a second
       const n = Number(lines.join("\n").match(/(\d+) notes from the start of intro/)[1]);
