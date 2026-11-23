@@ -159,7 +159,7 @@ pub fn read(text: &str, genres: &[GenreInfo]) -> Result<Brief, String> {
             // how it hits)
             let mut found: Vec<(&GenreInfo, usize, usize)> = Vec::new();
             for (at, word) in plain.iter().enumerate() {
-                let of = claudius_api::search_genres(genres, word);
+                let of = claudius_api::search_genres_as_typed(genres, word);
                 if of.len() == genres.len() {
                     continue;
                 }
