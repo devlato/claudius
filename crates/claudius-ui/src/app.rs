@@ -55,6 +55,8 @@ pub struct Studio {
     pub native: Option<Arc<dyn Native>>,
     /// the older claudius on the studio's port being stopped for this studio to take its port: its answer to come
     taking_over: Option<std::sync::mpsc::Receiver<Result<crate::native::TakenOver, String>>>,
+    /// the update being put in place in the background (`Native::install_update`): its version, or why not
+    updating: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     plan: Option<crate::devplan::Plan>,
 }
@@ -149,6 +151,7 @@ impl Studio {
             fallback_to_demo: false,
             native: None,
             taking_over: None,
+            updating: None,
             #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
             plan: crate::devplan::Plan::from_env(),
         }
@@ -963,6 +966,17 @@ impl Studio {
 
     /// the banner for a newer release: ready to install, or out and updated another way
     fn update_bar(&mut self, ui: &mut Ui, ctx: &egui::Context, native: &Arc<dyn Native>, now: f64) {
+        // the update put in place (the window closes, and the new Claudius opens), or why not
+        if let Some(answer) = self.updating.as_ref().and_then(|rx| rx.try_recv().ok()) {
+            self.updating = None;
+            match answer {
+                Ok(v) => {
+                    self.toast(format!("updating to Claudius {v}"), true, now);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                Err(e) => self.toast(format!("could not update: {e}"), false, now),
+            }
+        }
         let update = native.update();
         if self.view.update_asked {
             match &update {
@@ -994,15 +1008,20 @@ impl Studio {
             ui.horizontal(|ui| {
                 widgets::dot(ui, ACCENT);
                 ui.label(RichText::new(text).color(TEXT));
-                if matches!(update, Update::Ready { .. })
-                    && widgets::tool_button(ui, Icon::Loop, "Restart to update", true, true).clicked()
-                {
-                    match native.install_update() {
-                        Ok(v) => {
-                            self.toast(format!("updating to Claudius {v}"), true, now);
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                        Err(e) => self.toast(format!("could not update: {e}"), false, now),
+                // the new app is copied into place in the background (a disk image opened and its app copied out on a
+                // Mac takes seconds), so that the window answers and says so meanwhile
+                if matches!(update, Update::Ready { .. }) {
+                    if self.updating.is_some() {
+                        ui.spinner();
+                        ui.label(RichText::new("putting the new Claudius in place, then it opens ...").color(TEXT_DIM));
+                    } else if widgets::tool_button(ui, Icon::Loop, "Restart to update", true, true).clicked() {
+                        let (tx, rx) = std::sync::mpsc::channel();
+                        let (native, ctx) = (native.clone(), ui.ctx().clone());
+                        std::thread::spawn(move || {
+                            let _ = tx.send(native.install_update());
+                            ctx.request_repaint();
+                        });
+                        self.updating = Some(rx);
                     }
                 }
                 ui.hyperlink_to("What's new", format!("{RELEASES}/tag/v{version}"));
