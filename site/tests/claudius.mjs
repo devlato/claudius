@@ -126,14 +126,17 @@ export function playTwoBars(midi) {
   return (async () => {
     const t0 = (Math.ceil(now() / (4 * beat)) + 1) * 4 * beat;
     await wait((t0 - 0.2 - now()) * 1000);
-    // a song that stopped meanwhile (it ended, or a render took its place) the phone starts itself, a bar before the
-    // section it stopped in, and counts the take from that section's start: not two bars played along with it
-    const started = !transport.playing;
+    // a song that stopped meanwhile or while the take goes on (it ended, or a render took its place) the phone starts
+    // itself, a bar before the section it stopped in, and counts the take from that section's start: not two bars
+    // played along with it
+    let started = !transport.playing;
     record();
     for (let b = 0; b < 8; b++) {
       await wait((t0 + b * beat - now()) * 1000);
+      started ||= !transport.playing;
       strike(b % 2 ? high : low);
     }
+    started ||= !transport.playing;
     await wait((t0 + 8 * beat + 0.05 - now()) * 1000);
     record();
     const said = () => document.getElementById("said").textContent;

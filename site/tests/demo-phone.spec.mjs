@@ -55,7 +55,7 @@ test.describe("a phone with the demo", () => {
           const { started } = await phone.evaluate(playTwoBars);
           if (!started) return;
         }
-        throw new Error("the demo stopped as each of three takes began");
+        throw new Error("the demo stopped as or while each of three takes went on");
       };
       await take();
       // the take waits for the engine to finish what it was rendering
