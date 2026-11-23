@@ -152,7 +152,9 @@ fn make(host: &mut Host, spec: &Spec) -> Result<Box<Made>, String> {
     let info =
         Info { title: song.title, genre: song.genre, bpm: song.bpm, key: song.key, seconds: stereo.secs(), sampled };
     let sections = song.sections.iter().map(|s| (s.start_bar, s.bars, s.kind.clone())).collect();
-    let song = radio::Song { audio: stereo, bpm: song.bpm, bars: song.bars, sections };
+    // a club genre's song blends over its long beat-only intro and outro, as DJs mix them
+    let club = claudius::genres::get(&spec.genre).is_ok_and(|g| radio::CLUB.contains(&g.family.as_str()));
+    let song = radio::Song { audio: stereo, bpm: song.bpm, bars: song.bars, sections, club };
     Ok(Box::new(Made { spec: spec.clone(), info, song, bp, credits }))
 }
 
