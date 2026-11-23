@@ -338,8 +338,9 @@ measurement that fails on such an input says the same.
   gain control off. It goes to an AudioWorklet (`record-worklet.js`, which trunk copies beside the page). The worklet
   hands the page about 43 ms at a time, each chunk stamped with the context frame its first sample reached the
   worklet in. `Captured` puts the chunks together, with silence for frames that went missing, each a dropout.
-  Told to stop, the worklet hands over what it still holds and says it is done; the window waits for that, a second
-  at most, before it cuts the take.
+  Told to stop, the worklet hands over what it still holds and says it is done; the window waits for that, three
+  seconds at most (a busy page takes a frame or two), before it cuts the take, which then says the browser held back
+  its last moment.
 - **Where the take starts.** It is arithmetic (`take_starts`): when its downbeat was to play, plus what the browser
   reports of the output's latency (`baseLatency`, `outputLatency`) and the input's (the track's `latency`), plus the
   window's Latency.

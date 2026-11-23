@@ -71,7 +71,9 @@ test.describe("files chosen in the browser", () => {
     try {
       const analysis = heard(page, "analysis");
       // the New song dialog: Choose a file, Analyze, then Remake (as the open song's genre)
-      const plan = "wait:3;newsong;wait:1;pick:audio;wait:4;listen:analyze;wait:10;listen:remake;wait:10";
+      // the remake asked for once the analysis is back, however long a computer takes over it
+      // the file chosen arrives a few seconds after the dialog opens on a slow computer: the plan acts on it 15 s later
+      const plan = "wait:3;newsong;wait:1;pick:audio;wait:15;listen:analyze;await:analysis;listen:remake;wait:10";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await choose(page, "audio", recording);
       await expect.poll(() => analysis.join("\n"), { timeout: 60_000 }).toMatch(/\d+\.\d BPM \(pulse clarity/);
@@ -91,7 +93,8 @@ test.describe("files chosen in the browser", () => {
     const { page, close } = await browser();
     try {
       const hears = heard(page, "hears");
-      const plan = "wait:3;newsong;wait:1;pick:audio;wait:4;listen:analyze;wait:12;hears:play;wait:4;hears:pause;wait:2";
+      // as above, 15 s for the file chosen to arrive before the plan listens to it
+      const plan = "wait:3;newsong;wait:1;pick:audio;wait:15;listen:analyze;wait:12;hears:play;wait:4;hears:pause;wait:2";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await choose(page, "audio", recording);
       await expect.poll(() => hears.join("\n"), { timeout: 60_000 }).toMatch(/^\d+ BPM in \S+ \S+, \d+ bars, paused on recording at 0\.0 s$/m);
@@ -117,7 +120,8 @@ test.describe("files chosen in the browser", () => {
     const { page, close } = await browser();
     try {
       const toasts = heard(page, "toast");
-      await page.goto(`${c.base}/?plan=${encodeURIComponent("wait:3;pick:song;wait:6;pick:song;wait:6")}`);
+      // the second dialog opens once the first file has been chosen and opened, which takes a slow computer a while
+      await page.goto(`${c.base}/?plan=${encodeURIComponent("wait:3;pick:song;wait:30;pick:song;wait:6")}`);
       await choose(page, "song", join(folder, "blueprint.json"));
       await expect.poll(async () => (await state(c)).song.title, { timeout: 30_000 }).toBe(title);
       await choose(page, "song", cover);

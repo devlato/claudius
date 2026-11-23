@@ -17,6 +17,8 @@ export const bin = process.env.CLAUDIUS_BIN || join(repo, "target", "debug", "cl
 export const studio = process.env.CLAUDIUS_PLAN_STUDIO || join(repo, "target", "studio-plan");
 export const ready = existsSync(bin) && existsSync(join(studio, "index.html")) && existsSync(join(studio, "record-worklet.js"));
 export const why = `needs ${bin} and the studio built with its plan feature in ${studio} (see the top of this file)`;
+// CI's job for these tests builds both: there, one missing fails every test, rather than skipping them all unseen
+if (process.env.CLAUDIUS_E2E_REQUIRED && !ready) throw new Error(why);
 
 /** a mono 16-bit WAV of a 440 Hz tone, at a quarter of full scale: what the fake microphone hears */
 export function tone(path, secs = 10, rate = 48_000) {
@@ -124,15 +126,21 @@ export function playTwoBars(midi) {
   return (async () => {
     const t0 = (Math.ceil(now() / (4 * beat)) + 1) * 4 * beat;
     await wait((t0 - 0.2 - now()) * 1000);
+    // a song that stopped meanwhile or while the take goes on (it ended, or a render took its place) the phone starts
+    // itself, a bar before the section it stopped in, and counts the take from that section's start: not two bars
+    // played along with it
+    let started = !transport.playing;
     record();
     for (let b = 0; b < 8; b++) {
       await wait((t0 + b * beat - now()) * 1000);
+      started ||= !transport.playing;
       strike(b % 2 ? high : low);
     }
+    started ||= !transport.playing;
     await wait((t0 + 8 * beat + 0.05 - now()) * 1000);
     record();
     const said = () => document.getElementById("said").textContent;
     for (let i = 0; i < 100 && !/played|nothing|cannot|no /.test(said()); i++) await wait(100);
-    return { said: said(), low, high };
+    return { said: said(), low, high, started };
   })();
 }

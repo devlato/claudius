@@ -887,6 +887,14 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 ui.label("Start a song first: the recording goes into it.");
                 return;
             }
+            // a take starts with the song's first section, as a vocal, until chosen otherwise, whatever way is shown:
+            // its vocals show no sections, and a scripted run adds it whole without choosing the way
+            if !sections.contains(&im.from) {
+                im.from = sections[0].clone();
+            }
+            if im.role.is_empty() {
+                im.role = "vocal".into();
+            }
             ui.add_space(10.0);
             ui.label(RichText::new("How should it go in?").strong());
             ui.add_space(4.0);
@@ -1033,14 +1041,6 @@ fn recording(ui: &mut Ui, im: &mut Import, held: &str) {
 /// where it plays and how often, as the way it goes in asks: the section a take starts with, its role and its name;
 /// the sections a sample plays in, and how often a phrase comes round in them
 fn placing(ui: &mut Ui, im: &mut Import, sections: &[String]) {
-    // a take starts with the song's first section, as a vocal, until chosen otherwise, whatever way is chosen: a
-    // scripted run adds it whole without choosing the way
-    if !sections.contains(&im.from) {
-        im.from = sections[0].clone();
-    }
-    if im.role.is_empty() {
-        im.role = "vocal".into();
-    }
     if im.how == "whole" {
         choice_row(ui, "Starts with", |ui| {
             for s in sections {

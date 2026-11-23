@@ -18,7 +18,8 @@ test.describe("the demo", () => {
       const busy = heard(page, "busy");
       const toasts = heard(page, "toast");
       const mutate = JSON.stringify({ cmd: "mutate", count: 2, keep_best: true });
-      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(`wait:3;cmd:${mutate};wait:240`)}`);
+      // on a short song (rage at 170 BPM, 2:04), which the demo renders before it mutates: the default one is twice as long
+      await page.goto(`${c.base}/?mock&genre=rage&seed=2&bpm=170&plan=${encodeURIComponent(`wait:3;cmd:${mutate};wait:240`)}`);
       await expect.poll(() => busy.join("\n"), { timeout: 180_000 }).toMatch(/^mutating: 1 of 3 judged$/m);
       // what came of it, once the song and its two variations are judged
       const done = /^(kept .* on the preview\)|no variation beat the song .*: it stays as it was)$/m;

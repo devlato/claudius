@@ -5,10 +5,13 @@
 //! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, what the What claudius hears window shows (its
 //! tempo, key and bars, and what plays where) as `hears: ...`, each toast as `toast: ...`, the graph's node chosen as
-//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, and what
+//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, that the
+//! player holds the song as it is, ready to play, as `audio: loaded` (said only then: `await:audio` first in a plan waits
+//! for it), and what
 //! the command palette shows as `palette: ...` (that it listens, that it hears what was said, or the words in its field
 //! and the first row they find).
-//! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
+//! Steps: `wait:<s>`, `await:<thing>` (on once the plan has said something new of it, as `analysis: ...`; two minutes
+//! at most), `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
 //! `palette:say` (its microphone clicked: it listens, or stops and sends what it heard),
@@ -143,6 +146,8 @@ pub struct Plan {
     shot: Option<(Arc<AtomicBool>, String, f64)>,
     /// pointer events to feed in, one batch per frame
     input: VecDeque<(Vec<egui::Event>, egui::Modifiers)>,
+    /// a thing the plan waits to hear of anew (`await:<thing>`): what it had said of it, and until when it waits at most
+    awaiting: Option<(String, Option<String>, f64)>,
 }
 
 /// a line for whoever runs the plan: stderr, or the browser's console
@@ -166,6 +171,7 @@ impl Plan {
             told: Default::default(),
             shot: None,
             input: VecDeque::new(),
+            awaiting: None,
         })
     }
 
@@ -244,11 +250,24 @@ impl Plan {
         if now < self.until || !self.input.is_empty() {
             return None;
         }
+        // waiting to hear anew of a thing (an analysis, a take): on once it is said, or after two minutes at most
+        if let Some((thing, before, deadline)) = &self.awaiting {
+            let said = self.told.iter().find(|(k, _)| **k == thing.as_str()).map(|(_, v)| v.clone());
+            if said == *before && now < *deadline {
+                return None;
+            }
+            self.awaiting = None;
+        }
         let step = self.steps.pop_front()?;
         let (verb, arg) = step.split_once(':').unwrap_or((step.as_str(), ""));
         match verb {
             "wait" => {
                 self.until = now + arg.parse::<f64>().unwrap_or(1.0);
+                None
+            }
+            "await" => {
+                let before = self.told.iter().find(|(k, _)| **k == arg).map(|(_, v)| v.clone());
+                self.awaiting = Some((arg.to_string(), before, now + 120.0));
                 None
             }
             "shot" => {

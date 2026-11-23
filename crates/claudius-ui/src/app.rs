@@ -826,6 +826,15 @@ impl Studio {
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
         plan.tell("busy", &self.state.busy.clone().unwrap_or_default());
+        // the player holds the song as it is, ready to play (not a preview of its first bars, nor an older render): a plan
+        // that records a take awaits it, as a person presses Record once the song plays. Said only once it is so, and
+        // nothing before: an `await:audio` first in a plan then waits for this, not for the first word said of it. A
+        // browser's player has audio from the moment a load starts, while the file still comes and is decoded: the
+        // song is ready once no load is on its way and the audio it holds has a length
+        let ready = self.player.has_audio() && !self.player.is_loading() && self.player.duration() > 0.0;
+        if ready && !panels::render_stale(&self.state) {
+            plan.tell("audio", "loaded");
+        }
         plan.tell("log", &self.state.log.last().cloned().unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
         plan.tell("palette", &self.view.palette.told());

@@ -24,15 +24,20 @@ const offered = (page) => heard(page, "midi");
  * keyboard plays `pitch` (middle C) every half second, held a fifth of a second, to whatever listens, its messages
  * stamped where they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
  */
-function fakeMidi({ state, stamped = true, slow = 0, pitch = 60 }) {
+function fakeMidi({ state, stamped = true, slow = 0, gate = false, pitch = 60 }) {
   if (state === "absent") {
     delete Navigator.prototype.requestMIDIAccess;
     return;
   }
   const input = { id: "fake", name: "Fake Keyboard", type: "input", state: "connected", connection: "open", onmidimessage: null };
   const access = { inputs: new Map([["fake", input]]), outputs: new Map(), sysexEnabled: false, onstatechange: null };
-  // a browser that takes `slow` ms to give access, as one that looks into its devices first
-  const later = (f) => new Promise((ok, no) => setTimeout(() => f(ok, no), slow));
+  // a browser that takes `slow` ms to give access, as one that looks into its devices first. With `gate`, it begins
+  // to look only when the test calls `__listMidi()`, so that a test can choose a keyboard before the browser lists it
+  // however long the page takes to load the song
+  let open = () => {};
+  const opened = gate ? new Promise((ok) => (open = ok)) : Promise.resolve();
+  window.__listMidi = () => open();
+  const later = (f) => new Promise((ok, no) => opened.then(() => setTimeout(() => f(ok, no), slow)));
   Navigator.prototype.requestMIDIAccess = () =>
     later((ok, no) => (state === "denied" ? no(new DOMException("blocked", "NotAllowedError")) : ok(access)));
   const query = navigator.permissions.query.bind(navigator.permissions);
@@ -96,29 +101,31 @@ test.describe("recording in the browser", () => {
   test.skip(!ready, why);
 
   test("a take kept goes to claudius, plays in the song, and holds what the microphone heard", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      const plan = "wait:3;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:5";
+      // the take starts once the page holds the song, ready to play: a slow computer takes a while to load and decode it
+      const plan = "await:audio;wait:1;record;wait:2;rec:start;wait:9;rec:stop;wait:2;rec:keep;wait:5";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
-      // the recorder hands over the last of what it heard when it is told to stop, long before the window gives up
-      // waiting for it; the take waits to be kept, and goes once it is
+      // the recorder hands over the last of what it heard when it is told to stop, before the window gives up waiting
+      // for it (a take it gave up on says the browser held back its last moment, and its line ends otherwise); the take
+      // waits to be kept, and goes once it is
       const asked = lines.when["finishing ..."];
       const held = lines.find((l) => / s recorded: play it back, record it again, or keep it$/.test(l));
       expect(asked, "the take waited for the last of what was heard").toBeTruthy();
+      expect(lines.join("\n"), "the recorder handed over the last of the take").not.toMatch(/held back its last moment/);
       expect(held, "the take waited to be kept").toBeTruthy();
-      expect(lines.when[held] - asked).toBeLessThan(800);
       expect(lines.indexOf(lines.find((l) => l.startsWith("sending ")))).toBeGreaterThan(lines.indexOf(held));
       const state = await (await c.api("/api/state")).json();
       const take = state.song.tracks.find((t) => t.name === "take1");
       expect(take, "the take is a track of the song").toBeTruthy();
       expect(take.kind).toBe("take");
-      // about seven seconds of the plan, less the count-in and the browser's start: four seconds or so of the tone,
-      // which squeezes into far more than silence would
+      // nine seconds of the plan, less the bar of count-in and the browser's start (which took more than three seconds
+      // on a busy computer): four to seven seconds of the tone, which squeezes into far more than silence would
       const files = takes(c.home);
       expect(files).toHaveLength(1);
       const info = flacInfo(files[0]);
@@ -157,15 +164,15 @@ test.describe("recording in the browser", () => {
   });
 
   test("in the demo, a take kept joins the song in the page, recorded over the engine's render", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      // the take is recorded over the demo song once the engine has rendered it
-      const plan = "wait:20;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:8";
+      // the take is recorded over the demo song once the engine has rendered it and the page holds it
+      const plan = "await:audio;wait:1;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:8";
       await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 90_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of /);
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of /);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|claudius serve|render the song first/);
       // the claudius serving the page keeps nothing: the demo's engine holds the take
       expect(takes(c.home)).toHaveLength(0);
@@ -198,7 +205,7 @@ test.describe("recording in the browser", () => {
   });
 
   test("a take an assistant asks for opens the window for it, plays back in the song, and goes to the assistant", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
@@ -207,9 +214,9 @@ test.describe("recording in the browser", () => {
       expect(asked.ok, asked.message).toBe(true);
       const lines = said(page);
       // no `record` step: the link the assistant gives opens the window, set up for the take it asks for
-      const plan = "wait:4;rec:start;wait:7;rec:stop;wait:2;rec:play;wait:2;rec:keep;wait:5";
+      const plan = "await:audio;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:play;wait:2;rec:keep;wait:5";
       await page.goto(`${c.base}/?record=1&plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/^hook: a take of [\d.]+ bars from the start of intro.* \(the assistant has it now\)$/m);
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/^hook: a take of [\d.]+ bars from the start of intro.* \(the assistant has it now\)$/m);
       const all = lines.join("\n");
       expect(all).toMatch(/ s recorded: play it back, record it again, or send it$/m);
       expect(all, "the take played back in the song").toMatch(/^playing it back: 0:0[1-9] of 0:\d\d$/m);
@@ -255,16 +262,20 @@ test.describe("recording in the browser", () => {
   });
 
   test("notes played on a MIDI keyboard become a part, a note on every beat", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
-      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen
-      await page.addInitScript(fakeMidi, { state: "granted", slow: 4_500 });
+      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen. The
+      // browser begins to look once the window is open, however long the song took to load
+      await page.addInitScript(fakeMidi, { state: "granted", gate: true, slow: 1_500 });
       const lines = said(page);
-      const plan = "wait:3;record;rec:midi:Fake Keyboard;rec:grid:0;wait:3;rec:start;wait:7;rec:stop;wait:4";
+      const windows = heard(page, "windows");
+      const plan = "await:audio;wait:1;record;rec:midi:Fake Keyboard;rec:grid:0;wait:3;rec:start;wait:7;rec:stop;wait:4";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/\d+ notes from the start of intro, C4 to C4, played by played/);
+      await expect.poll(() => windows.join("\n"), { timeout: 180_000, intervals: [50] }).toMatch(/\brecord\b/);
+      await page.evaluate(() => window.__listMidi());
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/\d+ notes from the start of intro, C4 to C4, played by played/);
       // about four and a half seconds after the count-in, two notes a second
       const n = Number(lines.join("\n").match(/(\d+) notes from the start of intro/)[1]);
       expect(n).toBeGreaterThanOrEqual(6);
@@ -285,7 +296,10 @@ test.describe("recording in the browser", () => {
       for (const [a, b] of notes.slice(1).map((x, i) => [notes[i], x])) {
         expect(Math.abs(b.t - a.t - 1), `a beat apart: ${a.t} then ${b.t}`).toBeLessThan(0.06);
       }
-      for (const note of notes) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
+      // and a key still held when the take stops ends with it, shorter (it starts on its beat all the same, above):
+      // every other note is held as it was played
+      const held = notes.at(-1).d < 0.34 ? notes.slice(0, -1) : notes;
+      for (const note of held) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
     } finally {
       await close();
       c.stop();
@@ -293,16 +307,16 @@ test.describe("recording in the browser", () => {
   });
 
   test("drum pads on MIDI play the song's lanes, by the General MIDI drum map", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
       // a pad struck every half second, the General MIDI kick: a kick on every beat at 120 BPM
       await page.addInitScript(fakeMidi, { state: "granted", pitch: 36 });
       const lines = said(page);
-      const plan = "wait:3;record;rec:midi:Fake Keyboard;rec:part:drums;wait:3;rec:start;wait:7;rec:stop;wait:4";
+      const plan = "await:audio;wait:1;record;rec:midi:Fake Keyboard;rec:part:drums;wait:3;rec:start;wait:7;rec:stop;wait:4";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/drums played from intro, \d bars? as their main patterns: \d+ steps into kick/);
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/drums played from intro, \d bars? as their main patterns: \d+ steps into kick/);
       const state = await (await c.api("/api/state")).json();
       const kick = state.song.drums.find((d) => d.lane === "kick").variants.find(([n]) => n === "main")[1];
       const steps = kick.slice(0, 16).map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
@@ -315,7 +329,7 @@ test.describe("recording in the browser", () => {
   });
 
   test("a keyboard the page has to ask for, stamped as Chromium stamps a real one, still makes a part", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(330_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
@@ -323,9 +337,9 @@ test.describe("recording in the browser", () => {
       const lines = said(page);
       const offers = offered(page);
       const plan =
-        "wait:3;record;wait:1;rec:allow-midi;wait:1;rec:midi:Fake Keyboard;wait:1;rec:start;wait:7;rec:stop;wait:4";
+        "await:audio;wait:1;record;wait:1;rec:allow-midi;wait:1;rec:midi:Fake Keyboard;wait:1;rec:start;wait:7;rec:stop;wait:4";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
-      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/\d+ notes from the start of intro/);
+      await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/\d+ notes from the start of intro/);
       expect(offers.join("\n"), "the window offered to ask first").toMatch(/let the page use them/);
       const n = Number(lines.join("\n").match(/(\d+) notes from the start of intro/)[1]);
       expect(n).toBeGreaterThanOrEqual(6);

@@ -175,12 +175,13 @@ mod tests {
 
     #[test]
     fn a_take_that_dropped_audio_or_fell_silent_says_so_with_claudius_answer() {
-        assert_eq!(take_note(0, 0), "");
-        assert_eq!(take_note(1, 0), " (it dropped audio once: other apps may be busy with the audio)");
-        assert!(take_note(3, 0).contains("dropped audio 3 times"));
-        let both = take_note(2, 1);
+        assert_eq!(take_note(0, 0, false), "");
+        assert_eq!(take_note(1, 0, false), " (it dropped audio once: other apps may be busy with the audio)");
+        assert!(take_note(3, 0, false).contains("dropped audio 3 times"));
+        let both = take_note(2, 1, false);
         assert!(both.contains("2 times") && both.contains("went silent in places") && both.contains("Mic Mode"));
-        let mut r = Record { note: take_note(0, 4), ..Default::default() };
+        assert_eq!(take_note(0, 0, true), CUT_SHORT, "a take the browser kept the end of says so");
+        let mut r = Record { note: take_note(0, 4, false), ..Default::default() };
         r.answered(true, "take1: a take of 4 bars".into());
         assert!(r.said().starts_with("take1: a take of 4 bars (the input went silent"), "{}", r.said());
         r.answered(true, "take2: a take of 2 bars".into());
@@ -428,6 +429,8 @@ struct Live {
     check: Option<u64>,
     /// when it was asked to stop, while the recorder hands over the last of what it heard (in a browser)
     stopping: Option<f64>,
+    /// it stopped waiting for that, past `HAND_OVER_SECS`
+    gave_up: bool,
     /// since when the input has heard nothing at all, and whether for long enough to say so
     silent_since: Option<f64>,
     silent: bool,
@@ -991,6 +994,7 @@ fn begin_check(cx: &mut Cx, c: &PitchCheck) {
                 measuring: false,
                 check: Some(c.id),
                 stopping: None,
+                gave_up: false,
                 silent_since: None,
                 silent: false,
             });
@@ -1227,6 +1231,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 measuring: false,
                 check: None,
                 stopping: None,
+                gave_up: false,
                 silent_since: None,
                 silent: false,
             });
@@ -1257,6 +1262,7 @@ fn measure_latency(cx: &mut Cx) {
                 measuring: true,
                 check: None,
                 stopping: None,
+                gave_up: false,
                 silent_since: None,
                 silent: false,
             });
@@ -1266,9 +1272,19 @@ fn measure_latency(cx: &mut Cx) {
     }
 }
 
+/// how long a take waits, in seconds, for the browser's recorder to hand over the last of what it heard (it takes far
+/// less, a frame or two of a busy page's; past it the take goes as it is, and says so)
+const HAND_OVER_SECS: f64 = 3.0;
+
+/// what a take says when the browser kept back the last of it past `HAND_OVER_SECS`
+const CUT_SHORT: &str = " (the browser held back its last moment, so it may end a little early)";
+
 /// what to add to what is said of a take that dropped audio, or fell silent in places (`take::hushed`)
-fn take_note(dropouts: usize, hushed: usize) -> String {
+fn take_note(dropouts: usize, hushed: usize, cut: bool) -> String {
     let mut note = String::new();
+    if cut {
+        note += CUT_SHORT;
+    }
     if dropouts > 0 {
         let times = if dropouts == 1 { "once".to_string() } else { format!("{dropouts} times") };
         note += &format!(" (it dropped audio {times}: other apps may be busy with the audio)");
@@ -1366,7 +1382,7 @@ fn done(cx: &mut Cx) {
             r.status = Some((false, "the take is silent: nothing came in from the input".into()));
         }
         Ok(Take::Audio { wav, secs, dropouts, hushed, .. }) => {
-            r.note = take_note(dropouts, hushed);
+            r.note = take_note(dropouts, hushed, live.gave_up);
             let keep = if asked.is_some() { "send it" } else { "keep it" };
             r.status =
                 Some((true, format!("{secs:.1} s recorded: play it back, record it again, or {keep}{}", r.note)));
@@ -1540,8 +1556,11 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     }
     let r = &mut cx.view.record;
     if let Some(asked) = r.live.as_ref().and_then(|l| l.stopping) {
-        // a second is far longer than the recorder takes to hand over what it held
-        if r.live.as_ref().is_some_and(|l| l.recorder.drained()) || now - asked > 1.0 {
+        let drained = r.live.as_ref().is_some_and(|l| l.recorder.drained());
+        if drained || now - asked > HAND_OVER_SECS {
+            if let Some(l) = r.live.as_mut() {
+                l.gave_up = !drained;
+            }
             done(cx);
         } else {
             ctx.request_repaint();

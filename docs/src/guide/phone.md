@@ -71,7 +71,9 @@ phone's own speaker is taken off.
   in about half a second. Move your finger a few millimetres along the record (further than a fingertip shifts as you
   press harder) and it grabs: the record goes with it until you lift it, to scratch or to spin it by hand, and holds
   still while your finger does. It follows your finger's path as smoothly as your finger moves, a few hundredths of a
-  second behind it, since a phone tells the page where a moving finger is only 60 or 120 times a second. Let go while moving and the record runs on at the speed you gave it, up to four times
+  second behind it, since a phone tells the page where a moving finger is only 60 or 120 times a second (on a slow or
+  busy phone, which hears of it later and in bursts, up to a tenth of a second or so behind, rather than stuttering).
+  Let go while moving and the record runs on at the speed you gave it, up to four times
   its own, so a swipe spins it faster, and a swipe backwards spins it back a moment, until the slipmat brings it to the
   platter's speed (with the motor off, to rest). The motor, like a DJ's turntable's, brings the platter up to speed in a
   third of a second, and its brake stops it as fast. A spot under your finger shows how hard it brakes, and a ring that
