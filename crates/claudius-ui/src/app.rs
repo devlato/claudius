@@ -803,6 +803,7 @@ impl Studio {
         }
         // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
+        plan.tell("recording", if self.view.record.recording_now() { "yes" } else { "" });
         plan.tell("mic", &panels::transport::mic_told(&self.view));
         plan.tell("import", &self.view.import.told());
         plan.tell("library", &self.view.import.listed());

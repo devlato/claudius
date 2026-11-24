@@ -106,8 +106,10 @@ test.describe("recording in the browser", () => {
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      // the take starts once the page holds the song, ready to play: a slow computer takes a while to load and decode it
-      const plan = "await:audio;wait:1;record;wait:2;rec:start;wait:9;rec:stop;wait:2;rec:keep;wait:5";
+      // the take starts once the page holds the song, ready to play: a slow computer takes a while to load and decode it;
+      // and it is timed from when it records (its count-in over), not from when it was asked for: a busy computer may
+      // start the song seconds late
+      const plan = "await:audio;wait:1;record;wait:2;rec:start;await:recording;wait:6;rec:stop;wait:2;rec:keep;wait:5";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
@@ -124,8 +126,8 @@ test.describe("recording in the browser", () => {
       const take = state.song.tracks.find((t) => t.name === "take1");
       expect(take, "the take is a track of the song").toBeTruthy();
       expect(take.kind).toBe("take");
-      // nine seconds of the plan, less the bar of count-in and the browser's start (which took more than three seconds
-      // on a busy computer): four to seven seconds of the tone, which squeezes into far more than silence would
+      // the six seconds the plan records for, from the take's first moment, give about six seconds of the tone, which
+      // squeezes into far more than silence would
       const files = takes(c.home);
       expect(files).toHaveLength(1);
       const info = flacInfo(files[0]);
