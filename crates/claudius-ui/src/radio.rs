@@ -164,11 +164,22 @@ fn seed() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(1, |d| d.as_millis() as u64)
 }
 
-/// a song placed in the stream: where its frame 0 falls, where the change into it begins, when it is on air, and how
-/// it came in
+/// where a song's frame 0 falls in the stream when it goes on from its frame `then` once a change of `mixed` frames from
+/// `change_at` is over: before the stream's start when a skip early in the stream brings it in from late in its intro
+fn frame_zero(change_at: u64, mixed: usize, then: usize) -> i64 {
+    change_at as i64 + mixed as i64 - then as i64
+}
+
+/// how far into a song whose frame 0 falls at `start` the stream is at `clock`, in frames: none before its frame 0
+fn into(clock: u64, start: i64) -> u64 {
+    (clock as i64 - start).max(0) as u64
+}
+
+/// a song placed in the stream: where its frame 0 falls (before the stream's start when a skip early in the first song
+/// brings in a song from late in its intro), where the change into it begins, when it is on air, and how it came in
 struct Placing {
     made: Box<Made>,
-    start: u64,
+    start: i64,
     change_at: u64,
     on_air_at: u64,
     said: String,
@@ -359,7 +370,7 @@ impl Radio {
             self.said = "On air".into();
             self.on_air = Some(Placing {
                 made,
-                start: clock,
+                start: clock as i64,
                 change_at: clock,
                 on_air_at: clock,
                 said: String::new(),
@@ -367,21 +378,21 @@ impl Radio {
             });
             return;
         };
-        let into_a = clock.saturating_sub(a.start) as usize;
+        let into_a = into(clock, a.start) as usize;
         let c = if std::mem::take(&mut self.skipping) {
             radio::cut(&a.made.song, &made.song, into_a, made.spec.how)
         } else {
             radio::change(&a.made.song, &made.song, made.spec.how, into_a + (AHEAD * SRF) as usize)
         };
-        let change_at = a.start + c.at as u64;
+        let change_at = (a.start + c.at as i64).max(0) as u64;
         let mixed = c.mixed.len();
-        let start = change_at + mixed as u64 - c.then as u64;
+        let start = frame_zero(change_at, mixed, c.then);
         let mut program = kept(&self.player.program(), clock, change_at);
         program.push(Placed { at: change_at, audio: Arc::new(c.mixed), from: 0, len: mixed });
         let rest = made.song.audio.len().saturating_sub(c.then);
         program.push(Placed { at: change_at + mixed as u64, audio: made.song.audio.clone(), from: c.then, len: rest });
         self.player.place(program);
-        let on_air_at = if c.blended { change_at } else { start };
+        let on_air_at = if c.blended { change_at } else { start.max(0) as u64 };
         self.next = Some(Placing { made, start, change_at, on_air_at, said: c.said, blended: c.blended });
     }
 
@@ -408,7 +419,7 @@ impl Radio {
     /// the song on air, how far into it the stream is and how long it is, in seconds
     pub fn on_air(&self) -> Option<(&Info, f64, f64)> {
         let a = self.on_air.as_ref()?;
-        let at = self.player.clock().saturating_sub(a.start) as f64 / SRF;
+        let at = into(self.player.clock(), a.start) as f64 / SRF;
         Some((&a.made.info, at.min(a.made.info.seconds), a.made.info.seconds))
     }
 
@@ -570,6 +581,21 @@ mod tests {
             (name.as_str(), bp.genre.as_str(), bp.seed),
             ("blueprint.json", "house", r.on_air.as_ref().unwrap().made.spec.seed)
         );
+    }
+
+    #[test]
+    fn a_skip_early_in_the_stream_into_a_song_from_late_in_its_intro_keeps_its_place() {
+        // a skip a second into the stream, mixed over two bars of a second each into a song from six bars into its
+        // intro, where its beat comes in
+        let (change_at, mixed, then) = (44_100u64, 88_200usize, 264_600usize);
+        let start = frame_zero(change_at, mixed, then);
+        assert!(start < 0, "its frame 0 falls before the stream's start: {start}");
+        // once the mix is over, the stream is where the song goes on from, and a second later a second further
+        let over = change_at + mixed as u64;
+        assert_eq!(into(over, start), then as u64);
+        assert_eq!(into(over + 44_100, start), then as u64 + 44_100);
+        // before a song's frame 0 the stream is at its start
+        assert_eq!(into(0, 10), 0);
     }
 
     /// sixteen bars at 90 BPM of A minor and F major, four bars each, over a kick on every beat, as a record a song may

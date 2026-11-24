@@ -57,7 +57,8 @@ the list before tuning in starts the engine, which says what it plays.
 
 - **Skip** brings the next song in from the playing one's next beat, as a DJ cuts a record short. A song that was to
   blend in (at the playing one's tempo, in a key of its notes) is mixed in over two bars: its bass held back until the
-  second bar, where the basses swap, and the playing song thinned and faded out under it. Another goes in after the
+  second bar, where the basses swap, and the playing song thinned and faded out under it. When its intro has no drums,
+  its last two bars play under the mix, so that the skip lands on its beat rather than in the quiet. Another goes in after the
   playing song's last beat goes into the echo and it is cut, as an echo out ends a song. While the next song is still
   being written, it comes in as soon as it is.
 - **Download** makes an MP3 of the song on air, as it plays, in the engine's worker (as the studio demo

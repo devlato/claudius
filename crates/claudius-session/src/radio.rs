@@ -361,16 +361,18 @@ pub fn cut(a: &Song, b: &Song, now: usize, how: How) -> Change {
     }
 }
 
-/// `b` mixed in under `a` over two of `a`'s bars from `at`, as a DJ cuts a song short: `b` from its start, faded in
-/// over a beat, its bass held back until the second bar, where the basses swap; `a` thinned by a rising high-pass and
-/// faded out over the two bars
+/// `b` mixed in under `a` over two of `a`'s bars from `at`, as a DJ cuts a song short: `b` from two bars before its
+/// beat comes in (the end of an intro without one, or its start), so that the skip lands on its beat, faded in over a
+/// beat, its bass held back until the second bar, where the basses swap; `a` thinned by a rising high-pass and faded out
+/// over the two bars
 fn quick(a: &Song, b: &Song, at: usize) -> Change {
     let bar = a.bar();
     let span = (2.0 * bar).round() as usize;
     let half = bar.round() as usize;
     let beat = (bar / 4.0).round() as usize;
     let swap = half.saturating_sub(beat);
-    let mut b_part = window(&b.audio, 0, span);
+    let from = ((beat_starts(b) as f64 * b.bar()).round() as usize).saturating_sub(span);
+    let mut b_part = window(&b.audio, from, span);
     bass(&mut b_part, |i| ramp_db(i, swap, half, BASS_CUT_DB, 0.0));
     gain(&mut b_part, |i| if i < beat { power(i as f64 / beat.max(1) as f64, true) } else { 1.0 });
     let mut a_part = window(&a.audio, at, span);
@@ -380,7 +382,7 @@ fn quick(a: &Song, b: &Song, at: usize) -> Change {
     let mut mixed = Stereo::zeros(span);
     mixed.mix(&a_part, 1.0);
     mixed.mix(&b_part, 1.0);
-    Change { at, mixed, then: span, said: "skipped to, mixed in over two bars".into(), blended: true }
+    Change { at, mixed, then: from + span, said: "skipped to, mixed in over two bars".into(), blended: true }
 }
 
 /// When `a`'s beat stops before its end (an outro without drums) or `b`'s starts after its beginning (an intro without
@@ -834,6 +836,20 @@ mod tests {
         // a next song that came after the first's beat had ended: no hand-over, the change as it was
         let late = change(&a, &b, How::Blend, (58.3 * bar) as usize);
         assert!(!late.said.contains("downbeat"), "{}", late.said);
+    }
+
+    #[test]
+    fn a_skip_lands_on_the_next_song_s_beat_after_an_intro_without_one() {
+        let bar = 2.0 * SRF;
+        let a = song(55.0, 120.0, 64, vec![(0, 64, "verse")]);
+        // an intro of 6 bars without a beat: the skip mixes in its last 2, so that its beat comes in where the mix ends
+        let b = with_beat(song(82.0, 120.0, 64, vec![(0, 6, "intro"), (6, 58, "verse")]), &["verse"]);
+        let s = cut(&a, &b, (10.1 * bar) as usize, How::Blend);
+        assert!(s.blended && s.said == "skipped to, mixed in over two bars", "{}", s.said);
+        assert_eq!((s.mixed.len(), s.then), ((2.0 * bar) as usize, (6.0 * bar) as usize));
+        // a next song that starts on its beat: from its start, as before
+        let on = song(82.0, 120.0, 64, vec![(0, 64, "verse")]);
+        assert_eq!(cut(&a, &on, (10.1 * bar) as usize, How::Blend).then, (2.0 * bar) as usize);
     }
 
     #[test]
