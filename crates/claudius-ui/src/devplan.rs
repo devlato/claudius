@@ -1,8 +1,9 @@
 //! A scripted run for checking the studio without a person at the screen: env `CLAUDIUS_UI_PLAN` is a `;`-separated
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
-//! What the Record window says goes to stderr (the browser's console), as `record: ...`, what claudius said of the
-//! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
+//! What the Record window says goes to stderr (the browser's console), as `record: ...`, and that a take records (its
+//! count-in over, not yet told to stop) as `recording: yes` (`await:recording` after `rec:start` waits for it), what
+//! claudius said of the recording the Add a recording window sent as `import: ...`, what it offers for MIDI
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, what the What claudius hears window shows (its
 //! tempo, key and bars, and what plays where) as `hears: ...`, each toast as `toast: ...`, the graph's node chosen as
 //! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, that the

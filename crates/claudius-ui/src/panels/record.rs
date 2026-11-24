@@ -437,6 +437,15 @@ struct Live {
 }
 
 impl Record {
+    /// whether a take records now: the count-in over and the take not yet told to stop (a scripted run waits for it,
+    /// `await:recording`, so that a take's length does not hang on how fast the browser starts the song)
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub fn recording_now(&self) -> bool {
+        self.live.as_ref().is_some_and(|l| {
+            l.recorder.playing() && l.recorder.time() >= l.take_start && l.stopping.is_none() && !l.measuring
+        })
+    }
+
     /// what the window last said of a take or a measurement, or why it cannot hear the input; or that it is waiting for
     /// the last of a take
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
