@@ -104,8 +104,11 @@ pub fn listened(
     let at = |v: &[String], b: usize| v.get(b).cloned().unwrap_or_default();
     let sings = stems.map_or(x, |s| &s.vocals);
     let sung = claudius::cuts::sung(sings, &analysis::melody::pitches(sings));
+    // each phrase as the sampler cuts it, from the quiet before it to the quiet after it: what a click plays is what a
+    // sample of it holds
+    let phrases = claudius::cuts::cut_phrases(sings, &sung, |t| claudius::sampler::bar_line_before(a, t));
     claudius_api::Listened {
-        phrases: sung.phrases.iter().map(|p| [p.start, p.end]).collect(),
+        phrases: phrases.iter().map(|p| [p.start, p.end]).collect(),
         waveform: crate::views::waveform_of(x, 1000),
         name: name.to_string(),
         secs: x.len() as f64 / claudius::config::SRF,

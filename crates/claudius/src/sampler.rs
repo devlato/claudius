@@ -764,6 +764,12 @@ fn bar_time(a: &Analysis, k: i64) -> f64 {
     }
 }
 
+/// The bar line at or before `t` seconds into the recording `a` analyzed, where the sampler cuts a phrase sung from
+/// there: its own bar lines, and a grid of `a.bar_secs` before the first of them and after the last
+pub fn bar_line_before(a: &Analysis, t: f64) -> f64 {
+    bar_time(a, bar_of(a, t))
+}
+
 /// the bar `t` seconds into the recording falls in, as `bar_time` counts them
 fn bar_of(a: &Analysis, t: f64) -> i64 {
     let (start, end, bar) = (a.bar_start(0), a.bar_start(a.bars), a.bar_secs.max(1e-3));
