@@ -51,7 +51,8 @@ test.describe("a phone with the demo", () => {
       // bars played along with it (phone.spec.mjs checks that take)
       const take = async () => {
         for (let i = 0; i < 3; i++) {
-          await phone.waitForFunction(() => transport.playing, null, { timeout: 60_000 });
+          // a demo reloaded, or a tab that took the room, renders its song before it plays: a render's time, as above
+          await phone.waitForFunction(() => transport.playing, null, { timeout: 180_000 });
           const { started } = await phone.evaluate(playTwoBars);
           if (!started) return;
         }
