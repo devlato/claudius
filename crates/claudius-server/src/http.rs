@@ -800,7 +800,7 @@ struct SampleQuery {
     /// sections or kinds, comma-separated
     #[serde(default)]
     sections: Option<String>,
-    /// how it goes in: phrases (when none), passage, chops or stabs
+    /// how it goes in: phrases (when none), passage, chops, stabs, or vocals (its voice through the song)
     #[serde(default)]
     how: Option<String>,
     /// how often each phrase comes round: once, 2, 4, 8, 16 or through (as the song suits, when none)
@@ -822,6 +822,14 @@ async fn sample(State(c): State<Ctx>, Query(q): Query<SampleQuery>, headers: Hea
     }
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
+    // its voice through the song, the song's sections following the recording's, as `sample_song` does with "vocals"
+    if q.how.as_deref().is_some_and(|h| h.trim().eq_ignore_ascii_case("vocals")) {
+        let reply = tokio::task::spawn_blocking(move || app.vocals_bytes(body.to_vec(), &name)).await;
+        return match reply {
+            Ok(r) => Json(r).into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        };
+    }
     let sections = q.sections.unwrap_or_default().split(',').map(|s| s.trim().to_string()).collect();
     let kinds: Vec<String> = q.kinds.unwrap_or_default().split(',').map(|k| k.trim().to_string()).collect();
     let opt = match crate::app::sampling(q.count, q.bars, q.find, sections, q.how.as_deref()).and_then(|o| {

@@ -1509,6 +1509,23 @@ async fn a_remake_stops_between_its_steps_and_the_song_stays_as_it_was() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_recording_sent_as_a_file_has_its_voice_put_through_the_song_as_sample_song_does() {
+    // what the studio's Add a recording sends of a file chosen on its computer for its vocals: the voice's own way in,
+    // which says that there is no song to put it through yet, rather than a way the sampler does not know
+    let app = app();
+    let router = http::router(app.clone(), &Options::default());
+    let wav = claudius::audio::wav_bytes(&claudius::audio::Stereo::zeros(48_000 * 2));
+    let req = Request::post("/api/sample?name=recording.wav&how=vocals")
+        .header(header::HOST, "localhost")
+        .header(header::CONTENT_TYPE, "audio/wav")
+        .body(Body::from(wav))
+        .unwrap();
+    let (s, _, b) = call(&router, req).await;
+    assert!(s == StatusCode::OK && b.contains("then put a recording's voice through it"), "{s}: {b}");
+    assert!(!b.contains("no way 'vocals'"), "{b}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     let app = app();
     let new = Command::NewSong {

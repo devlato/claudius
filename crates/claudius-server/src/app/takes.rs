@@ -184,6 +184,15 @@ impl App {
         r
     }
 
+    /// the voice of a recording sent as its bytes, called `name`, sung through the song (`vocals_audio`): what the
+    /// studio sends of a file chosen on its computer, as `sample_bytes` sends one to sample
+    pub fn vocals_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => self.vocals_audio(&x, name, &take::Sources::default()),
+            Err(e) => no(e, self.version()),
+        }
+    }
+
     /// The voice of recording `x`, called `name`, sung through the song (`remix::vocals_into`): the song's sections
     /// follow the recording's, its verses and choruses over the song's own, and its voice is kept with the song's takes
     /// (`sources`: what the recording credits, which the voice credits too).
