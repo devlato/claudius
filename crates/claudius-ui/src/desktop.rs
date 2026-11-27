@@ -60,8 +60,9 @@ impl Told {
 }
 
 /// a job the studio is busy with: what it is (what its steps say before their colon), since when on the studio's
-/// clock, whether the window was ever away while it ran, and the song's score and version as it began, which what it
-/// came to is told against
+/// clock, whether the window was ever away while it ran, the song's score and version as it began, which what it
+/// came to is told against, the log's last line as it began (the lines after it are the job's), and when the studio
+/// stopped being busy with it, while its end settles (`SETTLE`)
 #[derive(Clone, Debug, PartialEq)]
 pub struct Job {
     name: String,
@@ -69,16 +70,25 @@ pub struct Job {
     away: bool,
     score: Option<f64>,
     version: u64,
+    mark: Option<String>,
+    ended: Option<f64>,
+}
+
+impl Job {
+    /// whether the studio stopped being busy with it and its end is settling
+    pub fn settling(&self) -> bool {
+        self.ended.is_some()
+    }
 }
 
 /// What the studio is at in a frame, as a job's end is told from it: what it is busy with, whether the window is
-/// away, the time on the studio's clock, the log's last line, and the song's title, score and version.
+/// away, the time on the studio's clock, the log, and the song's title, score and version.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct At<'a> {
     pub busy: Option<&'a str>,
     pub away: bool,
     pub now: f64,
-    pub said: Option<&'a str>,
+    pub log: &'a [String],
     pub title: Option<&'a str>,
     pub score: Option<f64>,
     pub version: u64,
@@ -167,12 +177,16 @@ impl Desktop {
             busy: state.busy.as_deref(),
             away,
             now,
-            said: state.log.last().map(String::as_str),
+            log: &state.log,
             title: state.song.as_ref().map(|s| s.title.as_str()),
             score: state.verdict.as_ref().map(|v| v.total),
             version: state.song_version,
         };
         let (busy, done) = step(self.busy.take(), &at);
+        // a job whose end is settling is told once it has settled, though nothing else wakes the window by then
+        if busy.as_ref().is_some_and(Job::settling) {
+            ctx.request_repaint_after(Duration::from_secs_f64(SETTLE));
+        }
         self.busy = busy;
         if let Some((summary, body)) = done {
             tell(ctx, &summary, &body);
@@ -228,26 +242,73 @@ pub fn title(song: Option<&str>) -> String {
 
 /// The job the studio is busy with after a frame, from `was`, the one before it, and what the studio is `at`; and what
 /// to tell of a job that ended (`notice`), one that took `LONG` or more while the window was away at some time. A
-/// job's steps are said after a colon ("evolving: generation 2 of 3"), and are the same job, and so are the steps of
-/// listening to one recording (taken apart, then listened to); another job after it is one of its own.
+/// job's steps are said after a colon ("evolving: generation 2 of 3"), and are the same job, and so are the steps that
+/// go on with it (`goes_on`): a render and the critic's listening to it, the packs one after another, one recording
+/// taken apart and then listened to. A job's end settles for `SETTLE` before it is told, so that a step that goes on
+/// with it after the studio was idle a moment is the same job, and its last lines reach the log; another job after it
+/// is one of its own, and ends the one before at once.
 pub fn step(was: Option<Job>, at: &At) -> (Option<Job>, Option<(String, String)>) {
     let name = at.busy.map(|b| b.split(':').next().unwrap_or(b).trim().to_string());
     match (was, name) {
-        (Some(mut job), Some(name)) if job.name == name || goes_on(&job.name, &name) => {
-            (job.away, job.name) = (job.away || at.away, name);
+        (Some(mut job), Some(name))
+            if (job.name == name || goes_on(&job.name, &name)) && job.ended.is_none_or(|end| at.now - end < SETTLE) =>
+        {
+            job.away |= at.away;
+            job.ended = None;
+            // the critic's listening to a render is the render's last step: the job stays the render it is
+            if !(job.name == "rendering" && name == "listening") {
+                job.name = name;
+            }
             (Some(job), None)
         }
+        (Some(mut job), None) => match job.ended {
+            Some(end) if at.now - end >= SETTLE => (None, told(&job, end, at)),
+            ended => {
+                job.away |= at.away;
+                job.ended = Some(ended.unwrap_or(at.now));
+                (Some(job), None)
+            }
+        },
         (was, name) => {
-            let ended = was.filter(|j| (j.away || at.away) && at.now - j.since >= LONG).map(|j| notice(&j, at));
-            let job = name.map(|name| Job { name, since: at.now, away: at.away, score: at.score, version: at.version });
+            let ended = was.and_then(|j| told(&j, j.ended.unwrap_or(at.now), at));
+            let job = name.map(|name| Job {
+                name,
+                since: at.now,
+                away: at.away,
+                score: at.score,
+                version: at.version,
+                mark: at.log.last().cloned(),
+                ended: None,
+            });
             (job, ended)
         }
     }
 }
 
-/// whether the job `next` goes on with the recording `was` was at: it is taken apart, then listened to
+/// how long a job's end settles before it is told, in seconds
+pub const SETTLE: f64 = 3.0;
+
+/// what to tell of `job`, which ended at `end`: its notice where it took `LONG` or more and the window was away at
+/// some time while it ran, or is as it is told
+fn told(job: &Job, end: f64, at: &At) -> Option<(String, String)> {
+    ((job.away || at.away) && end - job.since >= LONG).then(|| notice(job, at))
+}
+
+/// whether the step `next` goes on with the job `was`: the critic's listening to a render, a pack's download after
+/// another's, and the recording `was` was at taken apart, then listened to
 fn goes_on(was: &str, next: &str) -> bool {
-    matches!((recording(was), recording(next)), (Some(a), Some(b)) if a == b)
+    (was == "rendering" && next == "listening")
+        || (was.starts_with("downloading") && next.starts_with("downloading"))
+        || matches!((recording(was), recording(next)), (Some(a), Some(b)) if a == b)
+}
+
+/// the log's lines written since `job` began: those after the line that was last as it began, or all of them once
+/// that line has rolled out of the log
+fn written<'a>(job: &Job, at: &At<'a>) -> &'a [String] {
+    match job.mark.as_ref().and_then(|m| at.log.iter().rposition(|l| l == m)) {
+        Some(i) => &at.log[i + 1..],
+        None => at.log,
+    }
 }
 
 /// the recording a job listens to, takes apart or remakes, by the words its name puts it in
@@ -269,7 +330,7 @@ fn notice(job: &Job, at: &At) -> (String, String) {
         None => "The song".to_string(),
     };
     let name = job.name.as_str();
-    if at.said.is_some_and(went_wrong) {
+    if written(job, at).iter().any(|l| went_wrong(l)) {
         return (format!("Claudius could not finish {}", doing(name)), "The Log in the studio says why.".into());
     }
     let scores = at.score.map_or_else(String::new, |s| format!("It scores {s:.0} out of 100."));
@@ -313,10 +374,16 @@ fn better(job: &Job, at: &At) -> String {
     }
 }
 
-/// whether the log's last line says the job did not finish
+/// whether a line of the log says the job did not finish: it failed, could not, was stopped or cancelled
 fn went_wrong(said: &str) -> bool {
     let s = said.to_lowercase();
-    s.contains("failed") || s.starts_with("cannot ") || s.starts_with("could not ") || s.contains(" did not ")
+    s.contains("failed")
+        || s.starts_with("cannot ")
+        || s.starts_with("could not ")
+        || s.contains(" did not ")
+        || s.starts_with("stopped")
+        || s.starts_with("cancelled")
+        || s.starts_with("canceled")
 }
 
 /// a job as a person says what claudius could not finish
@@ -331,11 +398,12 @@ fn doing(job: &str) -> String {
 }
 
 /// a job's words with the recording in them as a person knows it: a file's name without its folder or its kind
-/// ("listening to /Users/me/Downloads/Song.mp3", "listening to Song")
+/// ("listening to /Users/me/Downloads/Song.mp3", "listening to C:\Music\Song.mp3": "listening to Song")
 fn shown(words: &str) -> String {
     let mut s = words.to_string();
-    // a path's folders: from the first slash of a word to its last slash
-    if let (Some(first), Some(last)) = (s.find('/'), s.rfind('/')) {
+    // a path's folders: from the word its first slash (or a Windows backslash) is in to its last slash
+    let slash = |c: char| c == '/' || c == '\\';
+    if let (Some(first), Some(last)) = (s.find(slash), s.rfind(slash)) {
         let from = s[..first].rfind(' ').map_or(0, |i| i + 1);
         s.replace_range(from..=last, "");
     }
@@ -405,66 +473,116 @@ mod tests {
         At { busy, away, now, title: Some("Glass Garden"), score: Some(74.0), version: 3, ..At::default() }
     }
 
+    /// the log as a slice of lines, as the state holds it
+    fn log(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(|l| l.to_string()).collect()
+    }
+
+    /// what is told of `job` as the studio stops being busy at `now`: nothing yet, then its notice once it has settled
+    fn ends(job: Option<Job>, at: At) -> Option<(String, String)> {
+        let (job, said) = step(job, &at);
+        assert_eq!(said, None, "not while its end settles");
+        assert!(job.as_ref().is_none_or(Job::settling), "it settles");
+        let settled = At { now: at.now + SETTLE, ..at };
+        let (job, said) = step(job, &settled);
+        assert_eq!(job, None, "told and gone once settled");
+        said
+    }
+
     #[test]
     fn a_long_job_s_end_is_said_when_the_window_was_away_while_it_ran() {
         let (job, said) = step(None, &at(Some("evolving: generation 1 of 3"), false, 0.0));
         assert_eq!(said, None);
         let (job, said) = step(job, &at(Some("evolving: generation 2 of 3"), true, 30.0));
         assert_eq!(said, None, "a step of the same job");
-        let ended = At {
-            score: Some(81.4),
-            version: 9,
-            said: Some("evolved 3 generations: 81.4/100"),
-            ..at(None, false, 90.0)
-        };
-        let (job, said) = step(job, &ended);
+        let lines = log(&["evolved 3 generations: 81.4/100"]);
+        let ended = At { score: Some(81.4), version: 9, log: &lines, ..at(None, false, 90.0) };
         let improved =
             ("Improving \u{201c}Glass Garden\u{201d} is done".to_string(), "It scores 81 now, up from 74.".to_string());
-        assert_eq!((job, said), (None, Some(improved)), "away while it ran, though in front as it ended");
+        assert_eq!(ends(job, ended), Some(improved), "away while it ran, though in front as it ended");
         let (job, _) = step(None, &at(Some("rendering"), true, 50.0));
-        assert_eq!(step(job, &at(None, true, 54.0)).1, None, "a render after an edit");
+        assert_eq!(ends(job, at(None, true, 54.0)), None, "a render after an edit");
         let (job, _) = step(None, &at(Some("remaking a.mp3 as trip hop"), false, 0.0));
-        assert_eq!(step(job, &at(None, false, 90.0)).1, None, "the window in front all along");
+        assert_eq!(ends(job, at(None, false, 90.0)), None, "the window in front all along");
     }
 
     #[test]
     fn a_job_after_another_is_one_of_its_own() {
         let (job, _) = step(None, &at(Some("evolving: generation 3 of 3"), true, 0.0));
-        let (job, said) = step(
-            job,
-            &At {
-                said: Some("no variation beat the current song (74.0; best 71.2)"),
-                ..at(Some("rendering"), true, 60.0)
-            },
-        );
+        let lines = log(&["no variation beat the current song (74.0; best 71.2)"]);
+        let (job, said) = step(job, &At { log: &lines, ..at(Some("rendering"), true, 60.0) });
         let kept = (
             "Improving \u{201c}Glass Garden\u{201d} is done".into(),
             "None of them beat it, so it stays as it was.".into(),
         );
-        assert_eq!(said, Some(kept), "under its own name");
-        assert_eq!(step(job, &at(None, true, 64.0)).1, None, "the render after it took seconds, from when it began");
+        assert_eq!(said, Some(kept), "under its own name, at once: another job began");
+        assert_eq!(ends(job, at(None, true, 64.0)), None, "the render after it took seconds, from when it began");
     }
 
     #[test]
     fn a_job_s_end_says_what_is_ready_in_words_never_the_log_s_line() {
         let (job, _) = step(None, &at(Some("rendering"), true, 0.0));
-        let line = "rendered in 31.2 s: -9.1 LUFS, verdict 72.4 \u{2014} a strong groove";
-        let (_, said) = step(job, &At { said: Some(line), score: Some(72.4), ..at(None, true, 40.0) });
+        let lines = log(&["rendered in 31.2 s: -9.1 LUFS, verdict 72.4 \u{2014} a strong groove"]);
         assert_eq!(
-            said,
+            ends(job, At { log: &lines, score: Some(72.4), ..at(None, true, 40.0) }),
             Some(("\u{201c}Glass Garden\u{201d} is ready to play".into(), "It scores 72 out of 100.".into()))
         );
         let (job, _) = step(None, &at(Some("rendering"), true, 0.0));
-        let (_, said) = step(job, &At { said: Some("render failed: out of memory"), ..at(None, true, 40.0) });
+        let failed = log(&["render failed: out of memory"]);
         assert_eq!(
-            said,
+            ends(job, At { log: &failed, ..at(None, true, 40.0) }),
             Some(("Claudius could not finish rendering the song".into(), "The Log in the studio says why.".into()))
         );
         let (job, _) = step(None, &At { title: None, ..at(Some("rendering"), true, 0.0) });
         assert_eq!(
-            step(job, &At { title: None, ..at(None, true, 40.0) }).1.map(|s| s.0),
+            ends(job, At { title: None, ..at(None, true, 40.0) }).map(|s| s.0),
             Some("The song is ready to play".into())
         );
+    }
+
+    #[test]
+    fn a_render_is_ready_once_the_critic_has_listened_to_it() {
+        let (job, _) = step(None, &at(Some("rendering"), true, 0.0));
+        let (job, said) = step(job, &at(Some("listening"), true, 30.0));
+        assert_eq!(said, None, "the critic's listening is the render's last step");
+        let lines = log(&["rendered in 33.0 s: -9.4 LUFS, verdict 77.0"]);
+        let ended = At { log: &lines, score: Some(77.0), version: 4, ..at(None, true, 45.0) };
+        assert_eq!(
+            ends(job, ended),
+            Some(("\u{201c}Glass Garden\u{201d} is ready to play".into(), "It scores 77 out of 100.".into())),
+            "told once, as a render, with the score the critic gave it"
+        );
+        let (job, _) = step(None, &at(Some("downloading packs"), true, 0.0));
+        let (job, said) = step(job, &at(Some("downloading Virtuosity Drums"), true, 10.0));
+        assert_eq!(said, None, "the packs one after another are one download");
+        assert_eq!(ends(job, at(None, true, 60.0)).map(|s| s.0), Some("The sample packs are downloaded".into()));
+    }
+
+    #[test]
+    fn a_job_that_did_not_finish_says_so_by_its_own_lines() {
+        let before = log(&["render failed: out of memory"]);
+        let (job, _) = step(None, &At { log: &before, ..at(Some("rendering"), true, 0.0) });
+        let after = log(&["render failed: out of memory", "rendered in 30.1 s: -9.0 LUFS, verdict 70.0"]);
+        assert_eq!(
+            ends(job, At { log: &after, ..at(None, true, 40.0) }).map(|s| s.0),
+            Some("\u{201c}Glass Garden\u{201d} is ready to play".into()),
+            "a failure written before the job began is another job's"
+        );
+        let (job, _) = step(None, &at(Some("remaking Down Under.mp3 as trip hop"), true, 0.0));
+        let stopped = log(&["stopped: Down Under.mp3 was not remade"]);
+        assert_eq!(
+            ends(job, At { log: &stopped, ..at(None, true, 60.0) }).map(|s| s.0),
+            Some("Claudius could not finish remaking Down Under as trip hop".into()),
+            "a stopped remake is not remade"
+        );
+        // the line saying it failed reaches the log only after the studio stopped being busy
+        let (job, _) = step(None, &at(Some("taking the groove of beat.wav"), true, 0.0));
+        let (job, said) = step(job, &at(None, true, 30.0));
+        assert_eq!(said, None);
+        let late = log(&["could not take the groove: no drums heard"]);
+        let (job, said) = step(job, &At { log: &late, ..at(None, true, 30.0 + SETTLE) });
+        assert_eq!(job, None);
+        assert_eq!(said.map(|s| s.0), Some("Claudius could not finish taking the groove of beat".into()));
     }
 
     #[test]
@@ -475,11 +593,31 @@ mod tests {
         let listening = format!("listening to {file}");
         let (job, said) = step(job, &at(Some(&listening), true, 50.0));
         assert_eq!(said, None, "the same recording: the work goes on");
-        let (_, said) = step(job, &At { said: Some("analyzed it"), ..at(None, true, 70.0) });
-        assert_eq!(said, Some(("Claudius has listened to Telenova - Paralysis ghosts".into(), String::new())));
+        let lines = log(&["analyzed it"]);
+        assert_eq!(
+            ends(job, At { log: &lines, ..at(None, true, 70.0) }),
+            Some(("Claudius has listened to Telenova - Paralysis ghosts".into(), String::new()))
+        );
+        // with the studio idle a moment between taking it apart and listening to it
+        let (job, _) = step(None, &at(Some(&apart), true, 0.0));
+        let (job, said) = step(job, &at(None, true, 40.0));
+        assert_eq!(said, None, "not told while its end settles");
+        let (job, said) = step(job, &at(Some(&listening), true, 41.0));
+        assert_eq!(said, None, "the listening goes on with it");
+        assert_eq!(
+            ends(job, at(None, true, 70.0)).map(|s| s.0),
+            Some("Claudius has listened to Telenova - Paralysis ghosts".into()),
+            "told once, at the end"
+        );
         let (job, _) = step(None, &at(Some("remaking Down Under.mp3 as trip hop"), true, 0.0));
-        let (_, said) = step(job, &at(None, true, 60.0));
-        assert_eq!(said.map(|s| s.0), Some("Down Under is remade as trip hop".into()));
+        assert_eq!(ends(job, at(None, true, 60.0)).map(|s| s.0), Some("Down Under is remade as trip hop".into()));
+    }
+
+    #[test]
+    fn a_recording_is_told_by_its_name_from_a_windows_path_too() {
+        assert_eq!(shown("listening to C:\\Users\\me\\Music\\Down Under.mp3"), "listening to Down Under");
+        assert_eq!(shown("listening to /Users/me/Music/Down Under.mp3"), "listening to Down Under");
+        assert_eq!(shown("remaking D:\\beats\\loop one.wav as house"), "remaking loop one as house");
     }
 
     #[test]

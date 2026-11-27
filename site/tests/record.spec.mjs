@@ -192,9 +192,10 @@ test.describe("recording in the browser", () => {
       const lines = said(page);
       const answer = heard(page, "heard");
       const ask = JSON.stringify({ cmd: "request_pitch_check" });
-      // the engine answers once the demo song is rendered; the check's six phrases and the gaps to sing them back in
-      // last 40 seconds at 90 BPM
-      const plan = `wait:20;cmd:${ask};wait:10;rec:check;wait:70`;
+      // the engine answers a command once it has rendered the demo song, which a slow computer takes a while to do: the
+      // check is asked for once the page holds the song (a fixed wait raced the render on a slow runner, and the check
+      // started before its window had opened); its six phrases and the gaps to sing them back in last 40 seconds at 90 BPM
+      const plan = `await:audio;wait:1;cmd:${ask};wait:10;rec:check;wait:70`;
       await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 150_000 }).toMatch(/^the pitch check is in/m);
       // the microphone's one tone is some of the notes

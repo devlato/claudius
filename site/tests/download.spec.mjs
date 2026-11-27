@@ -46,7 +46,9 @@ test.describe("the download button", () => {
     const { page, close } = await browser();
     try {
       const download = page.waitForEvent("download", { timeout: 150_000 });
-      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:2;download:mp3;wait:120")}`);
+      // the short song the FLAC test renders (rage at 170 BPM, 2:04): the default one took 2 of the test's 3 minutes to
+      // render and encode on a runner, and more than 3 on a slower one
+      await page.goto(`${c.base}/?mock&genre=rage&seed=2&bpm=170&plan=${encodeURIComponent("wait:2;download:mp3;wait:120")}`);
       const file = await download;
       expect(file.suggestedFilename()).toMatch(/^[a-z0-9-]+\.mp3$/);
       const mp3 = readFileSync(await file.path());
@@ -66,7 +68,8 @@ test.describe("the download button", () => {
     const { page, close } = await browser();
     try {
       const download = page.waitForEvent("download", { timeout: 150_000 });
-      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:2;download:project;wait:120")}`);
+      // the short song, as above
+      await page.goto(`${c.base}/?mock&genre=rage&seed=2&bpm=170&plan=${encodeURIComponent("wait:2;download:project;wait:120")}`);
       const file = await download;
       const name = file.suggestedFilename();
       // a project file of its own, which a browser keeps whole (Safari unpacks a .zip), and inside it a zip
