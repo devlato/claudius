@@ -831,6 +831,22 @@ fn key_caps(p: &egui::Painter, right_center: Pos2, keys: &str) -> f32 {
     x
 }
 
+/// The round button that plays and pauses a player (Infinite Radio's), as the site's radio page has it: a circle of the
+/// accent, the play or pause icon in the ink that reads on it. `label` (Tune in, Play, Pause) is its tip and what a
+/// screen reader says. Returns its response (clicked = toggled).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn round_play(ui: &mut Ui, playing: bool, label: &str, size: f32) -> Response {
+    let (rect, r) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let fill = if r.hovered() { theme::lit(ACCENT, 0.12) } else { ACCENT.into() };
+    ui.painter().circle_filled(rect.center(), size / 2.0, fill);
+    let (icon, nudge) = if playing { (Icon::Pause, 0.0) } else { (Icon::Play, size * 0.04) };
+    let glyph = Rect::from_center_size(rect.center() + vec2(nudge, 0.0), Vec2::splat(size * 0.42));
+    paint_icon(ui.painter(), glyph, icon, theme::ink_on(ACCENT));
+    let r = r.on_hover_text(label).on_hover_cursor(egui::CursorIcon::PointingHand);
+    accessible(ui, &r, CornerRadius::same((size / 2.0) as u8), || WidgetInfo::labeled(Role::Button, true, label));
+    r
+}
+
 /// a small rounded label
 /// a small rounded label; one wider than a whole line of its `Ui` is cut short with its full text on hover, so that it
 /// never widens what holds it

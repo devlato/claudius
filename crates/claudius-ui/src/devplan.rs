@@ -14,7 +14,8 @@
 //! Steps: `wait:<s>`, `await:<thing>` (on once the plan has said something new of it, as `analysis: ...`; two minutes
 //! at most), `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
-//! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
+//! (the Play from a phone window, which has claudius serve the phone's page), `radio` (the Infinite Radio window),
+//! `palette` (the command palette),
 //! `palette:say` (its microphone clicked: it listens, or stops and sends what it heard),
 //! `theme:<name>` (a theme added worn by its name; `theme:` the look again),
 //! `mic:<start|stop>` (New song's From the microphone: its recording started or stopped; what it holds goes out as
@@ -103,6 +104,8 @@ pub enum Step {
     Record,
     /// the Play from a phone window, which has claudius serve the phone's page
     Phone,
+    /// the Infinite Radio window, as its button opens it
+    Radio,
     /// the command palette, opened
     Palette,
     /// its microphone, clicked: it listens, or stops listening and sends what it heard
@@ -299,6 +302,7 @@ impl Plan {
                 }
             },
             "phone" => Some(Step::Phone),
+            "radio" => Some(Step::Radio),
             "palette" => match arg {
                 "" => Some(Step::Palette),
                 "say" => Some(Step::PaletteSay),
