@@ -239,6 +239,11 @@ function seeded(seed) {
   };
 }
 
+// every recording the station has had cut, by its id: the role it was cut for and the search's record of it (its licence
+// in full, what the studio is handed to cut it again). The engine keeps what it has cut, so a later song can play one
+// gathered for an earlier one, and is credited for it as for its own.
+const gathered = new Map();
+
 /** A few recordings for the song `spec` asks for, when its genre `g` is built on samples (`g.sampling`, as the engine
  *  says it), for as long as `ms`: for each role, two of its searches in an order the song's seed picks, the engine
  *  choosing of each search's finds those worth fetching (`choose`: a length the role takes, not cut from someone's
@@ -276,7 +281,9 @@ async function gather(g, spec, ms) {
           if (!res.ok) continue;
           const answer = await engine.ask("recording", rec, new Uint8Array(await res.arrayBuffer()));
           if (answer.ok) {
-            kept.push({ role: role.role, found: results.find((x) => x.id === rec.found.id) });
+            const sample = { role: role.role, found: results.find((x) => x.id === rec.found.id) || rec.found };
+            kept.push(sample);
+            gathered.set(rec.found.id, sample);
             cut = true;
             break;
           }
@@ -291,17 +298,17 @@ async function gather(g, spec, ms) {
 
 /** The song `spec` asks for, written, with the recordings it plays: gathered first when its genre samples (`ms` at
  *  most), then written and rendered (`preview` hears its first bars before); `{ state, audio, samples }`, `samples`
- *  being those of the gathered recordings the song plays (`sampled_from`), each with its role and its record. */
+ *  being every recording the song plays (`sampled_from`), this round's or an earlier one's, each with its role and its
+ *  record. */
 async function written(spec, ms, preview) {
   // a fusion samples as its first genre does
   const g = engine.genres.find((x) => x.name === spec.genre.split("+")[0]);
-  const kept = await gather(g, spec, ms);
+  await gather(g, spec, ms);
   const song = await engine.song(spec, preview);
-  let samples = [];
-  if (kept.length) {
-    const played = new Set(((await engine.ask("sampled_from", {})).found || []).map((f) => f.id));
-    samples = kept.filter((k) => k.found && played.has(k.found.id));
-  }
+  // what the song plays, as the engine says it: what was gathered for it, and anything gathered for an earlier song that
+  // it plays too, each credited with the role it was cut for and the search's record of it
+  const playing = (await engine.ask("sampled_from", {})).found || [];
+  const samples = playing.filter((f) => gathered.has(f.id)).map((f) => gathered.get(f.id));
   return { ...song, samples };
 }
 
@@ -393,8 +400,12 @@ function deck(state, audio, spec) {
   };
 }
 
-/** the song on deck `d` on a fresh deck, for one whose source was scheduled to start and is let go of instead */
-const again = (d) => deck(d.state, d.src.buffer, d.spec);
+/** song `d` on a fresh deck (a skip's), with what it samples, so that its credits and its studio link stay */
+const again = (d) => {
+  const b = deck(d.state, d.src.buffer, d.spec);
+  b.samples = d.samples;
+  return b;
+};
 
 const bar = (d) => 240 / d.bpm;
 
