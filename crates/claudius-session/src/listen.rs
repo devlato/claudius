@@ -106,11 +106,7 @@ pub fn listened(
     let sung = claudius::cuts::sung(sings, &analysis::melody::pitches(sings));
     // each phrase as the sampler cuts it, from the quiet before it to the quiet after it: what a click plays is what a
     // sample of it holds
-    let bar_at = |t: f64| {
-        let k = ((t - a.bar_start(0)) / a.bar_secs.max(1e-3)).floor().max(0.0) as usize;
-        a.bar_start(k.min(a.bars))
-    };
-    let phrases = claudius::cuts::cut_phrases(sings, &sung, bar_at);
+    let phrases = claudius::cuts::cut_phrases(sings, &sung, |t| claudius::sampler::bar_line_before(a, t));
     claudius_api::Listened {
         phrases: phrases.iter().map(|p| [p.start, p.end]).collect(),
         waveform: crate::views::waveform_of(x, 1000),
