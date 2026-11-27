@@ -99,32 +99,34 @@ pub fn list(ui: &mut Ui, a: &mut Assistants, native: Option<&Arc<dyn Native>>) {
     let busy = a.pending.as_ref().map(|(name, _)| name.clone());
     let mut start = None;
     for x in &list {
-        ui.horizontal(|ui| {
-            cell(ui, 120.0, |ui| ui.label(RichText::new(&x.name).color(TEXT).strong()));
-            let (text, color) = match &x.connected {
-                Connected::ThisApp => ("connected".to_string(), theme::GOOD),
-                Connected::Other(cmd) => (format!("connected to another claudius ({cmd})"), theme::WARN),
-                Connected::Http(url) => (format!("connected over HTTP ({url}), while the studio runs"), TEXT_DIM),
-                Connected::No if x.found => ("not connected".to_string(), TEXT_DIM),
-                Connected::No => ("not found on this computer".to_string(), TEXT_FAINT),
-            };
-            cell(ui, 250.0, |ui| ui.add(egui::Label::new(RichText::new(text).size(12.0).color(color)).truncate()));
-            cell(ui, 140.0, |ui| {
-                if busy.as_deref() == Some(x.name.as_str()) {
-                    ui.add(egui::Spinner::new().size(16.0).color(theme::ACCENT));
-                    return;
-                }
-                let label = match x.connected {
-                    Connected::ThisApp => "Connect again",
-                    Connected::Other(_) | Connected::Http(_) => "Use this app",
-                    Connected::No => "Connect",
-                };
-                let accent = x.connected == Connected::No && x.found;
-                if widgets::tool_button(ui, Icon::Plus, label, busy.is_none(), accent).clicked() {
-                    start = Some(x.clone());
-                }
-            });
+        let (text, color) = match &x.connected {
+            Connected::ThisApp => ("connected to this app".to_string(), theme::GOOD),
+            Connected::Other(cmd) => (format!("connected to another claudius ({cmd})"), theme::WARN),
+            Connected::Http(url) => (format!("connected over HTTP ({url}), while the studio runs"), TEXT_DIM),
+            Connected::No if x.found => ("not connected".to_string(), TEXT_DIM),
+            Connected::No => ("not found on this computer".to_string(), TEXT_FAINT),
+        };
+        card(ui, &x.name, RichText::new(text).size(12.0).color(color), |ui| {
             copy_button(ui, &x.command);
+            if busy.as_deref() == Some(x.name.as_str()) {
+                ui.add(egui::Spinner::new().size(16.0).color(theme::ACCENT));
+                return;
+            }
+            let label = match x.connected {
+                Connected::ThisApp => "Connect again",
+                Connected::Other(_) | Connected::Http(_) => "Use this app",
+                Connected::No => "Connect",
+            };
+            // the one to do next, in the accent: an assistant found here and not connected yet
+            let next = x.connected == Connected::No && x.found;
+            let clicked = if next {
+                widgets::primary(ui, label, busy.is_none()).clicked()
+            } else {
+                ui.add_enabled(busy.is_none(), egui::Button::new(label)).clicked()
+            };
+            if clicked {
+                start = Some(x.clone());
+            }
         });
     }
     if let Some(x) = start {
@@ -155,22 +157,27 @@ fn commands(ui: &mut Ui) {
     ui.add_space(6.0);
     for (id, name) in ASSISTANTS {
         let command = format!("claudius connect {id}");
-        ui.horizontal(|ui| {
-            cell(ui, 120.0, |ui| ui.label(RichText::new(name).color(TEXT).strong()));
-            cell(ui, 250.0, |ui| ui.label(RichText::new(&command).monospace().size(12.0).color(TEXT_DIM)));
-            copy_button(ui, &command);
-        });
+        card(ui, name, RichText::new(&command).monospace().size(12.0).color(TEXT_DIM), |ui| copy_button(ui, &command));
     }
 }
 
-/// a cell of a row, `width` wide whatever it holds
-fn cell<R>(ui: &mut Ui, width: f32, add: impl FnOnce(&mut Ui) -> R) -> R {
-    let layout = egui::Layout::left_to_right(egui::Align::Center);
-    ui.allocate_ui_with_layout(vec2(width, 28.0), layout, |ui| {
-        ui.set_width(width);
-        add(ui)
-    })
-    .inner
+/// An assistant as a card of the window: an icon, its name, a line under it (whether and how it has claudius, or the
+/// command that connects it) and what `right` puts at its right, as the window's other cards are
+fn card(ui: &mut Ui, name: &str, line: RichText, right: impl FnOnce(&mut Ui)) {
+    egui::Frame::new().fill(theme::RAISED.into()).corner_radius(8.0).inner_margin(10.0).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            let (tile, _) = ui.allocate_exact_size(vec2(32.0, 32.0), egui::Sense::hover());
+            ui.painter().rect_filled(tile, 6.0, theme::WELL);
+            widgets::paint_icon(ui.painter(), tile.shrink(9.0), Icon::Improve, theme::ACCENT);
+            ui.vertical(|ui| {
+                ui.label(RichText::new(name).color(TEXT).strong().size(13.5));
+                ui.add(egui::Label::new(line).truncate());
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), right);
+        });
+    });
+    ui.add_space(6.0);
 }
 
 fn copy_button(ui: &mut Ui, command: &str) {

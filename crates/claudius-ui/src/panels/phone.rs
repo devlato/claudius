@@ -8,8 +8,8 @@ use eframe::egui::{self, Color32, Rect, RichText, Sense, Ui, vec2};
 use qrcodegen::{QrCode, QrCodeEcc};
 
 use super::{Cx, small};
-use crate::theme::{TEXT, TEXT_DIM};
-use crate::widgets;
+use crate::theme::{self, TEXT, TEXT_DIM};
+use crate::widgets::{self, Icon};
 
 #[derive(Default)]
 pub struct Phone {
@@ -60,7 +60,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
-        .default_width(340.0)
+        .default_width(WIDTH)
         .pivot(egui::Align2::CENTER_TOP)
         .default_pos(ctx.content_rect().center_top() + vec2(0.0, 110.0))
         .show(ctx, |ui| body(ui, cx));
@@ -118,66 +118,102 @@ fn tell(cx: &mut Cx) {
     }
 }
 
+/// the window's width: the QR code and the steps beside it
+const WIDTH: f32 = 560.0;
+
+/// the side of the QR code, its quiet zone in it
+const CODE: f32 = 200.0;
+
+/// what the phone's page is, on the window's first card
+const WHAT: &str = "Your phone as an instrument";
+const ABOUT: &str = "pads, keys and a turntable with this song's sounds, that record takes into it";
+
 fn body(ui: &mut Ui, cx: &mut Cx) {
+    ui.set_width(WIDTH);
     let Some(phone) = cx.state.phone.clone() else {
-        if cx.view.phone.asking {
-            ui.label(RichText::new("Asking claudius for the phone's page…").color(TEXT));
-        } else {
-            // it stopped: the demo opened again in another tab took the phone, or claudius stopped serving the page
-            ui.label(RichText::new("The phone's page is not served here now.").color(TEXT));
-            widgets::foot(ui, |ui| {
-                if widgets::primary(ui, "Serve it here", true).clicked() {
-                    cx.view.phone.serve();
-                }
-                if ui.button("Close").clicked() {
-                    cx.view.phone.open = false;
-                }
-            });
+        let asking = cx.view.phone.asking;
+        widgets::item_card(ui, Icon::Phone, WHAT, ABOUT, |ui| {
+            if asking {
+                ui.spinner();
+            }
+        });
+        ui.add_space(10.0);
+        if asking {
+            ui.label(RichText::new("Getting its page ready for your phone…").color(TEXT_DIM));
+            return;
         }
+        // it stopped: the demo opened again in another tab took the phone, or claudius stopped sharing the page
+        let why = if cx.server.is_some() {
+            "Phones cannot open this song's page now: it was stopped. Share it again to play along."
+        } else {
+            "Phones cannot open this song's page now: the demo opened in another tab took it, or it was stopped."
+        };
+        ui.add(egui::Label::new(RichText::new(why).color(TEXT)).wrap());
+        widgets::foot(ui, |ui| {
+            if widgets::primary(ui, "Share it with my phone", true).clicked() {
+                cx.view.phone.serve();
+            }
+            if ui.button("Close").clicked() {
+                cx.view.phone.open = false;
+            }
+        });
         return;
     };
     cx.view.phone.asking = false;
-    let how = if cx.server.is_some() {
-        "Scan this with your phone's camera. The phone has to be on the same Wi-Fi as this computer."
-    } else {
-        "Scan this with your phone's camera. It plays along with this page through claudius' site, on any network."
-    };
-    ui.label(RichText::new(how).color(TEXT));
-    ui.add_space(10.0);
-    ui.vertical_centered(|ui| qr(ui, &mut cx.view.phone.code, &phone.url));
-    ui.add_space(8.0);
-    ui.add(egui::Label::new(RichText::new(&phone.url).small().color(TEXT_DIM)).selectable(true));
-    ui.add_space(4.0);
-    // a MIDI controller plugged into this computer plays the page in a browser here: on this computer's own address,
-    // which a browser lets use MIDI, as it does the site
-    ui.horizontal(|ui| {
-        ui.hyperlink_to(RichText::new("Open it on this computer").small(), here(&phone.url));
-        ui.label(small("for a MIDI controller plugged in here: drum pads, keys, a jog wheel"));
-    });
-    ui.add_space(8.0);
     let who = match phone.phones {
-        0 => "No phone has it open yet.".to_string(),
-        1 => "A phone is playing along.".to_string(),
-        n => format!("{n} phones are playing along."),
+        0 => "no phone yet".to_string(),
+        1 => "a phone plays along".to_string(),
+        n => format!("{n} phones play along"),
     };
-    ui.label(RichText::new(who).color(TEXT));
-    ui.label(small(
-        "It has pads, keys and a turntable with this song's sounds. Play the song here, tap ● on the phone to record a \
-         take, and tap it again to put the take in the song.",
-    ));
-    // the window's foot: done with it, the page stays served (the phone button stays lit); or no more phones
+    widgets::item_card(ui, Icon::Phone, WHAT, ABOUT, |ui| {
+        let color = if phone.phones > 0 { theme::GOOD } else { theme::TEXT_FAINT };
+        widgets::pill(ui, &who, color);
+    });
+    ui.add_space(12.0);
+    ui.horizontal_top(|ui| {
+        ui.vertical(|ui| {
+            ui.set_width(CODE);
+            qr(ui, &mut cx.view.phone.code, &phone.url);
+            ui.add_space(6.0);
+            ui.add(egui::Label::new(RichText::new(&phone.url).small().color(TEXT_DIM)).selectable(true).wrap());
+        });
+        ui.add_space(14.0);
+        ui.vertical(|ui| {
+            ui.label(RichText::new("To play along").font(theme::medium(14.0)).color(TEXT));
+            ui.add_space(6.0);
+            widgets::numbered(ui, 1, "Point your phone's camera at the code, and open the page it finds.");
+            let network = if cx.server.is_some() {
+                "Keep the phone on the same Wi-Fi as this computer."
+            } else {
+                "Any network will do: the phone plays along with this page through claudius' site."
+            };
+            widgets::numbered(ui, 2, network);
+            widgets::numbered(
+                ui,
+                3,
+                "Play the song here, and the phone follows it. Tap ● on the phone to record a take, and tap it again to \
+                 put the take in the song.",
+            );
+            ui.add_space(8.0);
+            // a MIDI controller plugged into this computer plays the page in a browser here: on this computer's own
+            // address, which a browser lets use MIDI, as it does the site
+            ui.label(small("A MIDI controller plugged in here (drum pads, keys, a jog wheel)?"));
+            ui.hyperlink_to(RichText::new("Open the page on this computer").small(), here(&phone.url));
+        });
+    });
+    // the window's foot: done with it, the page stays open to phones (the phone button stays lit); or no more phones
     widgets::foot(ui, |ui| {
         if widgets::primary(ui, "Done", true).clicked() {
             cx.view.phone.open = false;
         }
         let stop = ui
-            .button("Stop serving the page")
+            .button("Stop sharing")
             .on_hover_text("The phones playing along stop, and this address no longer opens the page.");
         if stop.clicked() {
             cx.view.phone.ask = Some(false);
             cx.view.phone.open = false;
         }
-        ui.label(small("Closed, it stays served."));
+        ui.label(small("Close it, and phones keep playing along."));
     });
 }
 
@@ -196,7 +232,7 @@ fn qr(ui: &mut Ui, code: &mut Option<(String, QrCode)>, url: &str) {
     }
     let Some((_, q)) = code else { return };
     let (n, quiet) = (q.size(), 4);
-    let cell = (220.0 / (n + 2 * quiet) as f32).floor().max(2.0);
+    let cell = (CODE / (n + 2 * quiet) as f32).floor().max(2.0);
     let side = cell * (n + 2 * quiet) as f32;
     let (rect, _) = ui.allocate_exact_size(vec2(side, side), Sense::hover());
     let p = ui.painter();

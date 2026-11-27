@@ -635,10 +635,31 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         r.not_now |= not_now;
         ui.add_space(8.0);
     }
-    ui.label(small(
-        "The song plays from a count-in, and the take records from the first downbeat of its section. Wear \
-         headphones; to hear yourself without delay, monitor through your audio interface.",
-    ));
+    let count = |n: u32| match n {
+        0 => "no count-in".to_string(),
+        1 => "1 bar of count-in".to_string(),
+        n => format!("{n} bars of count-in"),
+    };
+    let title = if song.title.is_empty() {
+        "A take for the song".to_string()
+    } else {
+        format!("A take for “{}”", song.title)
+    };
+    let about = format!(
+        "the song plays from {}, and the take records from the first downbeat of it",
+        if r.settings.count_in == 0 { "the section".to_string() } else { count(r.settings.count_in) }
+    );
+    widgets::item_card(ui, Icon::Record, &title, &about, |ui| {
+        if r.recording() {
+            widgets::pill(ui, "recording", theme::BAD);
+        } else if r.sending {
+            widgets::pill(ui, "on its way into the song", TEXT_DIM);
+        } else if r.held.is_some() {
+            widgets::pill(ui, "a take to keep or throw away", theme::ACCENT);
+        }
+    });
+    ui.add_space(6.0);
+    ui.label(small("Wear headphones. To hear yourself without delay, monitor through your audio interface."));
     ui.add_space(8.0);
     let mut measure = false;
     egui::Grid::new("record-settings").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
@@ -647,27 +668,30 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         ui.end_row();
         ui.label(small("Starts with"));
         ui.add_enabled_ui(!busy, |ui| {
-            ui.horizontal(|ui| {
-                let from = r.from.clone().unwrap_or_default();
-                egui::ComboBox::from_id_salt("record-from").selected_text(&from).width(110.0).show_ui(ui, |ui| {
-                    for s in &song.sections {
-                        ui.selectable_value(&mut r.from, Some(s.name.clone()), &s.name);
+            ui.vertical(|ui| {
+                // the song's sections as chips, as Add a recording offers them: the take starts with the one chosen
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
+                    for sec in &song.sections {
+                        let on = r.from.as_deref() == Some(sec.name.as_str());
+                        if widgets::chip(ui, on, &sec.name, theme::ACCENT).clicked() {
+                            r.from = Some(sec.name.clone());
+                        }
                     }
                 });
-                let count = |n: u32| match n {
-                    0 => "no count-in".to_string(),
-                    1 => "1 bar of count-in".to_string(),
-                    n => format!("{n} bars of count-in"),
-                };
-                egui::ComboBox::from_id_salt("record-count-in").selected_text(count(r.settings.count_in)).show_ui(
-                    ui,
-                    |ui| {
-                        for n in 0..=2 {
-                            ui.selectable_value(&mut r.settings.count_in, n, count(n));
-                        }
-                    },
-                );
-                ui.checkbox(&mut r.settings.click, small("click while recording"));
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    widgets::segmented_small(
+                        ui,
+                        &mut r.settings.count_in,
+                        &[
+                            (0, "no count-in", "the song starts with the section, and the take with it"),
+                            (1, "1 bar", "a bar of the song before the section, to come in on"),
+                            (2, "2 bars", "two bars of the song before the section, to come in on"),
+                        ],
+                    );
+                    ui.checkbox(&mut r.settings.click, small("click while recording"));
+                });
             });
         });
         ui.end_row();
@@ -805,11 +829,13 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.add_space(10.0);
     meter(ui, r.level);
-    ui.add_space(10.0);
-    let mut start = false;
-    let mut stop = false;
-    let mut throw = false;
-    ui.horizontal(|ui| {
+    say_now(ui, r);
+    ui.add_space(8.0);
+    offer_check(ui, cx);
+    let r = &mut cx.view.record;
+    let (mut start, mut stop, mut throw) = (false, false, false);
+    // the window's foot: what records, from the right, then what to do with a take held
+    widgets::foot(ui, |ui| {
         if r.recording() {
             stop = widgets::tool_button(ui, Icon::Stop, "Stop", true, true).clicked();
         } else {
@@ -826,11 +852,6 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
             .clicked();
         }
         if r.held.is_some() && !r.recording() {
-            let playing = r.preview.as_ref().is_some_and(|p| p.is_playing());
-            let (icon, label) = if playing { (Icon::Stop, "Stop playing") } else { (Icon::Play, "Play it back") };
-            r.play |= widgets::tool_button(ui, icon, label, true, false)
-                .on_hover_text("the song from a bar before the take, with the take in it")
-                .clicked();
             let answers =
                 r.held.as_ref().and_then(|h| h.request).is_some_and(|id| asked.as_ref().is_some_and(|t| t.id == id));
             let (label, what) = if answers {
@@ -839,15 +860,17 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                 ("Keep it", "the take goes into the song")
             };
             r.keep |= widgets::tool_button(ui, Icon::Save, label, true, true).on_hover_text(what).clicked();
-            throw = ui.button(small("Throw it away")).clicked();
+            let playing = r.preview.as_ref().is_some_and(|p| p.is_playing());
+            let (icon, label) = if playing { (Icon::Stop, "Stop playing") } else { (Icon::Play, "Play it back") };
+            r.play |= widgets::tool_button(ui, icon, label, true, false)
+                .on_hover_text("the song from a bar before the take, with the take in it")
+                .clicked();
+            throw = ui.button("Throw it away").clicked();
         }
     });
-    say_now(ui, r);
     if throw {
         (r.held, r.preview, r.status) = (None, None, Some((true, "thrown away".into())));
     }
-    ui.add_space(10.0);
-    offer_check(ui, cx);
     if start {
         begin(cx, &song);
     }

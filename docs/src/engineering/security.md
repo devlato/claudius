@@ -95,7 +95,7 @@ random bytes, new each time the page is served, checked in constant time, and ke
 SameSite=Strict` cookie. Without it the answer is 403. The page's answers carry `Referrer-Policy: no-referrer` (its
 address holds the key), `Content-Security-Policy: default-src 'self'` with no inline script, `X-Frame-Options: DENY` and
 `no-store`. The traffic is plain HTTP, like the rest of a LAN claudius: someone who can watch the network can see the
-key and play into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or
+key and play into the song until the page stops, which `DELETE /api/phone`, the window's **Stop sharing** or
 quitting does.
 
 ### The chat's agents
