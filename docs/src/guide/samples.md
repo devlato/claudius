@@ -217,7 +217,10 @@ vocals**, **Whole**, **Its sung phrases**, **Pieces of it** (every kind of piece
 **Chops** and **A stab**. For **Its vocals** the window says what it does to the song, and **Put its vocals in the
 song** does it (undo takes it all back). For the others, **Plays in** chooses the song's sections it goes in
 (none chosen: where it suits), and the button at the foot (**Sample a passage**, **Chop it**, **Sample a stab**) puts
-it in. In the New song dialog, **Sample it into the song** takes a way too.
+it in. In the New song dialog, **Sample it into the song** takes a way too. In a browser, which cannot take the voice
+apart from the band, **Its sung phrases** are found in the whole mix and come out rough, many shorter than a sung line
+(on JamendoLyrics' 79 songs, 46% of them under a second and a half, where the songs' lines run 3 seconds), and the
+window says so; the desktop app takes the voice apart first and finds its phrases whole.
 
 ### What the window hears first
 

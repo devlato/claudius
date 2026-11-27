@@ -53,6 +53,11 @@ const VOCALS_DOES: &str = "The song's sections follow the recording's, bar for b
      drums, sounds and mix; undo takes it all back.";
 const VOCALS_IN_A_BROWSER: &str = "In a browser claudius cannot take a voice apart from the band yet. The desktop app \
      can: it puts the recording's voice through the song, each verse and chorus where it belongs.";
+/// what its sung phrases are in a browser, which cannot take the voice apart from the band (measured on JamendoLyrics'
+/// 79 songs, 22 November: 46% of the boxes found in the whole mix were shorter than 1.5 s, the songs' lines 3 s long)
+const PHRASES_IN_A_BROWSER: &str = "In a browser claudius hears the voice inside the whole mix, so the phrases it finds \
+     are rough, many shorter than a sung line. The desktop app takes the voice apart from the band first and finds its \
+     phrases whole.";
 /// where the desktop app is downloaded
 const GET_THE_APP: &str = "https://claudius.devlato.com/#install";
 
@@ -912,6 +917,11 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     ui.hyperlink_to(RichText::new("Get the desktop app").color(ACCENT), GET_THE_APP);
                 }
             } else {
+                if demo && im.how == "phrases" {
+                    ui.label(RichText::new(PHRASES_IN_A_BROWSER).size(12.0).color(TEXT_DIM));
+                    ui.hyperlink_to(RichText::new("Get the desktop app").color(ACCENT), GET_THE_APP);
+                    ui.add_space(8.0);
+                }
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Where and how often").strong());
                     ui.label(
