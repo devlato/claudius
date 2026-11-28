@@ -2,17 +2,18 @@
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
 //! What the Record window says goes to stderr (the browser's console), as `record: ...`, and that a take records (its
-//! count-in over, not yet told to stop) as `recording: yes` (`await:recording` after `rec:start` waits for it), what
-//! claudius said of the recording the Add a recording window sent as `import: ...`, what it offers for MIDI
-//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, what the What claudius hears window shows (its
-//! tempo, key and bars, and what plays where) as `hears: ...`, each toast as `toast: ...`, the graph's node chosen as
-//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, that the
-//! player holds the song as it is, ready to play, as `audio: loaded` (said only then: `await:audio` first in a plan waits
-//! for it), and what
-//! the command palette shows as `palette: ...` (that it listens, that it hears what was said, or the words in its field
-//! and the first row they find).
+//! count-in over, not yet told to stop) as `recording: yes` (`await:recording` after `rec:start` waits for it), how far
+//! into the take it was, as heard, when it was told to stop as `stopped: ...`, what claudius said of the recording the
+//! Add a recording window sent as `import: ...`, what it offers for MIDI keyboards as `midi: ...`, the last analysis as
+//! `analysis: ...`, what the What claudius hears window shows (its tempo, key and bars, and what plays where) as
+//! `hears: ...`, each toast as `toast: ...`, the graph's node chosen as `graph: ...`, the page a phone plays along on
+//! as `phone: ...`, with how many have it open as `phones: ...`, that the player holds the song as it is, ready to
+//! play, as `audio: loaded` (said only then: `await:audio` first in a plan waits for it), and what the command palette
+//! shows as `palette: ...` (that it listens, that it hears what was said, or the words in its field and the first row
+//! they find).
 //! Steps: `wait:<s>`, `await:<thing>` (on once the plan has said something new of it, as `analysis: ...`; two minutes
-//! at most), `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
+//! at most), `await:<thing>~<words>` (on once what it says of it holds those words, as `await:record~recorded`),
+//! `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page), `radio` (the Infinite Radio window),
 //! `palette` (the command palette),
@@ -150,8 +151,28 @@ pub struct Plan {
     shot: Option<(Arc<AtomicBool>, String, f64)>,
     /// pointer events to feed in, one batch per frame
     input: VecDeque<(Vec<egui::Event>, egui::Modifiers)>,
-    /// a thing the plan waits to hear of anew (`await:<thing>`): what it had said of it, and until when it waits at most
-    awaiting: Option<(String, Option<String>, f64)>,
+    /// what the plan waits to hear of a thing (`await:<thing>`, `await:<thing>~<words>`)
+    awaiting: Option<Awaiting>,
+}
+
+/// a thing the plan waits to hear of: anew, or in these words
+struct Awaiting {
+    thing: String,
+    /// what it had said of it when it began to wait
+    before: Option<String>,
+    /// words what it says of it is to hold, if any; else anything new of it will do
+    words: Option<String>,
+    /// until when it waits at most
+    until: f64,
+}
+
+impl Awaiting {
+    fn heard(&self, said: Option<&String>) -> bool {
+        match &self.words {
+            Some(words) => said.is_some_and(|s| s.contains(words.as_str())),
+            None => said != self.before.as_ref(),
+        }
+    }
 }
 
 /// a line for whoever runs the plan: stderr, or the browser's console
@@ -254,10 +275,11 @@ impl Plan {
         if now < self.until || !self.input.is_empty() {
             return None;
         }
-        // waiting to hear anew of a thing (an analysis, a take): on once it is said, or after two minutes at most
-        if let Some((thing, before, deadline)) = &self.awaiting {
-            let said = self.told.iter().find(|(k, _)| **k == thing.as_str()).map(|(_, v)| v.clone());
-            if said == *before && now < *deadline {
+        // waiting to hear of a thing (an analysis, a take), anew or in some words: on once it is said, or after two
+        // minutes at most
+        if let Some(awaiting) = &self.awaiting {
+            let said = self.told.iter().find(|(k, _)| **k == awaiting.thing.as_str()).map(|(_, v)| v);
+            if !awaiting.heard(said) && now < awaiting.until {
                 return None;
             }
             self.awaiting = None;
@@ -270,8 +292,9 @@ impl Plan {
                 None
             }
             "await" => {
-                let before = self.told.iter().find(|(k, _)| **k == arg).map(|(_, v)| v.clone());
-                self.awaiting = Some((arg.to_string(), before, now + 120.0));
+                let (thing, words) = arg.split_once('~').map_or((arg, None), |(t, w)| (t, Some(w.to_string())));
+                let before = self.told.iter().find(|(k, _)| **k == thing).map(|(_, v)| v.clone());
+                self.awaiting = Some(Awaiting { thing: thing.to_string(), before, words, until: now + 120.0 });
                 None
             }
             "shot" => {
@@ -462,4 +485,22 @@ fn png(image: &egui::ColorImage) -> Vec<u8> {
     chunk(&mut out, b"IDAT", &z);
     chunk(&mut out, b"IEND", &[]);
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Awaiting;
+
+    #[test]
+    fn a_plan_waits_for_something_new_of_a_thing_or_for_the_words_it_names() {
+        let finishing = "finishing ...".to_string();
+        let recorded = "6.0 s recorded: play it back, record it again, or keep it".to_string();
+        let anew = Awaiting { thing: "record".into(), before: Some(finishing.clone()), words: None, until: 0.0 };
+        assert!(!anew.heard(Some(&finishing)));
+        assert!(anew.heard(Some(&recorded)));
+        let words = Awaiting { words: Some("recorded".into()), ..anew };
+        assert!(!words.heard(None));
+        assert!(!words.heard(Some(&finishing)));
+        assert!(words.heard(Some(&recorded)));
+    }
 }

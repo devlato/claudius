@@ -373,6 +373,10 @@ pub struct Record {
     pub play: bool,
     pub keep: bool,
     pub not_now: bool,
+    /// how far into the last take, as heard, it was when it was told to stop (a scripted run checks the take kept
+    /// against it)
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub stopped_into: Option<f64>,
     /// the take request (`request_take`) the window last opened for, and the one a take on its way answers
     asked: u64,
     answers: Option<u64>,
@@ -1362,7 +1366,12 @@ const NOTHING_IN: &str = "nothing is coming in: check the input and its channel,
 /// over the last of what it heard, which `keep_up` waits for.
 pub fn finish(cx: &mut Cx) {
     let now = cx.now;
-    let Some(live) = cx.view.record.live.as_mut() else { return };
+    let r = &mut cx.view.record;
+    let Some(live) = r.live.as_mut() else { return };
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    if live.stopping.is_none() && !live.measuring {
+        r.stopped_into = Some(live.recorder.time() - live.take_start);
+    }
     live.recorder.stop_soon();
     if live.recorder.drained() {
         done(cx);

@@ -106,10 +106,12 @@ test.describe("recording in the browser", () => {
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
+      const stopped = heard(page, "stopped");
       // the take starts once the page holds the song, ready to play: a slow computer takes a while to load and decode it;
-      // and it is timed from when it records (its count-in over), not from when it was asked for: a busy computer may
-      // start the song seconds late
-      const plan = "await:audio;wait:1;record;wait:2;rec:start;await:recording;wait:6;rec:stop;wait:2;rec:keep;wait:5";
+      // it is timed from when it records (its count-in over), not from when it was asked for: a busy computer may start
+      // the song seconds late; and it is kept once the recorder has handed over the last of it, however long that takes
+      const plan =
+        "await:audio;wait:1;record;wait:2;rec:start;await:recording;wait:6;rec:stop;await:record~recorded;rec:keep;wait:5";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 180_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
@@ -133,8 +135,14 @@ test.describe("recording in the browser", () => {
       const info = flacInfo(files[0]);
       expect(info.rate).toBe(48_000);
       expect(info.secs).toBeGreaterThan(2.5);
-      expect(info.secs).toBeLessThan(7.5);
       expect(info.bytes / info.secs, "a tone, not silence").toBeGreaterThan(20_000);
+      // the take runs from its first moment to where it was told to stop, as heard: none of the count-in before it and
+      // nothing after it (a busy computer runs the plan's six seconds long, and the take with them)
+      expect(stopped.length, "the plan said where the take was told to stop").toBeGreaterThan(0);
+      const into = parseFloat(stopped.at(-1));
+      expect(Math.abs(info.secs - into), `a take of ${info.secs} s, told to stop ${into} s in`).toBeLessThan(0.5);
+      // and claudius keeps all the window held
+      expect(Math.abs(info.secs - parseFloat(held)), `a take of ${info.secs} s, held as "${held}"`).toBeLessThan(0.15);
     } finally {
       await close();
       c.stop();
