@@ -154,6 +154,9 @@ pub struct Import {
     /// the Sample window, which shows the pieces offered: whether it is open, what claudius said, and for each piece
     /// of the take it shows whether it goes into the song and whether treated
     pub sampling: bool,
+    /// the Add a recording window was drawn this frame: its pieces, chosen in it, take its place from the next, so that
+    /// one window holds its place in a frame (the two share it)
+    drawn: bool,
     pub sample_said: Option<(bool, String)>,
     choices: (u64, Vec<Choice>),
     /// the offer asked for is on its way: the one claudius holds meanwhile is the last one's, which is not shown; and
@@ -798,6 +801,10 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
             egui::Color32::WHITE,
         );
     }
+    // a recording playing, or loading to play, in this window or in its next step, is drawn as it goes
+    if cx.view.import.player.as_ref().is_some_and(|p| p.is_playing() || p.is_loading()) {
+        ctx.request_repaint_after(std::time::Duration::from_millis(33));
+    }
     // its phrases or pieces being chosen take the window's place (`pieces`): one window, its steps one after another
     if !cx.view.import.open || cx.view.import.sampling {
         return;
@@ -812,9 +819,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     {
         im.take_up(ctx, h, server.as_deref());
     }
-    if im.player.as_ref().is_some_and(|p| p.is_playing() || p.is_loading()) {
-        ctx.request_repaint_after(std::time::Duration::from_millis(33));
-    }
+    im.drawn = true;
     let sections: Vec<String> =
         cx.state.song.as_ref().map(|s| s.sections.iter().map(|s| s.name.clone()).collect()).unwrap_or_default();
     let mut open = true;
@@ -1168,6 +1173,11 @@ fn sample(
 /// marked on its timeline, each to hear as it was cut and treated and ticked to go into the song either way; how often
 /// they come round, another take of them, and the ticked put in the song.
 pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
+    // in the frame its phrases were chosen in, the Add a recording window was drawn: this step takes its place in the next
+    if std::mem::take(&mut cx.view.import.drawn) && cx.view.import.sampling {
+        ctx.request_repaint();
+        return;
+    }
     if !cx.view.import.sampling {
         return;
     }
