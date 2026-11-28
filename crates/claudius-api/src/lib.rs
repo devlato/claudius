@@ -524,9 +524,10 @@ pub struct SampleRoleInfo {
 /// The genres that answer `query`, best first: each of its words begins a word of a genre's name, one of its other
 /// names (`aliases`), its family or its description, or a run of them typed together ("hiphop" finds hip hop; "rap"
 /// finds cloud rap, not trap); or, typed with a slip (`near`), a word of its name, other names or family ("tehcno",
-/// "hosue"). One that the whole query names, or names otherwise, comes first; then those whose name or other names hold
-/// its words, those whose family does, and those whose description does, each word found as typed before one found
-/// through a slip. An empty query answers every genre.
+/// "hosue"). Only a word that begins no genre's words as typed is read as one typed with a slip: "funk" typed right
+/// finds funk and not pop punk's "punk", a letter away. One that the whole query names, or names otherwise, comes
+/// first; then those whose name or other names hold its words, those whose family does, and those whose description
+/// does, each word found as typed before one found through a slip. An empty query answers every genre.
 pub fn search_genres<'a>(genres: &'a [GenreInfo], query: &str) -> Vec<&'a GenreInfo> {
     search_genres_by(genres, query, true)
 }
@@ -537,48 +538,76 @@ pub fn search_genres_as_typed<'a>(genres: &'a [GenreInfo], query: &str) -> Vec<&
     search_genres_by(genres, query, false)
 }
 
+/// a genre's words as the search reads them (`search_words`): its name, other names, family and description
+struct GenreWords {
+    name: Vec<String>,
+    aliases: Vec<Vec<String>>,
+    family: Vec<String>,
+    description: Vec<String>,
+}
+
+impl GenreWords {
+    fn of(g: &GenreInfo) -> GenreWords {
+        GenreWords {
+            name: search_words(&g.name),
+            aliases: g.aliases.iter().map(|a| search_words(a)).collect(),
+            family: search_words(&g.family),
+            description: search_words(&g.description),
+        }
+    }
+}
+
 fn search_genres_by<'a>(genres: &'a [GenreInfo], query: &str, slipped: bool) -> Vec<&'a GenreInfo> {
     let asked = search_words(query);
     if asked.is_empty() {
         return genres.iter().collect();
     }
     let whole = asked.concat();
+    let words: Vec<GenreWords> = genres.iter().map(GenreWords::of).collect();
+    // a word that begins some genre's words as typed is taken as typed; only one that finds nothing so is read as a word
+    // typed with a slip, which would otherwise find a genre a letter away from a word typed right
+    let as_typed = |w: &str| {
+        words.iter().any(|g| {
+            begins(&g.name, w)
+                || g.aliases.iter().any(|a| begins(a, w))
+                || begins(&g.family, w)
+                || begins(&g.description, w)
+        })
+    };
+    let slip: Vec<bool> = asked.iter().map(|w| slipped && !as_typed(w)).collect();
     let mut found: Vec<(u32, &GenreInfo)> = genres
         .iter()
-        .filter_map(|g| {
-            let name = search_words(&g.name);
-            let aliases: Vec<Vec<String>> = g.aliases.iter().map(|a| search_words(a)).collect();
-            let family = search_words(&g.family);
-            let description = search_words(&g.description);
+        .zip(&words)
+        .filter_map(|(g, GenreWords { name, aliases, family, description })| {
             let named = name.concat() == whole || aliases.iter().any(|a| a.concat() == whole);
             let mut score = if named {
                 100
             } else if family.concat() == whole {
                 20
-            } else if slipped
+            } else if slip.iter().any(|s| *s)
                 && (near_all(&name.concat(), &whole) || aliases.iter().any(|a| near_all(&a.concat(), &whole)))
             {
                 60
             } else {
                 0
             };
-            for w in &asked {
-                let weight = if begins(&name, w) {
+            for (w, slip) in asked.iter().zip(&slip) {
+                let weight = if begins(name, w) {
                     8
                 } else if aliases.iter().any(|a| begins(a, w)) {
                     6
-                } else if begins(&family, w) {
+                } else if begins(family, w) {
                     4
-                } else if begins(&description, w) {
+                } else if begins(description, w) {
                     1
-                } else if !slipped {
+                } else if !slip {
                     0
-                } else if near(&name, w) {
+                } else if near(name, w) {
                     5
                 } else if aliases.iter().any(|a| near(a, w)) {
                     3
                 } else {
-                    u32::from(near(&family, w)) * 2
+                    u32::from(near(family, w)) * 2
                 };
                 if weight == 0 && !named {
                     return None;
@@ -2925,10 +2954,23 @@ mod tests {
         assert_eq!(names("hip hpo"), ["boom_bap", "cloud_rap", "trap"], "three letters, two swapped");
         assert_eq!(names("rap"), ["cloud_rap"], "a short word is no slip of a longer one: still no trap");
         assert_eq!(names("hoose"), ["house", "deep_house"], "a letter for another");
-        // a word found as typed ranks before one found through a slip
+        // a word found as typed is taken as typed: it finds no genre a letter away from it, as "funk" would pop punk's
+        // "punk" and "trap" trip hop's "trip"; a word found nowhere is still read through a slip
         let mixed = [g("house", "house", &[], "House"), g("horse", "country", &[], "Horse: hooves")];
         let found: Vec<&str> = search_genres(&mixed, "horse").iter().map(|g| g.name.as_str()).collect();
-        assert_eq!(found, ["horse", "house"]);
+        assert_eq!(found, ["horse"]);
+        let near = [
+            g("funk", "r&b, soul and funk", &[], "Funk: a syncopated bass"),
+            g("pop_punk", "rock", &[], "Pop punk: fast guitars"),
+            g("trap", "hip hop", &[], "Trap: 808s"),
+            g("trip_hop", "electronic", &[], "Trip hop: slow breaks"),
+        ];
+        let names = |q: &str| search_genres(&near, q).iter().map(|g| g.name.as_str()).collect::<Vec<_>>();
+        assert_eq!(names("funk"), ["funk"], "typed right: no pop punk");
+        assert_eq!(names("punk"), ["pop_punk"], "and no funk");
+        assert_eq!(names("trap"), ["trap"], "no trip hop");
+        assert_eq!(names("fnuk"), ["funk"], "typed with a slip, found through it");
+        assert_eq!(names("trpi hop"), ["trip_hop"]);
         // words not typed into a search (a brief's) are taken as they are
         assert!(search_genres_as_typed(&genres, "hosue").is_empty(), "no slip read");
         let typed: Vec<&str> = search_genres_as_typed(&genres, "hiphop").iter().map(|g| g.name.as_str()).collect();
