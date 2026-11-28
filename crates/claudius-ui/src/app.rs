@@ -964,19 +964,22 @@ impl Studio {
         });
     }
 
-    /// the banner for a newer release: ready to install, or out and updated another way
-    fn update_bar(&mut self, ui: &mut Ui, ctx: &egui::Context, native: &Arc<dyn Native>, now: f64) {
-        // the update put in place (the window closes, and the new Claudius opens), or why not
-        if let Some(answer) = self.updating.as_ref().and_then(|rx| rx.try_recv().ok()) {
-            self.updating = None;
-            match answer {
-                Ok(v) => {
-                    self.toast(format!("updating to Claudius {v}"), true, now);
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-                Err(e) => self.toast(format!("could not update: {e}"), false, now),
+    /// The update put in place in the background (the window closes, and the new Claudius opens), or why not: from
+    /// `logic`, which runs while the window is hidden too, so that a window behind others still closes for the new one.
+    fn finish_update(&mut self, ctx: &egui::Context, now: f64) {
+        let Some(answer) = self.updating.as_ref().and_then(|rx| rx.try_recv().ok()) else { return };
+        self.updating = None;
+        match answer {
+            Ok(v) => {
+                self.toast(format!("updating to Claudius {v}"), true, now);
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            Err(e) => self.toast(format!("could not update: {e}"), false, now),
         }
+    }
+
+    /// the banner for a newer release: ready to install, or out and updated another way
+    fn update_bar(&mut self, ui: &mut Ui, native: &Arc<dyn Native>, now: f64) {
         let update = native.update();
         if self.view.update_asked {
             match &update {
@@ -1428,6 +1431,7 @@ impl eframe::App for Studio {
         #[cfg(not(target_arch = "wasm32"))]
         self.desktop.tick(ctx, &self.state, &mut self.player);
         self.deliver(now);
+        self.finish_update(ctx, now);
         if self.view.download.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
@@ -1484,7 +1488,7 @@ impl eframe::App for Studio {
                 .show(ui, |ui| panels::transport::toolbar(ui, &mut cx));
         }
         if let Some(native) = self.native.clone() {
-            self.update_bar(ui, &ctx, &native, now);
+            self.update_bar(ui, &native, now);
             self.older_bar(ui, &native, now);
         }
         if self.fallback_to_demo && !self.link.ever && !self.link.mock && self.link.error.is_some() {
