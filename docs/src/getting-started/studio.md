@@ -505,6 +505,17 @@ shortcuts**), and every action is in the command palette, with its key. Cmd is C
 | N | a new song |
 | Cmd+O, Cmd+S | open a song; save it (download it in the demo) |
 | R | record a take |
+| I | add a recording, or sample one |
+| T | add a track |
+| Shift+R | Infinite Radio |
+| P | play from a phone |
+| C | the chat with an assistant |
+| Shift+N | open an example song |
+| Shift+Space | stop |
+| Cmd+Enter | render the song (in the script editor: run the script) |
+| Shift+V, Shift+E | try variations; improve the song (both start a job, which Shift keeps from a stray key) |
+| Shift+F | fix what the critic found |
+| Shift+Cmd+E | release the song |
 | 1 to 6, 9 | the tabs: Drums, Instruments, Notes, Chords, Mixer, Sounds; Log |
 | 7, 8 | the Script view, the Signal flow view; the same key again, back to the arrangement |
 | G | the Signal flow view, and back to the arrangement |
@@ -517,7 +528,6 @@ shortcuts**), and every action is in the command palette, with its key. Cmd is C
 | ↑ ↓ | select the track above or below: with the section, a cell of the arrangement |
 | Enter, Delete | switch the selected cell's track on or off in its section; off |
 | Escape | let go of the control that has the keyboard; then close the window on top; then back to the arrangement from another view; then let go of the selected track |
-| Cmd+Enter | run the script, in the script editor |
 | Alt+↑ Alt+↓ | in the script editor: the number at the cursor up or down by its last digit (Shift: ten times as much), and the script runs |
 
 A control that has the keyboard has an orange ring, and keeps Space, Enter and the arrows for itself: the keys of the

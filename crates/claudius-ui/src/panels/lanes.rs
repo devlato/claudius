@@ -1442,12 +1442,18 @@ fn headers(ui: &mut Ui, cx: &mut Cx, song: &SongView, map: &Map, lanes: &[Lane],
     }
 }
 
+/// F alone fits the lanes to the view. egui's key match lets through a Shift its pattern does not name, and Shift+F is
+/// the studio's quick fix (the catalogue's), so with Shift held F is left to it.
+fn fit_pressed(i: &mut eframe::egui::InputState) -> bool {
+    !i.modifiers.shift && i.consume_key(Modifiers::NONE, Key::F)
+}
+
 /// the keyboard, with the lanes focused: the arrows choose a block (its settings in the inspector), Delete takes it
 /// out, B switches it off or on, F fits, + and − zoom
 fn keys(ui: &mut Ui, cx: &mut Cx, _song: &SongView, lanes: &[Lane], world: Vec2, view: Vec2, origin: Pos2) {
     let pressed = |ui: &mut Ui, k: Key| ui.input_mut(|i| i.consume_key(Modifiers::NONE, k));
     let g = &mut cx.view.graph;
-    if pressed(ui, Key::F) {
+    if ui.input_mut(fit_pressed) {
         (g.zoom, g.pan) = fitted(world, view);
     }
     let centre = origin + view / 2.0;
@@ -1532,6 +1538,27 @@ fn keys(ui: &mut Ui, cx: &mut Cx, _song: &SongView, lanes: &[Lane], world: Vec2,
 mod tests {
     use super::*;
     use claudius_api::TrackView;
+
+    /// F alone fits the lanes; Shift+F is left for the studio's quick fix, the key still there after them
+    #[test]
+    fn f_fits_and_shift_f_is_left_to_the_quick_fix() {
+        let ctx = eframe::egui::Context::default();
+        for (modifiers, fits, left) in [(Modifiers::NONE, true, false), (Modifiers::SHIFT, false, true)] {
+            let key =
+                eframe::egui::Event::Key { key: Key::F, physical_key: None, pressed: true, repeat: false, modifiers };
+            let mut got = (false, false);
+            // the modifiers held, as egui hears them change, then the key
+            let held = eframe::egui::Event::ModifiersChanged(modifiers);
+            let input = eframe::egui::RawInput { events: vec![held, key], ..Default::default() };
+            let mut full = ctx.run_ui(input, |ui| {
+                got.0 = ui.input_mut(fit_pressed);
+                got.1 = ui.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::F));
+            });
+            // the fonts' textures, which nothing draws here
+            full.textures_delta.clear();
+            assert_eq!(got, (fits, left), "{modifiers:?}");
+        }
+    }
 
     fn song() -> SongView {
         let track = |name: &str, bus: &str, fx: Vec<Value>| TrackView {

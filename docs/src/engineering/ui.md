@@ -88,8 +88,8 @@ and the part it is on shows a ring (`focus_ring`).
 | verdict | read only: the total, a bar per score, issues with their targets, the ears, the tonal balance | |
 | log | read only: `State.log`, filterable | |
 
-The keys of the studio's actions are the catalogue's (`catalogue::ENTRIES`' `keys`: Space, Home, L, N, R, B, G, 1 to
-9 for the tabs, Cmd+O, Cmd+S, Cmd+Z, Shift+Cmd+Z, ?), which `panels/keys.rs` answers by doing what the palette does
+The keys of the studio's actions are the catalogue's (`catalogue::ENTRIES`' `keys`: Space, Shift+Space, Home, L, N, Shift+N, R, Shift+R, I, T, P, C, B, G, 1 to
+9 for the tabs, Cmd+O, Cmd+S, Cmd+Enter, Cmd+Z, Shift+Cmd+Z, Shift+V, Shift+E, Shift+F, Shift+Cmd+E, ?), which `panels/keys.rs` answers by doing what the palette does
 for the entry (`palette::act`), so a key, the palette and its button never do different things; a test holds every
 key to one egui reads, and no two entries to the same. `keys::dialog` lists them with the keys that move about
 (`MOVING`). The keys that move about are `app.rs`'s: the arrows (a section, a track), Enter and Delete (a cell), and
