@@ -211,6 +211,12 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
                 cx.view.phone.show(served);
             }
         }
+        // Infinite Radio, where it is seen: a station of songs claudius writes as it plays them
+        let tip = "Infinite Radio: songs claudius writes as it plays them, a genre at a time, each mixed into the next as \
+                   a DJ mixes records";
+        if widgets::icon_button(ui, Icon::Radio, 30.0, cx.view.radio.open, true, tip).clicked() {
+            cx.view.radio.open = !cx.view.radio.open;
+        }
         ui.add_space(4.0);
         lcd(ui, cx, [268.0, 268.0, 268.0, 268.0, 214.0, 170.0, 170.0][level.min(6)], level >= 6);
         ui.add_space(8.0);

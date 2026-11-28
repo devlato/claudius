@@ -157,6 +157,8 @@ pub enum Icon {
     Effect,
     Muted,
     Solo,
+    /// Infinite Radio: a dot sending waves both ways, painted (`paint_icon`), as the icon font has no radio
+    Radio,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -166,7 +168,7 @@ fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
 
 impl Icon {
     #[cfg(test)]
-    pub const ALL: [Icon; 36] = [
+    pub const ALL: [Icon; 37] = [
         Icon::Play,
         Icon::Pause,
         Icon::Stop,
@@ -203,6 +205,7 @@ impl Icon {
         Icon::Effect,
         Icon::Muted,
         Icon::Solo,
+        Icon::Radio,
     ];
 
     /// what a track is, as an icon: a drum, keys, a bass, a voice, a pad, a line, a sample or an effect
@@ -266,18 +269,31 @@ impl Icon {
             Icon::Effect => '\u{e1b4}',  // zap
             Icon::Muted => '\u{e1ac}',   // volume-x
             Icon::Solo => '\u{e0f1}',    // headphones
+            // painted (`paint_icon`); where only a glyph can go, the dot at its centre
+            Icon::Radio => '\u{e076}',
         }
     }
 }
 
 /// `icon` drawn to fill `rect`: its glyph, or for Record a red dot, as a recorder's button is, unless it cannot be
-/// pressed
+/// pressed, and for Radio a dot sending waves both ways, in the icon font's stroke (a twelfth of its size)
 pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: impl Into<Color32>) {
     let color: Color32 = color.into();
     let size = rect.width().min(rect.height());
     if icon == Icon::Record {
         let off = color == Color32::from(TEXT_FAINT);
         painter.circle_filled(rect.center(), 0.36 * size, if off { color } else { theme::BAD.into() });
+        return;
+    }
+    if icon == Icon::Radio {
+        let (c, stroke) = (rect.center(), Stroke::new(size / 12.0, color));
+        painter.circle_filled(c, 0.09 * size, color);
+        for r in [0.22 * size, 0.38 * size] {
+            // to the right and to the left of it, a quarter turn each (angles from up, clockwise)
+            for (from, to) in [(0.25 * PI, 0.75 * PI), (1.25 * PI, 1.75 * PI)] {
+                painter.add(Shape::line(arc(c, r, from, to), stroke));
+            }
+        }
         return;
     }
     let font = egui::FontId::new(size, egui::FontFamily::Name(theme::ICONS.into()));

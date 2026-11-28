@@ -82,7 +82,7 @@ for samples in its genre. What a song samples is credited under it while it is o
 
 ## In the app
 
-The studio app has Infinite Radio too: **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an
+The studio app has Infinite Radio too: the radio button on the top bar, beside the phone's (a dot sending waves both ways), **Listen to Infinite Radio** before a song is open, **Infinite Radio…** in the **?** menu, or Cmd+K. It plays the same way, with an
 engine of its own writing the station's songs while your song stays as it is, and the same controls: Tune in, Skip, the
 genres to keep to, **Save this song** (an MP3 in `~/Music/claudius/radio`), and **Open in the studio**, which makes
 the song on air the studio's, the very song you heard (undo brings back the song you had). Your song and the radio take
